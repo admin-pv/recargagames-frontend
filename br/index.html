@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Recarga Games Brasil — Top-Up de Jogos via PIX</title>
+<meta name="description" content="Recarregue seus jogos favoritos como Free Fire, PUBG Mobile, Roblox e mais. Pagamento via PIX, entrega imediata.">
+<link rel="canonical" href="https://recargagames.com/br/">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --orange:#FF6A00;--orange-light:#FF9940;--orange-dark:#CC5500;
+  --purple:#8B5CF6;--lime:#84CC16;
+  --bg:#060A12;--surface:#111827;--surface2:#1a2236;
+  --text:#f1f5f9;--text-muted:#94a3b8;
+  --radius:12px;
+}
+html{scroll-behavior:smooth}
+body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--text);line-height:1.6;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{font-family:'Rajdhani',sans-serif;font-weight:700;line-height:1.2}
+a{color:inherit;text-decoration:none}
+img{max-width:100%;display:block}
+button{cursor:pointer;font-family:inherit;border:none}
+
+/* NAV */
+.nav{position:sticky;top:0;z-index:100;background:rgba(6,10,18,.92);backdrop-filter:blur(16px);border-bottom:1px solid rgba(255,255,255,.06)}
+.nav-inner{max-width:1280px;margin:0 auto;display:flex;align-items:center;gap:20px;padding:12px 24px}
+.nav-logo{display:flex;align-items:center;gap:10px;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:20px;color:var(--orange);white-space:nowrap}
+.nav-links{display:flex;gap:24px;font-size:14px;font-weight:500}
+.nav-links a{color:var(--text-muted);transition:color .2s}
+.nav-links a:hover,.nav-links a.active{color:var(--orange)}
+.nav-search{flex:1;max-width:360px;margin-left:auto;position:relative}
+.nav-search input{width:100%;background:var(--surface);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:8px 12px 8px 36px;color:var(--text);font-size:14px;outline:none;transition:border-color .2s}
+.nav-search input:focus{border-color:var(--orange)}
+.nav-search svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--text-muted)}
+.nav-flag{font-size:22px}
+
+/* HERO / BANNER CAROUSEL */
+.hero{position:relative;overflow:hidden;border-radius:0 0 20px 20px;margin-bottom:40px}
+.hero-carousel{display:flex;transition:transform .5s ease}
+.hero-slide{min-width:100%;position:relative;height:420px;display:flex;align-items:center;justify-content:center;background-size:cover;background-position:center}
+.hero-slide::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(6,10,18,.85),rgba(6,10,18,.4))}
+.hero-slide-link{cursor:pointer}
+.hero-content{position:relative;z-index:2;text-align:center;padding:24px;max-width:700px}
+.hero-badge{display:inline-block;background:var(--orange);color:#fff;font-size:12px;font-weight:600;padding:4px 14px;border-radius:20px;margin-bottom:16px;letter-spacing:1px;text-transform:uppercase}
+.hero-content h1{font-size:clamp(28px,5vw,48px);margin-bottom:12px}
+.hero-content p{color:var(--text-muted);font-size:16px;margin-bottom:28px}
+.hero-dots{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);z-index:4;display:flex;gap:8px}
+.hero-dot{width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,.3);cursor:pointer;transition:background .2s}
+.hero-dot.active{background:var(--orange)}
+.hero-default{height:420px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--surface),var(--bg))}
+
+/* HERO ARROWS */
+.hero-arrow{
+  position:absolute;top:50%;transform:translateY(-50%);
+  z-index:4;background:rgba(0,0,0,.45);backdrop-filter:blur(4px);
+  border:1px solid rgba(255,255,255,.12);color:#fff;
+  width:46px;height:46px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;transition:background .2s,transform .2s;
+  font-size:20px;line-height:1;outline:none;
+}
+.hero-arrow:hover{background:rgba(0,0,0,.72);transform:translateY(-50%) scale(1.08)}
+.hero-arrow:active{transform:translateY(-50%) scale(.95)}
+.hero-arrow.prev{left:18px}
+.hero-arrow.next{right:18px}
+.hero-arrow.hidden{display:none}
+
+/* HERO CTA BUTTON 3D */
+.hero-cta-3d{
+  display:inline-block;
+  padding:13px 38px;
+  border-radius:10px;
+  font-weight:700;
+  font-size:16px;
+  font-family:'Rajdhani',sans-serif;
+  letter-spacing:.5px;
+  color:#fff;
+  text-shadow:0 1px 2px rgba(0,0,0,.45);
+  cursor:pointer;
+  position:relative;
+  transition:transform .12s ease,box-shadow .12s ease;
+  user-select:none;
+  border:none;
+  text-decoration:none;
+}
+.hero-cta-3d:hover{transform:translateY(-3px)}
+.hero-cta-3d:active{transform:translateY(2px)}
+
+.hero-cta-3d.color-orange{
+  background:linear-gradient(180deg,#FF9940 0%,#FF6A00 55%,#CC5500 100%);
+  box-shadow:0 6px 0 #7a2e00,0 8px 20px rgba(255,106,0,.45);
+}
+.hero-cta-3d.color-orange:hover{box-shadow:0 9px 0 #7a2e00,0 12px 24px rgba(255,106,0,.55)}
+.hero-cta-3d.color-orange:active{box-shadow:0 2px 0 #7a2e00,0 4px 10px rgba(255,106,0,.3)}
+
+.hero-cta-3d.color-purple{
+  background:linear-gradient(180deg,#A78BFA 0%,#8B5CF6 55%,#6D28D9 100%);
+  box-shadow:0 6px 0 #3b0f8a,0 8px 20px rgba(139,92,246,.45);
+}
+.hero-cta-3d.color-purple:hover{box-shadow:0 9px 0 #3b0f8a,0 12px 24px rgba(139,92,246,.55)}
+.hero-cta-3d.color-purple:active{box-shadow:0 2px 0 #3b0f8a,0 4px 10px rgba(139,92,246,.3)}
+
+.hero-cta-3d.color-green{
+  background:linear-gradient(180deg,#BEF264 0%,#84CC16 55%,#4D7C0F 100%);
+  box-shadow:0 6px 0 #2d4a08,0 8px 20px rgba(132,204,22,.4);
+  color:#0d1f03;text-shadow:none;
+}
+.hero-cta-3d.color-green:hover{box-shadow:0 9px 0 #2d4a08,0 12px 24px rgba(132,204,22,.5)}
+.hero-cta-3d.color-green:active{box-shadow:0 2px 0 #2d4a08,0 4px 10px rgba(132,204,22,.3)}
+
+.hero-cta-3d.color-gold{
+  background:linear-gradient(180deg,#FDE68A 0%,#F59E0B 55%,#B45309 100%);
+  box-shadow:0 6px 0 #6b3700,0 8px 20px rgba(245,158,11,.45);
+  color:#2d1200;text-shadow:none;
+}
+.hero-cta-3d.color-gold:hover{box-shadow:0 9px 0 #6b3700,0 12px 24px rgba(245,158,11,.55)}
+.hero-cta-3d.color-gold:active{box-shadow:0 2px 0 #6b3700,0 4px 10px rgba(245,158,11,.3)}
+
+.hero-cta-3d.color-pink{
+  background:linear-gradient(180deg,#F9A8D4 0%,#EC4899 55%,#9D174D 100%);
+  box-shadow:0 6px 0 #5c0f2c,0 8px 20px rgba(236,72,153,.45);
+}
+.hero-cta-3d.color-pink:hover{box-shadow:0 9px 0 #5c0f2c,0 12px 24px rgba(236,72,153,.55)}
+.hero-cta-3d.color-pink:active{box-shadow:0 2px 0 #5c0f2c,0 4px 10px rgba(236,72,153,.3)}
+
+/* SECTIONS */
+.section{max-width:1280px;margin:0 auto 48px;padding:0 24px}
+.section-title{font-size:clamp(22px,3vw,30px);margin-bottom:24px;display:flex;align-items:center;gap:10px}
+.section-title .bar{width:4px;height:28px;background:var(--orange);border-radius:2px}
+
+/* FEATURED CARDS */
+.featured-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px}
+.featured-card{display:flex;align-items:center;gap:16px;background:var(--surface);border-radius:var(--radius);padding:16px;border:1px solid rgba(255,255,255,.06);transition:border-color .2s,transform .15s;cursor:pointer}
+.featured-card:hover{border-color:var(--orange);transform:translateY(-2px)}
+.featured-card img,.featured-card .emoji-thumb{width:72px;height:72px;border-radius:10px;object-fit:cover;flex-shrink:0}
+.featured-card .emoji-thumb{display:flex;align-items:center;justify-content:center;font-size:36px;background:var(--surface2)}
+.featured-card h3{font-size:16px;margin-bottom:4px}
+.featured-card .price{color:var(--orange);font-weight:600;font-size:14px}
+
+/* POPULAR GRID */
+.popular-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:16px}
+.game-card{background:var(--surface);border-radius:var(--radius);overflow:hidden;border:1px solid rgba(255,255,255,.06);transition:border-color .2s,transform .15s;cursor:pointer}
+.game-card:hover{border-color:var(--orange);transform:translateY(-3px)}
+.game-card .thumb{width:100%;aspect-ratio:1;object-fit:cover}
+.game-card .emoji-thumb-lg{width:100%;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:48px;background:var(--surface2)}
+.game-card .card-info{padding:12px}
+.game-card .card-info h3{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ALL GAMES GRID */
+.all-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:14px}
+.mini-card{background:var(--surface);border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,.06);transition:border-color .2s,transform .15s;cursor:pointer}
+.mini-card:hover{border-color:var(--orange);transform:translateY(-2px)}
+.mini-card .thumb{width:100%;aspect-ratio:1;object-fit:cover}
+.mini-card .emoji-thumb-sm{width:100%;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:36px;background:var(--surface2)}
+.mini-card .card-info{padding:10px}
+.mini-card .card-info h3{font-size:13px;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mini-card .card-info .meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.badge-dtu,.badge-voucher{font-size:10px;font-weight:600;padding:2px 8px;border-radius:6px;text-transform:uppercase}
+.badge-dtu{background:rgba(255,106,0,.15);color:var(--orange)}
+.badge-voucher{background:rgba(139,92,246,.15);color:var(--purple)}
+.mini-card .price{font-size:12px;color:var(--text-muted)}
+
+/* HOW IT WORKS */
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+.step{text-align:center;padding:32px 20px;background:var(--surface);border-radius:var(--radius);border:1px solid rgba(255,255,255,.06)}
+.step .icon{font-size:40px;margin-bottom:16px}
+.step h3{font-size:18px;margin-bottom:8px}
+.step p{color:var(--text-muted);font-size:14px}
+
+/* PAYMENT */
+.payment-badges{display:flex;gap:12px;flex-wrap:wrap}
+.pay-badge{display:flex;align-items:center;gap:8px;background:var(--surface);padding:12px 20px;border-radius:10px;border:1px solid rgba(255,255,255,.06);font-weight:500;font-size:14px}
+
+/* FOOTER */
+.footer{border-top:1px solid rgba(255,255,255,.06);padding:40px 24px;margin-top:60px}
+.footer-inner{max-width:1280px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px}
+.footer-left{display:flex;align-items:center;gap:12px}
+.footer p{color:var(--text-muted);font-size:13px}
+
+/* SKELETON */
+.skeleton{background:linear-gradient(90deg,var(--surface) 25%,var(--surface2) 50%,var(--surface) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:var(--radius)}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* RESPONSIVE */
+@media(max-width:1024px){
+  .popular-grid{grid-template-columns:repeat(3,1fr)}
+  .all-grid{grid-template-columns:repeat(4,1fr)}
+}
+@media(max-width:768px){
+  .hero-slide{height:320px}
+  .nav-links{display:none}
+  .nav-search{max-width:200px}
+  .popular-grid{grid-template-columns:repeat(3,1fr)}
+  .all-grid{grid-template-columns:repeat(3,1fr)}
+  .steps{grid-template-columns:1fr}
+  .featured-grid{grid-template-columns:1fr}
+  .hero-arrow{width:36px;height:36px;font-size:16px}
+  .hero-cta-3d{padding:11px 28px;font-size:15px}
+}
+@media(max-width:480px){
+  .popular-grid{grid-template-columns:repeat(2,1fr)}
+  .all-grid{grid-template-columns:repeat(2,1fr)}
+  .hero-arrow{width:32px;height:32px;font-size:14px}
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="/br/" class="nav-logo">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 320" height="34" style="display:block">
+        <defs>
+          <linearGradient id="lgT" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#FF9940"/><stop offset="100%" style="stop-color:#FF7A1A"/></linearGradient>
+          <linearGradient id="lgL" x1="100%" y1="0%" x2="0%" y2="100%"><stop offset="0%" style="stop-color:#FF8533"/><stop offset="100%" style="stop-color:#CC5500"/></linearGradient>
+          <linearGradient id="lgR" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#FFB366"/><stop offset="100%" style="stop-color:#FF6A00"/></linearGradient>
+          <linearGradient id="lgB" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#FFD699"/><stop offset="50%" style="stop-color:#FFAA33"/><stop offset="100%" style="stop-color:#FF8800"/></linearGradient>
+        </defs>
+        <g transform="translate(150,105)">
+          <polygon points="-38,-42 38,-42 70,-8 0,62 -70,-8" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="5" stroke-linejoin="round"/>
+          <polygon points="-38,-42 38,-42 70,-8 -70,-8" fill="url(#lgT)"/>
+          <line x1="-70" y1="-8" x2="70" y2="-8" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"/>
+          <polygon points="-70,-8 0,-8 0,62" fill="url(#lgL)"/>
+          <polygon points="70,-8 0,-8 0,62" fill="url(#lgR)"/>
+          <polygon points="-6,-34 18,-34 5,-4 26,-4 -10,44 0,4 -22,4" fill="none" stroke="rgba(255,255,255,0.8)" stroke-width="5.5" stroke-linejoin="round" stroke-linecap="round"/>
+          <polygon points="-6,-34 18,-34 5,-4 26,-4 -10,44 0,4 -22,4" fill="url(#lgB)"/>
+          <g fill="#FFD699"><polygon points="58,-58 61,-49 70,-46 61,-43 58,-34 55,-43 46,-46 55,-49"/></g>
+        </g>
+      </svg>
+      RECARGA GAMES
+    </a>
+    <div class="nav-links">
+      <a href="/br/" class="active">Home</a>
+      <a href="#">Track Order</a>
+    </div>
+    <div class="nav-search">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" id="searchInput" placeholder="Buscar jogo..." autocomplete="off">
+    </div>
+    <span class="nav-flag">🇧🇷</span>
+  </div>
+</nav>
+
+<!-- HERO BANNER -->
+<section class="hero" id="heroSection">
+  <div class="hero-carousel" id="heroCarousel"></div>
+  <div class="hero-dots" id="heroDots"></div>
+  <button class="hero-arrow prev hidden" id="heroPrev" aria-label="Banner anterior">&#8592;</button>
+  <button class="hero-arrow next hidden" id="heroNext" aria-label="Próximo banner">&#8594;</button>
+</section>
+
+<!-- FEATURED -->
+<section class="section" id="featuredSection" style="display:none">
+  <h2 class="section-title"><span class="bar"></span>⭐ Em Destaque</h2>
+  <div class="featured-grid" id="featuredGrid"></div>
+</section>
+
+<!-- POPULAR -->
+<section class="section" id="popularSection">
+  <h2 class="section-title"><span class="bar"></span>🔥 Jogos Populares</h2>
+  <div class="popular-grid" id="popularGrid">
+    <div class="skeleton" style="height:200px"></div>
+    <div class="skeleton" style="height:200px"></div>
+    <div class="skeleton" style="height:200px"></div>
+    <div class="skeleton" style="height:200px"></div>
+    <div class="skeleton" style="height:200px"></div>
+  </div>
+</section>
+
+<!-- ALL GAMES -->
+<section class="section">
+  <h2 class="section-title"><span class="bar"></span>🎮 Todos os Jogos</h2>
+  <div class="all-grid" id="allGrid">
+    <div class="skeleton" style="height:180px"></div>
+    <div class="skeleton" style="height:180px"></div>
+    <div class="skeleton" style="height:180px"></div>
+    <div class="skeleton" style="height:180px"></div>
+    <div class="skeleton" style="height:180px"></div>
+    <div class="skeleton" style="height:180px"></div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="section">
+  <h2 class="section-title"><span class="bar"></span>Como Funciona</h2>
+  <div class="steps">
+    <div class="step"><div class="icon">🎯</div><h3>Escolha o Jogo</h3><p>Selecione o jogo e o pacote de recarga desejado.</p></div>
+    <div class="step"><div class="icon">💳</div><h3>Pague via PIX</h3><p>Realize o pagamento de forma rápida e segura pelo PIX.</p></div>
+    <div class="step"><div class="icon">⚡</div><h3>Receba na Hora</h3><p>Os créditos são entregues automaticamente na sua conta.</p></div>
+  </div>
+</section>
+
+<!-- PAYMENT METHODS -->
+<section class="section">
+  <h2 class="section-title"><span class="bar"></span>Formas de Pagamento</h2>
+  <div class="payment-badges">
+    <div class="pay-badge">💠 PIX</div>
+    <div class="pay-badge">💳 Cartão de Crédito</div>
+    <div class="pay-badge">💳 Cartão de Débito</div>
+    <div class="pay-badge">🟣 NuPay</div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="footer">
+  <div class="footer-inner">
+    <div class="footer-left">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 320" height="28" style="display:block">
+        <defs>
+          <linearGradient id="flgT" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#FF9940"/><stop offset="100%" style="stop-color:#FF7A1A"/></linearGradient>
+          <linearGradient id="flgB" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#FFD699"/><stop offset="50%" style="stop-color:#FFAA33"/><stop offset="100%" style="stop-color:#FF8800"/></linearGradient>
+        </defs>
+        <g transform="translate(150,105)">
+          <polygon points="-38,-42 38,-42 70,-8 0,62 -70,-8" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="5" stroke-linejoin="round"/>
+          <polygon points="-38,-42 38,-42 70,-8 -70,-8" fill="url(#flgT)"/>
+          <polygon points="-70,-8 0,-8 0,62" fill="#CC5500"/>
+          <polygon points="70,-8 0,-8 0,62" fill="#FF6A00"/>
+          <polygon points="-6,-34 18,-34 5,-4 26,-4 -10,44 0,4 -22,4" fill="url(#flgB)" stroke="rgba(255,255,255,0.8)" stroke-width="5.5" stroke-linejoin="round" stroke-linecap="round"/>
+        </g>
+      </svg>
+      <span style="font-family:Rajdhani,sans-serif;font-weight:700;color:var(--orange)">RECARGA GAMES</span>
+    </div>
+    <p>© 2026 Recarga Games Brasil. Todos os direitos reservados. Não somos afiliados aos desenvolvedores dos jogos.</p>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL='https://ashmirzgyuhspymldpfv.supabase.co';
+const SUPABASE_KEY='sb_publishable_rGZqf4_vv2XzF4N3wZUwEg_rVoZUV_j';
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const fmt=n=>'R$ '+Number(n).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+
+function thumbHTML(g,cls='thumb'){
+  if(g.thumbnail_url) return `<img class="${cls}" src="${g.thumbnail_url}" alt="${g.name}" loading="lazy">`;
+  return `<div class="${cls==='thumb'?'emoji-thumb-lg':'emoji-thumb'}" style="background:var(--surface2)">${g.emoji||'🎮'}</div>`;
+}
+function miniThumbHTML(g){
+  if(g.thumbnail_url) return `<img class="thumb" src="${g.thumbnail_url}" alt="${g.name}" loading="lazy">`;
+  return `<div class="emoji-thumb-sm">${g.emoji||'🎮'}</div>`;
+}
+
+/* ──────────────────────────────────────
+   HERO BANNER CAROUSEL
+   ────────────────────────────────────── */
+let currentSlide=0, slideTimer, totalSlides=0;
+
+// Map hex brand colors → CSS class suffix
+function bgColorClass(hex){
+  if(!hex) return 'orange';
+  const map={
+    '#ff6a00':'orange','#FF6A00':'orange',
+    '#8b5cf6':'purple','#8B5CF6':'purple',
+    '#84cc16':'green', '#84CC16':'green',
+    '#f59e0b':'gold',  '#F59E0B':'gold',
+    '#ec4899':'pink',  '#EC4899':'pink',
+  };
+  return map[hex]||map[hex.toLowerCase()]||'orange';
+}
+
+async function loadBanners(){
+  const {data}=await sb.from('banners').select('*').eq('active',true).order('display_order');
+  const el=document.getElementById('heroCarousel');
+  const dots=document.getElementById('heroDots');
+  const prevBtn=document.getElementById('heroPrev');
+  const nextBtn=document.getElementById('heroNext');
+
+  if(!data||!data.length){
+    const {data:sc}=await sb.from('site_content').select('*').in('key',['br_hero_title','br_hero_subtitle','br_hero_badge']);
+    const kv={};(sc||[]).forEach(r=>kv[r.key]=r.value);
+    document.getElementById('heroSection').innerHTML=`
+      <div class="hero-default">
+        <div class="hero-content">
+          ${kv.br_hero_badge?`<span class="hero-badge">${kv.br_hero_badge}</span>`:''}
+          <h1>${kv.br_hero_title||'Recarregue seus Jogos Favoritos'}</h1>
+          <p>${kv.br_hero_subtitle||'Top-up rápido e seguro via PIX. Free Fire, PUBG, Roblox e mais!'}</p>
+          <a href="#popularSection" class="hero-cta-3d color-orange">Ver Jogos</a>
+        </div>
+      </div>`;
+    return;
+  }
+  totalSlides=data.length;
+  el.innerHTML=data.map(b=>{
+    const colorCls='color-'+bgColorClass(b.bg_color||b.brand_color||null);
+    const link=b.cta_link||b.link_url||null;
+    const ctaText=b.cta_text||null;
+    const contentInner=`
+        <h1>${b.title||''}</h1>
+        <p>${b.subtitle||''}</p>
+        ${ctaText?`<span class="hero-cta-3d ${colorCls}" onclick="event.stopPropagation()">${ctaText}</span>`:''}`;
+    if(link){return `<a class="hero-slide hero-slide-link" href="${link}" style="background-image:url('${b.image_url||''}')"><div class="hero-content">${contentInner}</div></a>`;}
+    return `<div class="hero-slide" style="background-image:url('${b.image_url||''}')"><div class="hero-content">${contentInner}</div></div>`;
+  }).join('');
+  dots.innerHTML=data.map((_,i)=>`<div class="hero-dot${i===0?' active':''}" data-i="${i}"></div>`).join('');
+  dots.addEventListener('click',e=>{if(e.target.dataset.i!=null) goSlide(+e.target.dataset.i)});
+  if(totalSlides>1){
+    prevBtn.classList.remove('hidden');
+    nextBtn.classList.remove('hidden');
+    prevBtn.addEventListener('click',()=>heroNav(-1));
+    nextBtn.addEventListener('click',()=>heroNav(1));
+  }
+  startTimer();
+}
+function startTimer(){
+  clearInterval(slideTimer);
+  if(totalSlides>1) slideTimer=setInterval(()=>goSlide((currentSlide+1)%totalSlides),4500);
+}
+function goSlide(i){
+  currentSlide=i;
+  document.getElementById('heroCarousel').style.transform=`translateX(-${i*100}%)`;
+  document.querySelectorAll('.hero-dot').forEach((d,j)=>d.classList.toggle('active',j===i));
+  startTimer();
+}
+function heroNav(dir){
+  if(!totalSlides) return;
+  goSlide((currentSlide+dir+totalSlides)%otalSlides);
+}
+async function loadFeatured(){
+  const {data}=await sb.from('games').select('*').eq('is_featured',true).eq('active',true).order('display_order');
+  if(!data||!data.length) return;
+  document.getElementById('featuredSection').style.display='';
+  document.getElementById('featuredGrid').innerHTML=data.map(g=>`
+    <a href="/br/${g.slug}/" class="featured-card">
+      ${g.thumbnail_url?`<img src="${g.thumbnail_url}" alt="${g.name}">`:`<div class="emoji-thumb">${g.emoji||'🎹'}</div>`}
+      <div><h3>${g.name}</h3><div class="price">A partir de ${fmt(g.min_price_brl||0)}</div></div>
+    </a>`).join('');
+}
+async function loadPopular(){
+  const {data}=await sb.from('games').select('*').eq('is_popular',true).eq('active',true).order('display_order');
+  const el=document.getElementById('popularGrid');
+  if(!data||!data.length){document.getElementById('popularSection').style.display='none';return}
+  el.innerHTML=data.map(g=>`
+    <a href="/br/${g.slug}/" class="game-card">
+      ${thumbHTML(g)}
+      <div class="card-info"><h3>${g.name}</h3></div>
+    </a>`).join('');
+}
+async function loadAll(){
+  const {data}=await sb.from('games').select('*').eq('active',true).order('display_order');
+  const el=document.getElementById('allGrid');
+  if(!data||!data.length){el.innerHTML='<p style="color:var(--text-muted)">Nenhum jogo disponível.</p>';return}
+  window._allGames=data;
+  renderAll(data);
+}
+function renderAll(list){
+  document.getElementById('allGrid').innerHTML=list.map(g=>`
+    <a href="/br/${g.slug}/" class="mini-card">
+      ${miniThumbHTML(g)}
+      <div class="card-info">
+        <h3>${g.name}</h3>
+        <div class="meta">
+          <span class="${g.type==='dtu'?'badge-dtu':'badge-voucher'}">${g.type==='dtu'?'DTU':'Gift Card'}</span>
+          <span class="price">${fmt(g.min_price_brl||0)}</span>
+        </div>
+      </div>
+    </a>`).join('');
+}
+document.getElementById('searchInput').addEventListener('input',e=>{
+  const q=e.target.value.toLowerCase().trim();
+  if(!window._allGames)return;
+  if(!q){renderAll(window._allGames);return}
+  renderAll(window._allGames.filter(g=>g.name.toLowerCase().includes(q)));
+});
+loadBanners();loadFeatured();loadPopular();loadAll();
+</script>
+<script id="game-router">
+(function(){
+const SURL='https://ashmirzgyuhspymldpfv.supabase.co';
+const SKEY='sb_publishable_rGZqf4_vv2XzF4N3wZUwEg_rVoZUV_j';
+async function supa(t,p){const r=await fetch(SURL+'/rest/v1/'+t+'?'+p,{headers:{'apikey':SKEY,'Authorization':'Bearer '+SKEY}});if(!r.ok)throw new Error('Supabase '+t+': '+r.status);return r.json();}
+function fmt(v){if(!v&&v!==0)return'--';return'R$ '+Number(v).toFixed(2).replace('.',',');}
+function thumbEl(game){
+  if(game.thumbnail_url){
+    const src=game.thumbnail_url.replace('/upload/','/upload/c_fill,w_96,h_96,q_auto,f_auto/');
+    return '<img src="'+src+'" style="width:72px;height:72px;border-radius:14px;object-fit:cover;flex-shrink:0;box-shadow:0 4px 16px rgba(0,0,0,.4)" alt="'+game.name+'">';
+  }
+  return '<span style="font-size:52px;line-height:1;flex-shrink:0">'+(game.emoji||'&#127918;')+'</span>';
+}
+const slug=(window.location.pathname.match(/^\/br\/([^\/]+)\/?$/)||[])[1];
+if(!slug||slug==='')return;
+document.addEventListener('DOMContentLoaded',async()=>{
+  document.getElementById('heroSection').style.display='none';
+  document.querySelectorAll('.section').forEach(s=>s.style.display='none');
+  const nav=document.querySelector('.nav');
+  const container=document.createElement('div');
+  container.id='gameDetail';
+  container.innerHTML='<div style="max-width:900px;margin:80px auto;padding:0 16px;text-align:center"><p style="color:rgba(255,255,255,.4)">A carregar...</p></div>';
+  nav.insertAdjacentElement('afterend',container);
+  try{
+    const games=await supa('games','select=id,name,slug,emoji,thumbnail_url&slug=eq.'+slug);
+    if(!games.length){container.innerHTML='<div style="max-width:900px;margin:80px auto;padding:0 16px;text-align:center"><h2 style="color:#fff">Jogo nao encontrado</h2><a href="/br/" style="color:#818cf8">Voltar</a></div>';return;}
+    const game=games[0];
+    document.title=game.name+' - Recarga Games Brasil';
+    const [groups,skusRaw]=await Promise.all([
+      supa('product_groups','select=id,display_name&game_id=eq.'+game.id+'&country_code=eq.br&status=eq.active&order=created_at.asc'),
+      supa('product_group_skus','select=id,group_id,sku_code,priority&order=priority.asc')
+    ]);
+    const skuMap={};
+    skusRaw.forEach(s=>{if(!skuMap[s.group_id])skuMap[s.group_id]=[];skuMap[s.group_id].push(s);});
+    const allCodes=[...new Set(skusRaw.map(s=>s.sku_code))];
+    let priceMap={};
+    if(allCodes.length){
+      const prices=await supa('price_benchmarks','select=product_code,rrp_final&published=eq.true&country_code=eq.br&product_code=in.('+allCodes.join(',')+')');
+      prices.forEach(p=>{priceMap[p.product_code]=p.rrp_final;});
+    }
+    let html='<div style="max-width:900px;margin:0 auto;padding:32px 16px 80px">';
+    html+='<a href="/br/" style="color:rgba(255,255,255,.4);text-decoration:none;font-size:14px;display:inline-flex;align-items:center;gap:6px;margin-bottom:32px"><svg width="16" height="16" fill="none" viewBox="0 0 16 16"><path d="M10 12L6 8l4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Voltar</a>';
+    html+='<div style="display:flex;align-items:center;gap:16px;margin-bottom:36px">'+thumbEl(game)+'<div><h1 style="font-size:28px;font-weight:700;color:#fff;margin:0 0 6px">'+game.name+'</h1><p style="font-size:13px;color:rgba(255,255,255,.4);margin:0">Seleciona o pacote de recarga</p></div></div>';
+    if(!groups.length){
+      html+='<div style="background:#0f1117;border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:48px;text-align:center;color:rgba(255,255,255,.3);font-size:15px">Nenhum pacote disponivel de momento.</div>';
+    }else{
+      html+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px">';
+      groups.forEach(g=>{
+        const skus=(skuMap[g.id]||[]).sort((a,b)=>a.priority-b.priority);
+        const price=skus[0]?priceMap[skus[0].sku_code]:null;
+        html+='<div style="background:#0f1117;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:20px 16px;display:flex;flex-direction:column;gap:8px;transition:border-color .2s" onmouseover="this.style.borderColor=\'rgba(79,70,229,.5)\'" onmouseout="this.style.borderColor=\'rgba(255,255,255,.08)\'">';
+        html+='<div style="font-size:15px;font-weight:600;color:#fff;line-height:1.3">'+g.display_name+'</div>';
+        html+='<div style="margin-top:auto;padding-top:12px;border-top:1px solid rgba(255,255,255,.06)">';
+        html+='<div style="font-size:22px;font-weight:700;color:#4ade80">'+(price?fmt(price):'--')+'</div>';
+        html+='<button onclick="alert(\'Em breve!\')" style="margin-top:10px;width:100%;background:#4f46e5;color:#fff;border:none;border-radius:8px;padding:11px;font-size:13px;font-weight:600;cursor:pointer" onmouseover="this.style.background=\'#4338ca\'" onmouseout="this.style.background=\'#4f46e5\'">Comprar agora</button>';
+        html+='</div></div>';
+      });
+      html+='</div>';
+    }
+    html+='</div>';
+    container.innerHTML=html;
+  }catch(e){
+    container.innerHTML='<div style="max-width:900px;margin:80px auto;padding:0 16px;text-align:center"><p style="color:rgba(255,255,255,.4)">Erro: '+e.message+'</p><a href="/br/" style="color:#818cf8">Voltar</a></div>';
+  }
+});
+})();
+
+</script>
+</body>
+</html>
