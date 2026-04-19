@@ -418,7 +418,7 @@ function goSlide(i){
 }
 function heroNav(dir){
   if(!totalSlides) return;
-  goSlide((currentSlide+dir+totalSlides)%otalSlides);
+  goSlide((currentSlide+dir+totalSlides)%totalSlides);
 }
 async function loadFeatured(){
   const {data}=await sb.from('games').select('*').eq('is_featured',true).eq('active',true).order('display_order');
