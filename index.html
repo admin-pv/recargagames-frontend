@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Recarga Games — Em breve</title>
+<meta name="description" content="A nova plataforma de recarga de games chega em breve no Brasil. Cadastre-se e seja avisado em primeira mão.">
+<meta name="robots" content="noindex, nofollow">
+
+<meta property="og:title" content="Recarga Games — Em breve">
+<meta property="og:description" content="A nova plataforma de recarga de games chega em breve no Brasil.">
+<meta property="og:type" content="website">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #07080F;
+    --bg-2: #0d0e18;
+    --orange: #FF6A00;
+    --orange-dark: #CC5500;
+    --purple: #8B5CF6;
+    --text: #F5F5F7;
+    --text-muted: #8a8a96;
+    --text-faint: #525260;
+    --border: rgba(255,255,255,0.08);
+    --glow-orange: rgba(255,106,0,0.35);
+    --glow-purple: rgba(139,92,246,0.25);
+  }
+
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', -apple-system, sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Background ambient effects */
+  body::before {
+    content: '';
+    position: fixed;
+    top: -200px;
+    left: -200px;
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, var(--glow-orange) 0%, transparent 60%);
+    filter: blur(80px);
+    z-index: 0;
+    pointer-events: none;
+  }
+  body::after {
+    content: '';
+    position: fixed;
+    bottom: -300px;
+    right: -200px;
+    width: 700px;
+    height: 700px;
+    background: radial-gradient(circle, var(--glow-purple) 0%, transparent 60%);
+    filter: blur(80px);
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  /* Subtle grid overlay */
+  .grid-overlay {
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+    background-size: 60px 60px;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 32px 24px 48px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Top bar with logo */
+  .topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 80px;
+  }
+
+  .logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    letter-spacing: 0.06em;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .logo-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--orange);
+    box-shadow: 0 0 12px var(--glow-orange);
+  }
+
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-size: 12px;
+    color: var(--text-muted);
+    letter-spacing: 0.02em;
+  }
+  .status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--orange);
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 var(--glow-orange); }
+    50% { opacity: 0.7; box-shadow: 0 0 0 4px transparent; }
+  }
+
+  /* Hero */
+  .hero {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    max-width: 720px;
+  }
+
+  .eyebrow {
+    font-size: 13px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    margin-bottom: 24px;
+    opacity: 0;
+    animation: fadeUp 0.8s ease-out 0.1s forwards;
+  }
+
+  h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(48px, 9vw, 96px);
+    line-height: 0.95;
+    letter-spacing: 0.005em;
+    margin-bottom: 28px;
+    background: linear-gradient(135deg, var(--text) 0%, var(--text) 60%, var(--purple) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    opacity: 0;
+    animation: fadeUp 0.8s ease-out 0.2s forwards;
+  }
+  h1 .accent {
+    background: linear-gradient(135deg, var(--orange) 0%, var(--orange-dark) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    display: inline-block;
+  }
+
+  .subtitle {
+    font-size: 18px;
+    line-height: 1.6;
+    color: var(--text-muted);
+    max-width: 520px;
+    margin-bottom: 48px;
+    opacity: 0;
+    animation: fadeUp 0.8s ease-out 0.4s forwards;
+  }
+
+  /* Form */
+  .form-wrapper {
+    max-width: 480px;
+    opacity: 0;
+    animation: fadeUp 0.8s ease-out 0.6s forwards;
+  }
+
+  .form-label {
+    font-size: 12px;
+    color: var(--text-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin-bottom: 16px;
+  }
+
+  form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .input {
+    width: 100%;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    color: var(--text);
+    font-size: 15px;
+    font-family: inherit;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .input::placeholder { color: var(--text-faint); }
+  .input:focus {
+    outline: none;
+    border-color: var(--orange);
+    background: rgba(255,255,255,0.05);
+  }
+  .input:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .input-hint {
+    font-size: 12px;
+    color: var(--text-faint);
+    margin-top: -4px;
+    padding-left: 4px;
+  }
+
+  .submit-btn {
+    margin-top: 8px;
+    background: linear-gradient(180deg, #FF9940 0%, var(--orange) 55%, var(--orange-dark) 100%);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 15px 24px;
+    font-size: 15px;
+    font-weight: 600;
+    font-family: inherit;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    box-shadow: 0 6px 0 #7a2e00, 0 8px 24px var(--glow-orange);
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.45);
+  }
+  .submit-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 0 #7a2e00, 0 12px 28px var(--glow-orange); }
+  .submit-btn:active { transform: translateY(2px); box-shadow: 0 3px 0 #7a2e00, 0 4px 12px var(--glow-orange); }
+  .submit-btn:disabled {
+    background: rgba(255,255,255,0.08);
+    color: var(--text-faint);
+    box-shadow: none;
+    cursor: not-allowed;
+    transform: none;
+    text-shadow: none;
+  }
+
+  .form-message {
+    margin-top: 16px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    display: none;
+  }
+  .form-message.success {
+    display: block;
+    background: rgba(132, 204, 22, 0.1);
+    border: 1px solid rgba(132, 204, 22, 0.3);
+    color: #b9e87a;
+  }
+  .form-message.error {
+    display: block;
+    background: rgba(229, 62, 62, 0.1);
+    border: 1px solid rgba(229, 62, 62, 0.3);
+    color: #f4a8a8;
+  }
+
+  /* Footer */
+  .footer {
+    margin-top: 80px;
+    padding-top: 32px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    font-size: 13px;
+    color: var(--text-faint);
+  }
+  .footer-brand { color: var(--text-muted); }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @media (max-width: 600px) {
+    .topbar { margin-bottom: 48px; }
+    .hero { padding: 0; }
+    .footer { flex-direction: column; align-items: flex-start; }
+  }
+</style>
+</head>
+<body>
+<div class="grid-overlay"></div>
+
+<div class="container">
+  <header class="topbar">
+    <div class="logo">
+      RECARGA<span class="logo-dot"></span>GAMES
+    </div>
+    <div class="status-pill">
+      <span class="status-dot"></span>
+      Lançamento em breve
+    </div>
+  </header>
+
+  <main class="hero">
+    <div class="eyebrow">Brasil · 2026</div>
+
+    <h1>
+      Sua recarga,<br>
+      seu game,<br>
+      <span class="accent">sem complicação.</span>
+    </h1>
+
+    <p class="subtitle">
+      A nova plataforma de recarga de games chega em breve no Brasil.
+      Cadastre-se e seja avisado em primeira mão quando a gente abrir.
+    </p>
+
+    <div class="form-wrapper">
+      <div class="form-label">Entre na lista de espera</div>
+      <form id="leadForm" novalidate>
+        <input
+          type="email"
+          name="email"
+          id="email"
+          class="input"
+          placeholder="seu@email.com"
+          required
+          autocomplete="email">
+
+        <input
+          type="tel"
+          name="whatsapp"
+          id="whatsapp"
+          class="input"
+          placeholder="WhatsApp (opcional, com DDD)"
+          autocomplete="tel">
+        <div class="input-hint">Te avisamos antes pelo WhatsApp se preferir</div>
+
+        <button type="submit" class="submit-btn" id="submitBtn">
+          Quero ser avisado
+        </button>
+      </form>
+
+      <div class="form-message" id="formMessage"></div>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-brand">© 2026 Playvision Inc. · Recarga Games</div>
+    <div>contato@playvision.world</div>
+  </footer>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://ashmirzgyuhspymldpfv.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_rGZqf4_vv2XzF4N3wZUwEg_rVoZUV_j';
+
+  const form = document.getElementById('leadForm');
+  const emailInput = document.getElementById('email');
+  const whatsappInput = document.getElementById('whatsapp');
+  const submitBtn = document.getElementById('submitBtn');
+  const messageEl = document.getElementById('formMessage');
+
+  function showMessage(text, type) {
+    messageEl.textContent = text;
+    messageEl.className = 'form-message ' + type;
+  }
+
+  function getUtm() {
+    const params = new URLSearchParams(window.location.search);
+    return {
+      utm_source: params.get('utm_source'),
+      utm_medium: params.get('utm_medium'),
+      utm_campaign: params.get('utm_campaign')
+    };
+  }
+
+  function isValidEmail(email) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  }
+
+  form.addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const email = emailInput.value.trim();
+    const whatsapp = whatsappInput.value.trim();
+
+    if (!isValidEmail(email)) {
+      showMessage('Por favor, informa um email válido.', 'error');
+      return;
+    }
+
+    submitBtn.disabled = true;
+    emailInput.disabled = true;
+    whatsappInput.disabled = true;
+    submitBtn.textContent = 'Enviando...';
+    messageEl.className = 'form-message';
+
+    const utm = getUtm();
+    const payload = {
+      email: email,
+      whatsapp: whatsapp || null,
+      source: 'landing',
+      user_agent: navigator.userAgent,
+      utm_source: utm.utm_source,
+      utm_medium: utm.utm_medium,
+      utm_campaign: utm.utm_campaign
+    };
+
+    try {
+      const response = await fetch(SUPABASE_URL + '/rest/v1/leads', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (response.ok || response.status === 201) {
+        showMessage('Pronto! Você está na lista. A gente te avisa quando abrir.', 'success');
+        form.style.display = 'none';
+      } else {
+        const errorText = await response.text();
+        console.error('Supabase error:', errorText);
+        showMessage('Algo deu errado. Tenta de novo em alguns segundos.', 'error');
+        submitBtn.disabled = false;
+        emailInput.disabled = false;
+        whatsappInput.disabled = false;
+        submitBtn.textContent = 'Quero ser avisado';
+      }
+    } catch (err) {
+      console.error(err);
+      showMessage('Sem conexão. Verifica sua internet e tenta de novo.', 'error');
+      submitBtn.disabled = false;
+      emailInput.disabled = false;
+      whatsappInput.disabled = false;
+      submitBtn.textContent = 'Quero ser avisado';
+    }
+  });
+</script>
+</body>
+</html>
