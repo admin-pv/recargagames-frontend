@@ -37,7 +37,7 @@ A estratégia é definida no Project Claude.ai paralelo (Recarga Games / Playvis
 | Hospedagem | Netlify (team `vinicius-esteves`, conta `admin@playvision.world`) |
 | Repo frontend | `admin-pv/recargagames-frontend` (CD ativo: push `main` → deploy automático) |
 | Site Netlify (frontend) | `gleeful-entremet-47b89b` |
-| Site Netlify (admin) | `boisterous-vacherin-669006` (deploy manual via `deploy.sh`) |
+| Site Netlify (admin) | `boisterous-vacherin-669006` (repo `admin-pv/recargagames-admin`, CD ativo desde 03/05/2026) |
 | Backend de dados | Supabase `ashmirzgyuhspymldpfv` (us-east-1, plano Free) |
 | CDN de imagens | Cloudinary `djcrywip2` |
 | Proxy de API | Node.js no Hetzner — `5.223.85.141` / `api.recargagames.com` |
@@ -211,9 +211,6 @@ python3 -m http.server 8000
 
 # Deploy do frontend (automático via push)
 git add -A && git commit -m "fix: ..." && git push
-
-# Deploy do admin (manual, via Netlify Files API)
-bash ~/Downloads/deploy.sh
 
 # Verificar status do proxy
 curl https://api.recargagames.com/health
