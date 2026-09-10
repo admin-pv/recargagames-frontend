@@ -1,2 +1,75 @@
-/br/*  /br/index.html  200
-/mx/*  /mx/index.html  200
+# ══════════════════════════════════════════════════════════════════════════
+# Redirects do Netlify
+#
+# IMPORTANTE: estas regras estão duplicadas em netlify.toml. O Netlify lê os
+# dois arquivos (as regras do netlify.toml são avaliadas primeiro) e o
+# _redirects é mantido em sync por portabilidade. Mudou aqui, muda lá.
+#
+# A ordem importa: a primeira regra que casar vence.
+#
+# Arquivos estáticos que existem de verdade têm precedência sobre regras de
+# rewrite não-forçadas (sem "!"). É por isso que /br/_gate.html continua sendo
+# servido como arquivo e não é capturado pelo /br/* lá embaixo — o que mantém
+# a Edge Function do gate funcionando (ela busca /br/_gate.html por fetch).
+# Não adicionar "!" às regras de /br/*.
+# ══════════════════════════════════════════════════════════════════════════
+
+
+# ── 1. /app/ não é endereço público ───────────────────────────────────────
+# O frontend mora em /app/, mas quem gateia é a Edge Function e ela só casa
+# com /br, /br/* e /_gate/auth (netlify/edge-functions/gate.ts). Sem esta
+# regra, /app/index.html serviria a loja inteira sem senha nenhuma.
+# Forçada ("!") porque os arquivos existem e, sem isso, venceriam a regra.
+/app/*  /br/:splat  301!
+
+
+# ── 2. URLs antigas de jogo → produto novo ────────────────────────────────
+# O /br/ antigo era uma SPA que servia /br/<slug>/ para cada linha da tabela
+# `games` do Supabase. O frontend v2 usa /br/product.html?id=<id>.
+# Slugs que casam com um id de app/shared/data/products.js vão para o produto;
+# os que não casam vão para o catálogo, para não virar 404.
+
+# 2a. Casam com um produto do catálogo novo
+/br/arena-breakout/      /br/product.html?id=arena-breakout      301
+/br/blood-strike/        /br/product.html?id=blood-strike        301
+/br/candy-crush/         /br/product.html?id=candy-crush         301
+/br/free-fire/           /br/product.html?id=free-fire           301
+/br/genshin-impact/      /br/product.html?id=genshin-impact      301
+/br/google-play/         /br/product.html?id=google-play         301
+/br/honkai-star-rail/    /br/product.html?id=honkai-star-rail    301
+/br/league-of-legends/   /br/product.html?id=league-of-legends   301
+/br/mobile-legends/      /br/product.html?id=mobile-legends      301
+/br/playstation/         /br/product.html?id=playstation         301
+/br/pubg-mobile/         /br/product.html?id=pubg-mobile         301
+/br/roblox/              /br/product.html?id=roblox              301
+/br/valorant/            /br/product.html?id=valorant            301
+
+# 2b. Mesmo produto, id escrito diferente no catálogo novo — mapeados à mão
+# para não perder o histórico de URL desses três.
+/br/nintendo-e-shop/     /br/product.html?id=nintendo-eshop      301
+/br/steam-voucher/       /br/product.html?id=steam               301
+/br/zenless-zone-zero/   /br/product.html?id=zzz                 301
+
+# 2c. Sem equivalente no catálogo novo → catálogo
+/br/arena-of-valor/          /br/index.html  301
+/br/bigo-live/               /br/index.html  301
+/br/conquer-online-mobile/   /br/index.html  301
+/br/conquer-online-pc/       /br/index.html  301
+/br/delta-force/             /br/index.html  301
+/br/farlight84/              /br/index.html  301
+/br/lords-mobile/            /br/index.html  301
+
+
+# ── 3. Mercados → arquivos em /app/ ───────────────────────────────────────
+# Um conjunto de arquivos serve N mercados. O usuário navega em /br/...,
+# o Netlify serve /app/... . A regra SPA antiga (/br/* → /br/index.html 200)
+# foi removida: o frontend v2 são páginas .html de verdade, não um router.
+/br/     /app/index.html  200
+/br/*    /app/:splat      200
+
+# /mx/ fica comentado de propósito. A Edge Function do gate só protege /br/*;
+# ativar isto hoje publicaria a loja inteira sem senha e sem robots.txt.
+# Para ligar na Fase 1: descomentar as duas linhas E acrescentar "/mx" e
+# "/mx/*" ao `path` de netlify/edge-functions/gate.ts.
+# /mx/     /app/index.html  200
+# /mx/*    /app/:splat      200

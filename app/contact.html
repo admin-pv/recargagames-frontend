@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Recarga Games — Contato</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800;900&family=Barlow+Condensed:wght@700;800;900&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --page: #090C14; --surface: #1A1D2E; --surface-2: #151A2A;
+    --warm: #F5F4F0; --muted: #9B99A8; --muted-2: #777588;
+    --border: #2E3047; --border-2: #454967;
+    --orange: #F5700A; --orange-hi: #FF8C2A;
+    --lime: #2ECC8A; --gold: #F0B429; --danger: #FF5C47;
+    --max: 1900px; --tight: 900px; --header-h: 72px;
+    --ease: cubic-bezier(.2,.75,.2,1);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; background: var(--page); }
+  body {
+    margin: 0; min-height: 100vh; color: var(--warm);
+    background: linear-gradient(180deg, #090C14 0%, #0A0D16 45%, #080B12 100%);
+    font-family: 'Barlow', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    line-height: 1.5; overflow-x: hidden; -webkit-font-smoothing: antialiased;
+  }
+  a { color: inherit; text-decoration: none; }
+  button { color: inherit; background: transparent; border: 0; cursor: pointer; appearance: none; font: inherit; }
+  svg { display: block; }
+  .skip-link { position: absolute; left: 12px; top: -48px; z-index: 200; background: var(--orange); color: #fff; font-weight: 800; font-size: 13px; padding: 10px 14px; border-radius: 10px; transition: top .16s var(--ease); }
+  .skip-link:focus { top: 12px; }
+  :focus-visible { outline: 2px solid var(--orange-hi); outline-offset: 2px; }
+
+  /* ── NAV ── */
+  .topbar { position: sticky; top: 0; z-index: 80; background: rgba(9,12,20,.94); border-bottom: 1px solid rgba(46,48,71,.78); backdrop-filter: blur(16px); }
+  .nav { max-width: var(--max); min-height: var(--header-h); margin: 0 auto; padding: 0 clamp(18px,2.2vw,40px); display: grid; grid-template-columns: auto auto minmax(200px,1fr) auto; align-items: center; gap: 24px; }
+  .brand { display: inline-flex; align-items: center; gap: 10px; }
+  .brand-mark { width: 29px; height: 29px; flex: 0 0 auto; }
+  .brand-text { display: grid; line-height: 1; text-transform: uppercase; }
+  .brand-text strong { color: var(--orange); font-family: 'Barlow Condensed', sans-serif; font-size: 23px; letter-spacing: .055em; font-weight: 900; }
+  .brand-text span { color: var(--warm); font-size: 10px; letter-spacing: .42em; opacity: .82; margin-top: 1px; }
+  .desktop-nav { display: flex; align-items: center; gap: 22px; color: var(--muted); font-size: 14px; font-weight: 800; white-space: nowrap; }
+  .desktop-nav a, .desktop-nav button { padding: 24px 0 22px; color: inherit; }
+  .desktop-nav a:hover, .desktop-nav button:hover { color: var(--warm); }
+  .nav-actions { display: flex; align-items: center; gap: 10px; justify-content: flex-end; }
+  .account-btn { border: 1px solid var(--border); background: linear-gradient(180deg, rgba(34,38,64,.86), rgba(26,29,46,.76)); min-height: 44px; border-radius: 14px; color: var(--warm); font-weight: 900; }
+  .account-btn { display: grid; grid-template-columns: 24px auto; column-gap: 10px; align-items: center; padding: 0 14px 0 12px; text-align: left; }
+  .account-icon { width: 24px; height: 24px; border-radius: 999px; display: grid; place-items: center; border: 1px solid rgba(245,112,10,.42); color: var(--orange); }
+  .account-btn strong { display: block; line-height: 1; font-size: 14px; }
+  .account-btn small { display: block; line-height: 1.1; color: var(--muted); font-size: 12px; margin-top: 3px; font-weight: 500; }
+
+  .tight { width: min(100%, var(--tight)); margin: 0 auto; padding: 0 clamp(16px,2.2vw,40px); }
+
+  .breadcrumb-bar { padding: 12px 0; border-bottom: 1px solid rgba(46,48,71,.5); }
+  .breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); flex-wrap: wrap; }
+  .breadcrumb a { color: #D5D3E1; }
+  .breadcrumb a:hover { color: var(--orange-hi); }
+  .breadcrumb .sep { opacity: .38; }
+  .breadcrumb .current { color: var(--warm); font-weight: 600; }
+
+  /* ── PAGE HEAD ── */
+  .info-shell { padding: 34px 0 72px; }
+  .page-kicker { display: inline-flex; align-items: center; gap: 7px; color: #FFB37C; font-size: 12px; font-weight: 800; margin-bottom: 12px; letter-spacing: .06em; text-transform: uppercase; }
+  .page-kicker::before { content: ""; width: 7px; height: 7px; border-radius: 999px; background: var(--orange); box-shadow: 0 0 0 4px rgba(245,112,10,.14); flex: 0 0 auto; }
+  .info-title { font-family: 'Barlow Condensed', sans-serif; text-transform: uppercase; font-size: clamp(28px,4vw,44px); font-weight: 900; margin: 0 0 10px; letter-spacing: .01em; }
+  .info-meta { margin: 0 0 28px; color: var(--muted-2); font-size: 13px; }
+
+  /* ── CONTENT PLACEHOLDER ── */
+  .card { border: 1px solid var(--border); background: linear-gradient(180deg, rgba(22,26,44,.92), rgba(14,17,30,.92)); border-radius: 22px; }
+  .content-card { padding: 26px 28px; margin-bottom: 20px; }
+  .content-card p { margin: 0 0 14px; color: #D7D5E3; font-size: 14.5px; }
+  .content-card p:last-child { margin-bottom: 0; }
+  .placeholder-lines { display: grid; gap: 9px; margin-top: 18px; }
+  .placeholder-line { height: 11px; border-radius: 6px; background: linear-gradient(90deg, rgba(255,255,255,.06), rgba(255,255,255,.03)); }
+  .placeholder-line.w-90 { width: 90%; } .placeholder-line.w-75 { width: 75%; } .placeholder-line.w-60 { width: 60%; } .placeholder-line.w-40 { width: 40%; }
+
+  /* ── HANDOVER NOTE ── */
+  .handover-box { border: 1.5px dashed rgba(245,112,10,.5); background: rgba(245,112,10,.06); border-radius: 18px; padding: 22px 24px; }
+  .handover-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .handover-head svg { width: 20px; height: 20px; color: var(--orange-hi); flex: 0 0 auto; }
+  .handover-head h2 { margin: 0; font-size: 14px; font-weight: 900; text-transform: uppercase; letter-spacing: .05em; color: #FFB37C; }
+  .handover-box ul { margin: 0; padding-left: 20px; display: grid; gap: 9px; }
+  .handover-box li { font-size: 13.5px; color: #E7DDF8; line-height: 1.55; }
+  .handover-box li b { color: #FFB37C; }
+  .handover-status { display: inline-flex; align-items: center; gap: 6px; margin-top: 16px; padding: 6px 12px; border-radius: 999px; background: rgba(255,255,255,.04); border: 1px solid var(--border-2); font-size: 11.5px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+
+  /* ── FOOTER ── */
+  footer { border-top: 1px solid var(--border); background: #111318; margin-top: 24px; }
+  .footer-inner { padding: 30px 0 28px; color: #D7D3E0; }
+  .footer-desktop { display: grid; grid-template-columns: minmax(220px,1.35fr) repeat(3,minmax(120px,.72fr)); gap: 26px; align-items: start; }
+  .footer-brand { display: grid; gap: 12px; }
+  .footer-logo { display: inline-flex; align-items: center; gap: 10px; width: fit-content; }
+  .footer-copy { margin: 0; color: #B5B1C0; font-size: 13px; line-height: 1.45; max-width: 300px; }
+  .social-row { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; }
+  .social-link { width: 32px; height: 32px; border-radius: 999px; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.1); background: rgba(26,29,46,.62); color: var(--warm); font-weight: 800; font-size: 11px; }
+  .social-link:hover { border-color: rgba(245,112,10,.55); color: var(--orange-hi); }
+  .footer-col h3 { margin: 0 0 12px; color: var(--warm); font-size: 15px; font-weight: 800; }
+  .footer-list { display: grid; gap: 9px; }
+  .footer-list a, .footer-list span { color: #D1CDDA; font-size: 13px; }
+  .footer-list a:hover { color: var(--orange-hi); }
+  .footer-mobile { display: none; }
+
+  @media (max-width: 1100px) {
+    .desktop-nav { display: none; }
+    .nav { grid-template-columns: auto minmax(180px,1fr) auto; }
+    .footer-desktop { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 640px) {
+    html, body { width: 100%; max-width: 100%; overflow-x: hidden; }
+    .nav { grid-template-columns: 1fr auto; padding: 12px 16px 10px; gap: 10px; }
+    .tight { padding-left: 14px; padding-right: 14px; }
+    .content-card { padding: 20px; }
+    .handover-box { padding: 18px; }
+    .footer-desktop { display: none; }
+    .footer-mobile { display: grid; gap: 18px; }
+  }
+
+</style>
+<script src="shared/js/market.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
+
+<header class="topbar">
+  <nav class="nav" aria-label="Navegação principal">
+    <a class="brand" href="index.html" aria-label="Recarga Games">
+      <svg class="brand-mark" viewBox="0 0 28 28" fill="none" aria-hidden="true">
+        <rect x="4" y="4" width="20" height="20" rx="2.5" transform="rotate(45 14 14)" fill="#F5700A"/>
+        <path d="M15.6 7.5 9.5 15.5h5.2l-2.3 5 8.1-9.5H15l2.2-3.5h-1.6Z" fill="white"/>
+      </svg>
+      <span class="brand-text"><strong>Recarga</strong><span>Games</span></span>
+    </a>
+    <div class="desktop-nav" aria-label="Links principais">
+      <a href="index.html">Loja</a>
+      <a href="index.html#catalog">Todos os jogos</a>
+      <a href="campaign.html">Ganhe créditos</a>
+      <button type="button" onclick="location.href='my-orders.html'">Meus pedidos</button>
+      <button type="button" onclick="location.href='help-center.html'">Suporte</button>
+    </div>
+    <div></div>
+    <div class="nav-actions">
+      <button class="account-btn" type="button" aria-label="Cadastre-se ou entrar" onclick="location.href='account-profile.html'">
+        <span class="account-icon">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><circle cx="7" cy="5" r="2.5" stroke="currentColor" stroke-width="1.5"/><path d="M2.5 12c0-2.485 2.015-4.5 4.5-4.5s4.5 2.015 4.5 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </span>
+        <span><strong>Cadastre-se</strong><small>Entrar</small></span>
+      </button>
+          </div>
+  </nav>
+</header>
+
+<div class="breadcrumb-bar">
+  <div class="tight">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <a href="index.html">Loja</a><span class="sep">›</span>
+      <span class="current">Contato</span>
+    </nav>
+  </div>
+</div>
+
+<main id="conteudo">
+  <div class="tight info-shell">
+    <span class="page-kicker">Fale conosco</span>
+    <h1 class="info-title">Contato</h1>
+    <p class="info-meta">Conteúdo pendente — canais de contato ainda não confirmados.</p>
+
+    <div class="card content-card">
+      <p>Canais para o jogador falar com a Recarga Games fora do fluxo de suporte de pedidos (central de ajuda), como parcerias, imprensa ou dúvidas gerais.</p>
+      <div class="placeholder-lines" aria-hidden="true">
+        <div class="placeholder-line w-90"></div>
+        <div class="placeholder-line w-60"></div>
+      </div>
+    </div>
+
+    <div class="handover-box">
+      <div class="handover-head"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 9v4M12 16.5h.01M10.3 3.86 2.3 18a1.5 1.5 0 0 0 1.3 2.25h16.8A1.5 1.5 0 0 0 21.7 18l-8-14.14a1.5 1.5 0 0 0-2.6 0Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg><h2>Para quem for finalizar esta página</h2></div>
+      <ul>
+        <li><b>Decisão pendente:</b> lista simples de canais (e-mail/WhatsApp) ou formulário de contato com envio real?</li>
+        <li><b>Se for formulário:</b> precisa de um endpoint de backend para receber o envio (e-mail transacional ou fila de tickets) + proteção contra spam (captcha/rate limit).</li>
+        <li><b>Número de WhatsApp:</b> o número usado em outras páginas do site (product.html, index.html) ainda é placeholder ("55XXXXXXXXXXX" / "5500000000000") — precisa do número real antes de publicar.</li>
+      </ul>
+      <span class="handover-status">Depende de decisão de produto</span>
+    </div>
+  </div>
+</main>
+<footer>
+  <div class="tight footer-inner">
+    <div class="footer-desktop">
+      <div class="footer-brand">
+        <a class="footer-logo" href="index.html" aria-label="Recarga Games">
+          <svg class="brand-mark" viewBox="0 0 28 28" fill="none" aria-hidden="true"><rect x="4" y="4" width="20" height="20" rx="2.5" transform="rotate(45 14 14)" fill="#F5700A"/><path d="M15.6 7.5 9.5 15.5h5.2l-2.3 5 8.1-9.5H15l2.2-3.5h-1.6Z" fill="white"/></svg>
+          <span class="brand-text"><strong>Recarga</strong><span>Games</span></span>
+        </a>
+        <p class="footer-copy">© 2026 Recarga Games Brasil.<br>Não somos afiliados aos desenvolvedores dos jogos.</p>
+        <div class="social-row" aria-label="Redes sociais">
+          <a class="social-link" href="#" aria-label="Instagram">IG</a>
+          <a class="social-link" href="#" aria-label="TikTok">TT</a>
+          <a class="social-link" href="#" aria-label="Discord">DC</a>
+          <a class="social-link" href="#" aria-label="X">X</a>
+        </div>
+      </div>
+      <div class="footer-col"><h3>Políticas</h3><div class="footer-list">
+        <a href="terms.html">Termos e Condições</a>
+        <a href="privacy-policy.html">Política de Privacidade</a>
+        <a href="cookie-policy.html">Política de Cookies</a>
+        <a href="refund-policy.html">Trocas e Reembolsos</a>
+        <a href="faq.html">Perguntas Frequentes</a>
+      </div></div>
+      <div class="footer-col"><h3>Sobre nós</h3><div class="footer-list">
+        <a href="about.html">Quem somos</a>
+        <a href="contact.html">Contato</a>
+      </div></div>
+      <div class="footer-col"><h3>Suporte</h3><div class="footer-list">
+        <a href="help-center.html">Central de ajuda</a>
+        <span>support@recargagames.com</span>
+      </div></div>
+    </div>
+    <div class="footer-mobile">
+      <a class="footer-logo" href="index.html" aria-label="Recarga Games">
+        <svg class="brand-mark" viewBox="0 0 28 28" fill="none" aria-hidden="true"><rect x="4" y="4" width="20" height="20" rx="2.5" transform="rotate(45 14 14)" fill="#F5700A"/><path d="M15.6 7.5 9.5 15.5h5.2l-2.3 5 8.1-9.5H15l2.2-3.5h-1.6Z" fill="white"/></svg>
+        <span class="brand-text"><strong>Recarga</strong><span>Games</span></span>
+      </a>
+      <p class="footer-copy">© 2026 Recarga Games Brasil.</p>
+    </div>
+  </div>
+</footer>
+
+
+</body>
+</html>

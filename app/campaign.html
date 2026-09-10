@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Recarga Games — Ganhe créditos</title>
+<meta name="robots" content="noindex, follow" />
+
+<!-- Fase 0 — o Offerwall não mora mais aqui.
+     O protótipo do fornecedor trazia um Offerwall simulado nesta página
+     (RecargaStore.completeOffer() creditava sem nenhuma verificação, chamável
+     direto pelo console). O Offerwall real vive em gratis.recargagames.com.
+
+     O arquivo continua existindo de propósito: as outras 18 páginas linkam
+     "Ganhe créditos" para campaign.html, e apagá-lo quebraria todas elas de
+     uma vez. Aqui ele só encaminha.
+
+     O refresh tem 2s em vez de 0s porque gratis.recargagames.com ainda não
+     tem registro DNS — sem o intervalo, o usuário cairia direto num erro do
+     navegador sem caminho de volta. Quando o subdomínio estiver no ar, dá
+     para baixar para 0. -->
+<meta http-equiv="refresh" content="2; url=https://gratis.recargagames.com" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800;900&family=Barlow+Condensed:wght@700;800;900&display=swap" rel="stylesheet" />
+<style>
+  /* ── Tokens (mesmo sistema das demais páginas) ── */
+  :root {
+    --void: #0D0F1A; --page: #090C14; --surface: #1A1D2E; --surface-2: #151A2A;
+    --warm: #F5F4F0; --muted: #9B99A8; --muted-2: #777588;
+    --border: #2E3047; --border-2: #454967;
+    --orange: #F5700A; --orange-hi: #FF8C2A; --lime: #2ECC8A;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--warm);
+    font-family: 'Barlow', system-ui, -apple-system, sans-serif;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+  }
+  .card {
+    width: min(100%, 480px);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 44px 32px;
+    text-align: center;
+  }
+  h1 {
+    font-family: 'Barlow Condensed', 'Barlow', sans-serif;
+    text-transform: uppercase;
+    font-size: 30px;
+    font-weight: 900;
+    letter-spacing: .01em;
+    margin: 0 0 12px;
+  }
+  p { color: var(--muted); font-size: 14.5px; line-height: 1.6; margin: 0 0 26px; }
+  .actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+  a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 46px;
+    padding: 0 24px;
+    border-radius: 12px;
+    font-weight: 800;
+    font-size: 14px;
+    text-decoration: none;
+    transition: filter .16s ease, border-color .16s ease;
+  }
+  .primary { background: linear-gradient(160deg, var(--orange-hi), var(--orange)); color: #12060B; }
+  .primary:hover { filter: brightness(1.08); }
+  .secondary { border: 1.5px solid var(--border-2); color: var(--warm); }
+  .secondary:hover { border-color: var(--orange); }
+</style>
+</head>
+<body>
+  <main class="card">
+    <h1>Ganhe créditos</h1>
+    <p>
+      As campanhas para ganhar créditos ficam em
+      <strong style="color:var(--warm)">gratis.recargagames.com</strong>.
+      Estamos te levando para lá.
+    </p>
+    <div class="actions">
+      <a class="primary" href="https://gratis.recargagames.com">Ir agora</a>
+      <a class="secondary" href="index.html">Voltar para a loja</a>
+    </div>
+  </main>
+</body>
+</html>

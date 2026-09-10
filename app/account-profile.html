@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Recarga Games — Minha conta</title>
+  <meta name="description" content="Gerencie seus dados, pagamentos, segurança e pedidos na Recarga Games." />
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="theme-color" content="#0D0F1A" />
+  <meta name="color-scheme" content="dark" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800;900&family=Barlow+Condensed:wght@700;800;900&display=swap" rel="stylesheet" />
+<style>
+    /* ── Tokens (verbatim from v7.8.2e — do not diverge from brand system) ── */
+    :root {
+      --void: #0D0F1A;
+      --page: #090C14;
+      --surface: #1A1D2E;
+      --surface-2: #151A2A;
+      --surface-3: #222640;
+      --warm: #F5F4F0;
+      --muted: #9B99A8;
+      --muted-2: #777588;
+      --border: #2E3047;
+      --border-2: #454967;
+      --orange: #F5700A;
+      --orange-hi: #FF8C2A;
+      --lime: #2ECC8A;
+      --gold: #F0B429;
+      --pink: #E0379A;
+      --danger: #FF5C47;
+      --max: 1900px;
+      --tight: 1280px;
+      --header-h: 72px;
+      --ease: cubic-bezier(.2,.75,.2,1);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; background: var(--page); }
+    body {
+      margin: 0; min-height: 100vh; color: var(--warm);
+      background: linear-gradient(180deg, #090C14 0%, #0A0D16 45%, #080B12 100%);
+      font-family: 'Barlow', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      line-height: 1.45; overflow-x: hidden;
+      -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+    }
+    a { color: inherit; text-decoration: none; }
+    button, input, select { font: inherit; }
+    button { color: inherit; background: transparent; border: 0; -webkit-appearance: none; appearance: none; }
+    svg { display: block; }
+    .sr-only { position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0; }
+    .skip-link { position:absolute; left:12px; top:-48px; background:var(--orange); color:#fff; padding:10px 16px; border-radius:10px; font-weight:800; font-size:13px; z-index:200; transition:top .16s var(--ease); }
+    .skip-link:focus { top:12px; }
+
+    /* ── NAV (v7.8.2e exact) ── */
+    .topbar { position: sticky; top: 0; z-index: 80; background: rgba(9,12,20,.94); border-bottom: 1px solid rgba(46,48,71,.78); backdrop-filter: blur(16px); }
+    .nav { max-width: var(--max); min-height: var(--header-h); margin: 0 auto; padding: 0 clamp(18px,2.2vw,40px); display: grid; grid-template-columns: auto auto minmax(280px,1fr) auto; align-items: center; gap: 28px; }
+    .brand { display: inline-flex; align-items: center; gap: 10px; min-width: 178px; text-decoration: none; }
+    .brand-mark { width: 29px; height: 29px; flex: 0 0 auto; }
+    .brand-text { display: grid; line-height: 1; text-transform: uppercase; }
+    .brand-text strong { color: var(--orange); font-family: 'Barlow Condensed', sans-serif; font-size: 23px; letter-spacing: .055em; font-weight: 900; }
+    .brand-text span { color: var(--warm); font-size: 10px; letter-spacing: .42em; opacity: .82; margin-top: 1px; }
+    .desktop-nav { display: flex; align-items: center; gap: 22px; color: var(--muted); font-size: 14px; font-weight: 800; white-space: nowrap; }
+    .desktop-nav a, .desktop-nav button { position: relative; border: 0; background: transparent; padding: 24px 0 22px; color: inherit; cursor: pointer; display: inline-flex; align-items: center; }
+    .desktop-nav a:hover, .desktop-nav button:hover { color: var(--warm); }
+    .desktop-nav .active { color: var(--warm); }
+    .desktop-nav .active::after { content: ""; position: absolute; left: 0; right: 0; bottom: 13px; height: 2px; border-radius: 999px; background: var(--orange); }
+    .search-wrap { position: relative; justify-self: stretch; max-width: 620px; width: 100%; }
+    .search { position: relative; width: 100%; }
+    .search input { width: 100%; height: 44px; border: 1px solid var(--border); background: #101522; border-radius: 999px; color: var(--warm); padding: 0 46px 0 44px; outline: none; font-size: 14px; font-weight: 500; transition: border-color .18s var(--ease), box-shadow .18s var(--ease); }
+    .search input::placeholder { color: #838091; }
+    .search input:focus { border-color: var(--orange); background: #0E1320; box-shadow: 0 0 0 4px rgba(245,112,10,.12); }
+    .search-icon { width: 18px; height: 18px; position: absolute; left: 16px; top: 13px; color: var(--orange); pointer-events: none; }
+    .nav-actions { display: flex; align-items: center; gap: 10px; justify-content: flex-end; }
+    .account-btn, .lang-btn { border: 1px solid var(--border); background: linear-gradient(180deg, rgba(34,38,64,.86), rgba(26,29,46,.76)); min-height: 44px; border-radius: 14px; color: var(--warm); font-weight: 900; cursor: pointer; transition: border-color .18s var(--ease), box-shadow .18s var(--ease); }
+    .account-btn:hover, .lang-btn:hover { border-color: rgba(245,112,10,.55); box-shadow: 0 0 0 3px rgba(245,112,10,.08); }
+    .account-btn { display: grid; grid-template-columns: 24px auto; column-gap: 10px; align-items: center; padding: 0 14px 0 12px; min-width: 148px; text-align: left; }
+    .account-icon { width: 24px; height: 24px; border-radius: 999px; display: grid; place-items: center; border: 1px solid rgba(245,112,10,.42); color: var(--orange); }
+    .account-btn strong { display: block; line-height: 1; font-size: 14px; }
+    .account-btn small { display: block; line-height: 1.1; color: var(--muted); font-size: 12px; margin-top: 3px; font-weight: 500; }
+    .lang-btn { padding: 0 15px; letter-spacing: .02em; }
+
+    /* ── LAYOUT ── */
+    .tight { width: min(100%, var(--tight)); margin: 0 auto; padding: 0 clamp(16px,2.2vw,40px); }
+
+    /* ── BREADCRUMB ── */
+    .breadcrumb-bar { padding: 12px 0; border-bottom: 1px solid rgba(46,48,71,.5); }
+    .breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); flex-wrap: wrap; }
+    .breadcrumb a { color: #D5D3E1; transition: color .14s; }
+    .breadcrumb a:hover { color: var(--orange-hi); }
+    .breadcrumb .sep { opacity: .38; }
+    .breadcrumb .current { color: var(--warm); font-weight: 600; }
+
+    /* ── CARDS ── */
+    .card { border: 1px solid var(--border); background: linear-gradient(180deg, rgba(22,26,44,.92), rgba(14,17,30,.92)); border-radius: 22px; overflow: hidden; }
+
+    /* ── ACCOUNT SHELL ── */
+    .account-shell { padding: 28px 0 72px; }
+    .account-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 22px; }
+    .account-title { font-family: 'Barlow Condensed', sans-serif; text-transform: uppercase; font-size: clamp(28px,3vw,40px); font-weight: 900; margin: 0 0 6px; letter-spacing: .01em; }
+    .account-sub { margin: 0; color: var(--muted); font-size: 14px; }
+
+    .status-pill { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: .04em; }
+    .status-pill::before { content: ""; width: 7px; height: 7px; border-radius: 999px; flex: 0 0 auto; }
+    .status-pill.completed { background: rgba(46,204,138,.12); border: 1px solid rgba(46,204,138,.4); color: #B9F8D9; }
+    .status-pill.completed::before { background: var(--lime); }
+    .status-pill.processing { background: rgba(240,180,41,.12); border: 1px solid rgba(240,180,41,.4); color: #FFE3A3; }
+    .status-pill.processing::before { background: var(--gold); }
+    .status-pill.failed { background: rgba(255,92,71,.12); border: 1px solid rgba(255,92,71,.4); color: #FFC1B7; }
+    .status-pill.failed::before { background: var(--danger); }
+
+    .success-banner { display: none; align-items: center; gap: 12px; padding: 14px 18px; border-radius: 16px; margin-bottom: 18px; background: linear-gradient(135deg, rgba(46,204,138,.14), rgba(46,204,138,.05)); border: 1px solid rgba(46,204,138,.35); color: #DFFCEE; opacity: 0; transform: translateY(-6px); pointer-events: none; transition: opacity .2s var(--ease), transform .2s var(--ease); }
+    .success-banner.show { opacity: 1; transform: translateY(0); }
+    .success-banner svg { flex: 0 0 auto; color: var(--lime); }
+    .success-banner strong { display: block; font-size: 14.5px; }
+    .success-banner span { display: block; font-size: 12.5px; color: #B9F8D9; margin-top: 1px; }
+
+    /* ── PROFILE GRID ── */
+    .profile-grid { display: grid; grid-template-columns: 280px 1fr; gap: 20px; align-items: start; }
+    @media (max-width: 860px) { .profile-grid { grid-template-columns: 1fr; gap: 14px; } }
+
+    .profile-card { padding: 24px; text-align: center; position: sticky; top: calc(var(--header-h) + 16px); }
+    @media (max-width: 860px) { .profile-card { position: static; } }
+    .avatar-wrap { position: relative; width: 76px; height: 76px; margin: 0 auto 14px; }
+    .profile-avatar { width: 76px; height: 76px; border-radius: 50%; display: grid; place-items: center; background: linear-gradient(160deg, rgba(245,112,10,.45), #0B0E1C 78%); border: 1px solid rgba(245,112,10,.4); font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 26px; color: #fff; }
+    .avatar-edit { position: absolute; right: -2px; bottom: -2px; width: 26px; height: 26px; border-radius: 999px; background: var(--surface-3); border: 2px solid var(--void); display: grid; place-items: center; cursor: not-allowed; color: var(--muted); }
+    .avatar-edit svg { width: 12px; height: 12px; }
+    .profile-card h2 { margin: 10px 0 2px; font-family: 'Barlow Condensed', sans-serif; text-transform: uppercase; font-size: 20px; }
+    .profile-card p { margin: 0; color: var(--muted); font-size: 13px; }
+    .member-since { margin-top: 4px; font-size: 11.5px; color: var(--muted-2); }
+
+    .completion-wrap { margin: 18px 0 4px; text-align: left; }
+    .completion-label { display: flex; justify-content: space-between; font-size: 11.5px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 6px; }
+    .completion-label b { color: var(--lime); font-weight: 900; }
+    .completion-track { height: 6px; border-radius: 999px; background: rgba(255,255,255,.06); overflow: hidden; }
+    .completion-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--orange), var(--lime)); transition: width .3s var(--ease); }
+
+    .profile-menu { display: grid; gap: 3px; text-align: left; margin-top: 18px; }
+    .profile-menu button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 11px 12px; border-radius: 12px; font-size: 13.5px; font-weight: 800; color: var(--muted); cursor: pointer; transition: background .14s, color .14s; }
+    .profile-menu button svg { width: 16px; height: 16px; flex: 0 0 auto; color: var(--muted-2); transition: color .14s; }
+    .profile-menu button:hover { background: rgba(255,255,255,.04); color: var(--warm); }
+    .profile-menu button.active { background: rgba(245,112,10,.12); color: var(--warm); }
+    .profile-menu button.active svg { color: var(--orange-hi); }
+    .profile-menu hr { border: 0; border-top: 1px solid var(--border); margin: 8px 4px; }
+    .profile-menu .logout { color: #FFC1B7; }
+    .profile-menu .logout svg { color: #FFC1B7; }
+
+    .panel-section { padding: 24px; margin-bottom: 16px; scroll-margin-top: 16px; }
+    .panel-section h3 { margin: 0 0 3px; font-family: 'Barlow Condensed', sans-serif; text-transform: uppercase; font-size: 18px; display: flex; align-items: center; gap: 8px; }
+    .panel-section h3::before { content: ""; width: 3px; height: 16px; border-radius: 999px; background: var(--orange); display: block; }
+    .panel-hint { margin: 0 0 18px 11px; color: var(--muted); font-size: 12.5px; }
+    [data-panel] { display: none; }
+    [data-panel].active { display: block; }
+
+    .badge-verified, .badge-pending { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 900; text-transform: uppercase; letter-spacing: .03em; padding: 3px 8px; border-radius: 999px; margin-left: 8px; vertical-align: middle; }
+    .badge-verified { background: rgba(46,204,138,.12); border: 1px solid rgba(46,204,138,.35); color: #9AF0C6; }
+    .badge-pending { background: rgba(240,180,41,.12); border: 1px solid rgba(240,180,41,.35); color: #FFE3A3; }
+    .badge-soon { display: inline-flex; align-items: center; font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: .04em; padding: 3px 8px; border-radius: 999px; background: rgba(255,255,255,.06); border: 1px solid var(--border-2); color: var(--muted); margin-left: 8px; }
+
+    /* ── FIELD SYSTEM (from purchase flow — reused verbatim for brand consistency) ── */
+    .field-grid { display: grid; gap: 16px; }
+    .field-group { display: grid; gap: 6px; }
+    .field-label { font-size: 13px; font-weight: 800; color: #ECEAF4; }
+    .field-required { color: var(--orange); }
+    .field-input, .field-select {
+      width: 100%; height: 48px; border: 1.5px solid var(--border);
+      background: #101522; border-radius: 13px; color: var(--warm);
+      padding: 0 14px; outline: none; font-size: 15px; font-weight: 500;
+      transition: border-color .18s var(--ease), box-shadow .18s var(--ease);
+      -webkit-appearance: none;
+    }
+    .field-select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%239B99A8' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px; }
+    .field-input::placeholder { color: #525062; }
+    .field-input:focus, .field-select:focus { border-color: var(--orange); box-shadow: 0 0 0 4px rgba(245,112,10,.12); background: #0E1320; }
+    .field-hint { margin: 2px 0 0; color: var(--muted-2); font-size: 12px; font-weight: 600; }
+    .field-error { display: none; margin: 2px 0 0; color: #FF9D91; font-size: 12px; font-weight: 800; }
+    .field-group.is-invalid .field-input { border-color: var(--danger); }
+    .field-group.is-invalid .field-error { display: block; }
+    .field-group.is-valid .field-input { border-color: var(--lime); }
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 600px) { .field-row { grid-template-columns: 1fr; } }
+    .field-actions { display: flex; gap: 10px; margin-top: 22px; flex-wrap: wrap; }
+    .cta-primary {
+      min-height: 48px; padding: 0 24px; border: 0; border-radius: 14px;
+      background: linear-gradient(180deg, var(--orange-hi), var(--orange));
+      color: white; font-family: 'Barlow Condensed', sans-serif;
+      font-size: 16px; font-weight: 900; letter-spacing: .04em; text-transform: uppercase;
+      cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      transition: filter .16s var(--ease), box-shadow .16s var(--ease), transform .08s var(--ease), opacity .16s;
+      box-shadow: 0 4px 20px rgba(245,112,10,.26);
+    }
+    .cta-primary:hover:not(:disabled) { filter: brightness(1.08); }
+    .cta-primary:disabled { opacity: .4; cursor: not-allowed; box-shadow: none; }
+    .cta-secondary { min-height: 48px; padding: 0 22px; border: 1px solid var(--border-2); background: transparent; border-radius: 12px; color: #E7E5F1; font-weight: 800; font-size: 14px; cursor: pointer; transition: border-color .16s, background .16s; }
+    .cta-secondary:hover { border-color: rgba(245,112,10,.44); background: rgba(245,112,10,.05); }
+    .ghost-btn { height: 46px; border: 1px solid rgba(245,112,10,.68); background: rgba(245,112,10,.08); border-radius: 12px; color: #FFB37C; font-weight: 900; padding: 0 18px; cursor: pointer; transition: background .16s; }
+    .ghost-btn:hover { background: rgba(245,112,10,.14); }
+    .ghost-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+    /* ── TOGGLES (notifications / security) ── */
+    .toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 15px 0; border-bottom: 1px dashed var(--border); }
+    .toggle-row:last-child { border-bottom: 0; }
+    .toggle-meta strong { display: block; font-size: 14px; font-weight: 800; }
+    .toggle-meta > span { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; max-width: 44ch; }
+    .switch { position: relative; width: 44px; height: 26px; border-radius: 999px; background: var(--surface-3); border: 1px solid var(--border-2); flex: 0 0 auto; cursor: pointer; transition: background .18s var(--ease); }
+    .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 50%; background: var(--muted); transition: transform .18s var(--ease), background .18s var(--ease); }
+    .switch.on { background: rgba(245,112,10,.28); border-color: rgba(245,112,10,.55); }
+    .switch.on::after { transform: translateX(18px); background: var(--orange-hi); }
+    .switch.disabled { cursor: not-allowed; opacity: .5; }
+    .inline-confirm { font-size: 11.5px; color: var(--lime); font-weight: 800; opacity: 0; transition: opacity .2s; margin-top: 6px; }
+    .inline-confirm.show { opacity: 1; }
+
+    /* ── PAYMENT / ORDERS reuse ── */
+    .payment-row { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; }
+    .payment-badge { min-height: 30px; padding: 0 11px; border-radius: 7px; display: inline-flex; align-items: center; border: 1px solid rgba(255,255,255,.12); background: #F5F4F0; color: #111318; font-size: 12px; font-weight: 800; }
+    .profile-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px dashed var(--border); font-size: 14px; }
+    .profile-row:last-child { border-bottom: 0; }
+    .profile-row .lbl { color: var(--muted); }
+    .profile-row .val { font-weight: 800; }
+    .profile-link-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 0; border-bottom: 1px dashed var(--border); cursor: pointer; }
+    .profile-link-row:last-child { border-bottom: 0; }
+    .profile-link-row:hover .val { color: var(--orange); }
+    .order-row-mini { display: grid; grid-template-columns: 44px 1fr auto; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px dashed var(--border); cursor: pointer; }
+    .order-row-mini:last-child { border-bottom: 0; }
+    .order-row-thumb-mini { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 12px; color: #fff; text-align: center; line-height: 1.05; background: linear-gradient(160deg, color-mix(in srgb, var(--thumb-color, var(--orange)) 55%, #0B0E1C), #0B0E1C 78%); border: 1px solid color-mix(in srgb, var(--thumb-color, var(--orange)) 45%, transparent); }
+    .order-row-mini-info strong { display: block; font-size: 14px; }
+    .order-row-mini-info span { display: block; font-size: 12px; color: var(--muted); margin-top: 1px; }
+    .linked-account-row { display: grid; grid-template-columns: 44px 1fr auto; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px dashed var(--border); }
+    .linked-account-row:last-child { border-bottom: 0; }
+    .empty-note { padding: 18px; border: 1.5px dashed rgba(46,48,71,.8); border-radius: 14px; text-align: center; color: var(--muted); font-size: 13px; line-height: 1.5; }
+
+    .danger-zone { border: 1px solid rgba(255,92,71,.3); background: linear-gradient(160deg, rgba(45,17,22,.5), rgba(18,12,20,.6)); border-radius: 16px; padding: 18px 20px; margin-top: 8px; }
+    .danger-zone h4 { margin: 0 0 4px; font-size: 14px; font-weight: 900; color: #FFC1B7; }
+    .danger-zone p { margin: 0 0 14px; font-size: 12.5px; color: #D8B9B4; line-height: 1.5; }
+    .danger-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    .link-btn { background: none; border: 0; color: #FFB37C; font-weight: 800; font-size: 13px; cursor: pointer; padding: 0; text-decoration: underline; text-underline-offset: 3px; }
+    .link-danger { color: #FF9D91; }
+
+    .not-authed { padding: 56px 24px; text-align: center; }
+    .not-authed .big-mark { width: 64px; height: 64px; border-radius: 18px; margin: 0 auto 20px; display: grid; place-items: center; background: rgba(245,112,10,.12); border: 1px solid rgba(245,112,10,.32); color: var(--orange); }
+    .not-authed h1 { font-family: 'Barlow Condensed', sans-serif; text-transform: uppercase; font-size: 28px; margin: 0 0 10px; }
+    .not-authed p { color: var(--muted); font-size: 14px; margin: 0 0 22px; }
+
+    /* ── FOOTER (v7.8.2e exact) ── */
+    footer { border-top: 1px solid var(--border); background: #111318; }
+    .footer-inner { padding-top: 30px; padding-bottom: 28px; color: #D7D3E0; }
+    .footer-desktop { display: grid; grid-template-columns: minmax(220px,1.35fr) repeat(3,minmax(130px,.72fr)) minmax(200px,1fr) minmax(200px,1fr); gap: 26px; align-items: start; }
+    .footer-brand { display: grid; gap: 12px; }
+    .footer-logo { display: inline-flex; align-items: center; gap: 10px; width: fit-content; }
+    .footer-copy { margin: 0; color: #B5B1C0; font-size: 13px; line-height: 1.45; max-width: 300px; }
+    .social-row, .payment-row { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; }
+    .social-link { width: 32px; height: 32px; border-radius: 999px; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.1); background: rgba(26,29,46,.62); color: var(--warm); font-weight: 800; font-size: 11px; }
+    .social-link:hover { border-color: rgba(245,112,10,.55); color: var(--orange-hi); }
+    .footer-col h3 { margin: 0 0 12px; color: var(--warm); font-size: 15px; font-weight: 800; }
+    .footer-list { display: grid; gap: 9px; }
+    .footer-list a, .footer-list span { color: #D1CDDA; font-size: 13px; }
+    .footer-list a:hover { color: var(--orange-hi); }
+    .newsletter-form { display: grid; grid-template-columns: 1fr auto; gap: 8px; border-bottom: 1px solid rgba(255,255,255,.25); padding-bottom: 10px; }
+    .newsletter-form input { min-width: 0; border: 0; background: transparent; color: var(--warm); outline: none; font-size: 14px; }
+    .newsletter-form input::placeholder { color: #9B99A8; }
+    .newsletter-form button { border: 0; border-radius: 999px; background: var(--orange); color: white; padding: 0 14px; min-height: 30px; font-size: 12px; font-weight: 700; cursor: pointer; }
+    .footer-mobile { display: none; }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 1100px) {
+      .desktop-nav { display: none; }
+      .nav { grid-template-columns: auto minmax(200px,1fr) auto; }
+      .footer-desktop { grid-template-columns: repeat(3, 1fr); }
+    }
+    @media (max-width: 760px) {
+      html, body { width: 100%; max-width: 100%; overflow-x: hidden; }
+      :root { --header-h: auto; }
+      .account-head { flex-direction: column; align-items: center; text-align: center; }
+      .account-head > div:first-child { width: 100%; }
+      .nav { grid-template-columns: auto auto; min-height: 0; padding: 12px 16px 10px; gap: 10px 12px; }
+      .brand { min-width: 0; }
+      .brand-mark { width: 27px; height: 27px; }
+      .brand-text strong { font-size: 21px; }
+      .brand-text span { font-size: 9px; }
+      .search-wrap { grid-column: 1 / -1; order: 3; max-width: 100%; }
+      .search input { height: 44px; font-size: 16px; }
+      .nav-actions { justify-self: end; gap: 8px; }
+      .lang-btn { display: none; }
+      .account-btn { min-width: 0; min-height: 40px; width: auto; padding: 0 12px; grid-template-columns: 24px auto; column-gap: 8px; }
+      .account-btn strong { font-size: 13px; }
+      .account-btn small { font-size: 11px; }
+      .tight { width: 100%; max-width: 100%; padding-left: 14px; padding-right: 14px; box-sizing: border-box; }
+      .account-shell { padding: 18px 0 48px; }
+      .panel-section, .profile-card { padding: 18px; }
+      .panel-section { margin-bottom: 0; scroll-margin-top: 76px; }
+      .profile-menu { margin-top: 14px; }
+      .completion-wrap { margin: 14px 0 2px; }
+      .field-actions { flex-direction: column-reverse; }
+      .field-actions .cta-primary, .field-actions .cta-secondary { width: 100%; }
+      footer { overflow: hidden; }
+      .footer-inner { width: 100%; max-width: 100%; box-sizing: border-box; }
+      .footer-desktop { display: none; }
+      .footer-mobile { display: block; width: 100%; padding: 18px 0 14px; }
+      .footer-mobile-top { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 14px; padding-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,.07); margin-bottom: 12px; }
+      .footer-accordion { border-top: 1px solid rgba(255,255,255,.07); }
+      .footer-accordion summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; align-items: center; padding: 13px 0; color: #D1CDDA; font-size: 14px; font-weight: 800; }
+      .footer-accordion summary::-webkit-details-marker { display: none; }
+      .footer-accordion summary::after { content: "▾"; color: var(--muted); font-size: 16px; }
+      .footer-accordion .footer-list { padding-bottom: 12px; }
+      .footer-mobile-bottom { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,.07); margin-top: 12px; flex-wrap: wrap; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+    }
+
+    /* ── Fase 0 — o que ainda não tem backend fica oculto, não removido ──
+       Aviso de pedido por WhatsApp: não existe número nem integração, e
+       e-mail é o único canal nesta fase (mesma regra de product.html e
+       checkout.html). Apagar esta regra devolve o toggle. */
+    .toggle-row.phase0-hidden { display: none !important; }
+</style>
+</head>
+<body data-page="profile">
+  <a class="skip-link" href="#main-content">Pular para o conteúdo</a>
+
+  <header class="topbar">
+    <nav class="nav" aria-label="Navegação principal">
+      <a class="brand" href="index.html" aria-label="Recarga Games">
+        <svg class="brand-mark" viewBox="0 0 28 28" fill="none" aria-hidden="true">
+          <rect x="4" y="4" width="20" height="20" rx="2.5" transform="rotate(45 14 14)" fill="#F5700A"/>
+          <path d="M15.6 7.5 9.5 15.5h5.2l-2.3 5 8.1-9.5H15l2.2-3.5h-1.6Z" fill="white"/>
+        </svg>
+        <span class="brand-text"><strong>Recarga</strong><span>Games</span></span>
+      </a>
+      <div class="desktop-nav" aria-label="Links principais">
+        <a href="index.html">Loja</a>
+        <a href="index.html#catalog">Todos os jogos</a>
+        <a href="campaign.html">Ganhe créditos</a>
+        <button type="button" onclick="location.href='my-orders.html'">Meus pedidos</button>
+        <button type="button" onclick="location.href='help-center.html'">Suporte</button>
+      </div>
+      <div class="search-wrap">
+        <div class="search">
+          <svg class="search-icon" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+            <circle cx="8" cy="8" r="5.5" stroke="currentColor" stroke-width="1.6"/>
+            <path d="M12.5 12.5L16 16" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+          <input type="search" placeholder="Buscar jogo, gift card ou código" aria-label="Buscar produto" />
+        </div>
+      </div>
+      <div class="nav-actions">
+        <button class="account-btn" type="button" aria-label="Minha conta" onclick="location.href='account-profile.html'">
+          <span class="account-icon">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+              <circle cx="7" cy="5" r="2.5" stroke="currentColor" stroke-width="1.5"/>
+              <path d="M2.5 12c0-2.485 2.015-4.5 4.5-4.5s4.5 2.015 4.5 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+          </span>
+          <span><strong id="navAccountName">Minha conta</strong><small id="navAccountSub">Entrar</small></span>
+        </button>
+        <button class="lang-btn" type="button">PT-BR</button>
+              </div>
+    </nav>
+  </header>
+
+  <div class="breadcrumb-bar">
+    <div class="tight">
+      <nav class="breadcrumb" aria-label="Breadcrumb">
+        <a href="index.html">Loja</a><span class="sep">›</span>
+        <span class="current">Minha conta</span>
+      </nav>
+    </div>
+  </div>
+
+  <main id="main-content">
+    <div class="tight account-shell">
+      <div class="account-head">
+        <div>
+          <h1 class="account-title">Minha conta</h1>
+          <p class="account-sub">Dados da conta, pagamentos, segurança e pedidos — tudo em um só lugar.</p>
+        </div>
+      </div>
+
+      <div id="authGate"></div>
+    </div>
+  </main>
+
+  <footer>
+    <div class="tight footer-inner">
+      <div class="footer-desktop">
+        <div class="footer-brand">
+          <a class="footer-logo" href="index.html" aria-label="Recarga Games">
+            <svg class="brand-mark" viewBox="0 0 28 28" fill="none" aria-hidden="true"><rect x="4" y="4" width="20" height="20" rx="2.5" transform="rotate(45 14 14)" fill="#F5700A"/><path d="M15.6 7.5 9.5 15.5h5.2l-2.3 5 8.1-9.5H15l2.2-3.5h-1.6Z" fill="white"/></svg>
+            <span class="brand-text"><strong>Recarga</strong><span>Games</span></span>
+          </a>
+          <p class="footer-copy">© 2026 Recarga Games Brasil.<br>Não somos afiliados aos desenvolvedores dos jogos.</p>
+          <div class="social-row" aria-label="Redes sociais">
+            <a class="social-link" href="#" aria-label="Instagram">IG</a>
+            <a class="social-link" href="#" aria-label="TikTok">TT</a>
+            <a class="social-link" href="#" aria-label="Discord">DC</a>
+            <a class="social-link" href="#" aria-label="X">X</a>
+          </div>
+        </div>
+        <div class="footer-col"><h3>Políticas</h3><div class="footer-list"><a href="terms.html">Termos e Condições</a><a href="privacy-policy.html">Política de Privacidade</a><a href="cookie-policy.html">Política de Cookies</a><a href="refund-policy.html">Trocas e Reembolsos</a><a href="faq.html">Perguntas Frequentes</a></div></div>
+        <div class="footer-col"><h3>Sobre nós</h3><div class="footer-list"><a href="about.html">Quem somos</a><a href="contact.html">Contato</a></div></div>
+        <div class="footer-col"><h3>Suporte</h3><div class="footer-list"><a href="help-center.html">Central de ajuda</a><a href="my-orders.html">Acompanhar pedido</a><span>support@recargagames.com</span></div></div>
+        <div class="footer-col"><h3>Pagamento</h3><div class="payment-row"><span class="payment-badge">Pix</span><span class="payment-badge">Cartão</span><span class="payment-badge">Boleto</span></div></div>
+        <div class="footer-col"><h3>Newsletter</h3><form class="newsletter-form"><input type="email" placeholder="Seu e-mail" aria-label="E-mail para newsletter"><button type="button">Assinar</button></form></div>
+      </div>
+      <div class="footer-mobile">
+        <div class="footer-mobile-top">
+          <a class="footer-logo" href="index.html" aria-label="Recarga Games">
+            <svg class="brand-mark" viewBox="0 0 28 28" fill="none" aria-hidden="true"><rect x="4" y="4" width="20" height="20" rx="2.5" transform="rotate(45 14 14)" fill="#F5700A"/><path d="M15.6 7.5 9.5 15.5h5.2l-2.3 5 8.1-9.5H15l2.2-3.5h-1.6Z" fill="white"/></svg>
+            <span class="brand-text"><strong>Recarga</strong><span>Games</span></span>
+          </a>
+          <div class="social-row" aria-label="Redes sociais">
+            <a class="social-link" href="#" aria-label="Instagram">IG</a>
+            <a class="social-link" href="#" aria-label="TikTok">TT</a>
+            <a class="social-link" href="#" aria-label="Discord">DC</a>
+          </div>
+        </div>
+        <details class="footer-accordion"><summary>Políticas</summary><div class="footer-list"><a href="terms.html">Termos e Condições</a><a href="privacy-policy.html">Política de Privacidade</a><a href="cookie-policy.html">Política de Cookies</a><a href="refund-policy.html">Trocas e Reembolsos</a><a href="faq.html">Perguntas Frequentes</a></div></details>
+        <details class="footer-accordion"><summary>Suporte</summary><div class="footer-list"><a href="help-center.html">Central de ajuda</a><a href="my-orders.html">Acompanhar pedido</a><span>support@recargagames.com</span></div></details>
+        <div class="footer-mobile-bottom">
+          <div class="payment-row"><span class="payment-badge">Pix</span><span class="payment-badge">Cartão</span><span class="payment-badge">Boleto</span></div>
+          <p class="footer-copy" style="max-width:none;">© 2026 Recarga Games Brasil.</p>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="shared/data/products.js"></script>
+  <script src="shared/data/orders.js"></script>
+  <script src="shared/js/market.js"></script>
+<script src="shared/js/store.js"></script>
+  <script>
+  (function () {
+    'use strict';
+
+    /* ── Progressive integration ──────────────────────────────────────────
+       On the real site, window.RecargaStore (shared/js/store.js) supplies
+       getUser() / getOrders() / logout(). When those scripts aren't present
+       (e.g. previewing this file on its own) we fall back to an in-memory
+       mock so the page still renders fully. Nothing here touches
+       localStorage — state lives only in this tab's memory. */
+    var hasStore = typeof window.RecargaStore !== 'undefined';
+    var realUser = hasStore && RecargaStore.getUser ? RecargaStore.getUser() : undefined;
+
+    var MOCK_USER = {
+      name: 'Rafael Andrade',
+      nickname: 'RafaGG',
+      email: 'rafael.andrade@email.com',
+      emailVerified: true,
+      phone: '(11) 98888-4433',
+      phoneVerified: false,
+      language: 'Português (Brasil)',
+      region: 'Brasil',
+      birthday: '',
+      memberSince: '2025-11-02',
+      notifications: { orderEmail: true, orderWhatsapp: true, promo: false },
+      twoFactor: false
+    };
+
+    // A real integration returning `null` means "logged out" — respect that.
+    // No RecargaStore at all (standalone preview) shows the full demo instead.
+    var user = hasStore ? realUser : MOCK_USER;
+
+    /* RecargaStore.login() grava só {name, email, memberSince}: o objeto
+       `notifications` existe no MOCK_USER mas não num usuário real, e os
+       toggles mais abaixo liam user.notifications[key] direto — TypeError na
+       primeira visita ao perfil depois de qualquer login. Default aqui. */
+    if (user && !user.notifications) {
+      user.notifications = { orderEmail: true, orderWhatsapp: false, promo: false };
+    }
+
+    var MOCK_ORDERS = [
+      { id: 'RG-88213', product: 'Free Fire', color: '#F5700A', pkg: '2.180 diamantes', date: '28 ago 2026', amount: 'R$ 89,90', status: 'completed' },
+      { id: 'RG-87990', product: 'Mobile Legends', color: '#2ECC8A', pkg: '706 diamantes', date: '14 ago 2026', amount: 'R$ 49,90', status: 'completed' },
+      { id: 'RG-87510', product: 'Roblox', color: '#E0379A', pkg: '1.700 Robux', date: '2 ago 2026', amount: 'R$ 99,90', status: 'processing' }
+    ];
+
+    var authGate = document.getElementById('authGate');
+    var navName = document.getElementById('navAccountName');
+    var navSub = document.getElementById('navAccountSub');
+
+    function initials(name) { return (name || '?').trim().split(/\s+/).map(function (p) { return p[0]; }).slice(0, 2).join('').toUpperCase(); }
+    function escapeHtml(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]; }); }
+    function statusLabel(s) { return { completed: 'Concluído', processing: 'Processando', failed: 'Falhou' }[s] || s; }
+
+    if (!user) {
+      navName.textContent = 'Cadastre-se';
+      navSub.textContent = 'Entrar';
+      authGate.innerHTML =
+        '<div class="card not-authed">' +
+          '<div class="big-mark"><svg width="26" height="26" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.6"/><path d="M4 20c0-4.4 3.6-8 8-8s8 3.6 8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></div>' +
+          '<h1>Entre para ver sua conta</h1>' +
+          '<p>Faça login para gerenciar seus dados, pagamentos e acompanhar pedidos.</p>' +
+          '<a class="cta-primary" style="display:inline-flex;" href="account-login.html?redirect=account-profile.html">Entrar ou criar conta</a>' +
+        '</div>';
+      return;
+    }
+
+    navName.textContent = user.name.split(' ')[0];
+    navSub.textContent = 'Minha conta';
+
+    // snapshot used to detect unsaved changes / power the completion meter
+    var snapshot = JSON.parse(JSON.stringify(user));
+
+    function completion(u) {
+      var checks = [!!u.name, !!u.nickname, !!u.emailVerified, !!u.phoneVerified, !!u.birthday, !!u.language && !!u.region];
+      var done = checks.filter(Boolean).length;
+      return Math.round((done / checks.length) * 100);
+    }
+
+    authGate.innerHTML =
+      '<div class="profile-grid">' +
+        '<aside class="card profile-card">' +
+          '<div class="avatar-wrap">' +
+            '<div class="profile-avatar" id="avatarInitials">' + initials(user.name) + '</div>' +
+            '<button class="avatar-edit" type="button" title="Alterar foto — em breve" aria-label="Alterar foto (em breve)" disabled>' +
+              '<svg viewBox="0 0 20 20" fill="none"><path d="M4 14.5V16h1.5l8-8-1.5-1.5-8 8Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M12.5 6l1.5-1.5L15.5 6 14 7.5" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>' +
+            '</button>' +
+          '</div>' +
+          '<h2 id="sidebarName">' + escapeHtml(user.name) + '</h2>' +
+          '<p id="sidebarEmail">' + escapeHtml(user.email) + '</p>' +
+          '<p class="member-since">Cliente desde ' + new Date(user.memberSince + 'T00:00:00').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }) + '</p>' +
+          '<div class="completion-wrap">' +
+            '<div class="completion-label"><span>Perfil completo</span><b id="completionPct">' + completion(user) + '%</b></div>' +
+            '<div class="completion-track"><div class="completion-fill" id="completionFill" style="width:' + completion(user) + '%"></div></div>' +
+          '</div>' +
+          '<nav class="profile-menu" aria-label="Seções da conta">' +
+            '<button type="button" data-tab="dados" class="active"><svg viewBox="0 0 20 20" fill="none"><circle cx="10" cy="7" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M4 17c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke="currentColor" stroke-width="1.5"/></svg>Dados pessoais</button>' +
+            '<button type="button" data-tab="jogos"><svg viewBox="0 0 20 20" fill="none"><rect x="2.5" y="7" width="15" height="8.5" rx="4.2" stroke="currentColor" stroke-width="1.5"/><circle cx="7" cy="11.2" r=".9" fill="currentColor"/><circle cx="5.3" cy="11.2" r=".9" fill="currentColor"/><path d="M13 10.3h2.2M14.1 9.2v2.2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>IDs de jogos</button>' +
+            '<button type="button" data-tab="pagamento"><svg viewBox="0 0 20 20" fill="none"><rect x="2.5" y="5" width="15" height="10" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M2.5 8.5h15" stroke="currentColor" stroke-width="1.5"/></svg>Pagamento</button>' +
+            '<button type="button" data-tab="seguranca"><svg viewBox="0 0 20 20" fill="none"><path d="M10 2.5 4 5v4.5c0 4 2.6 6.7 6 8 3.4-1.3 6-4 6-8V5l-6-2.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>Segurança</button>' +
+            '<button type="button" data-tab="notificacoes"><svg viewBox="0 0 20 20" fill="none"><path d="M6 8a4 4 0 0 1 8 0c0 3 1 4 1 4H5s1-1 1-4Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8.3 15a1.8 1.8 0 0 0 3.4 0" stroke="currentColor" stroke-width="1.5"/></svg>Notificações</button>' +
+            '<button type="button" data-tab="pedidos"><svg viewBox="0 0 20 20" fill="none"><path d="M4 4h12l-1.2 8H5.2L4 4Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><circle cx="8" cy="16" r="1.2" fill="currentColor"/><circle cx="13" cy="16" r="1.2" fill="currentColor"/></svg>Pedidos</button>' +
+            '<hr>' +
+            '<button type="button" class="logout" id="logoutBtn"><svg viewBox="0 0 20 20" fill="none"><path d="M8 4H4v12h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M8 10h8m0 0-3-3m3 3-3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Sair da conta</button>' +
+          '</nav>' +
+        '</aside>' +
+
+        '<div>' +
+          '<div class="success-banner" id="saveBanner" role="status" aria-live="polite">' +
+            '<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="8.5" stroke="currentColor" stroke-width="1.5"/><path d="M6.5 10.2l2.3 2.3 4.7-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
+            '<div><strong id="saveBannerTitle">Alterações salvas</strong><span id="saveBannerSub">Seus dados foram atualizados.</span></div>' +
+          '</div>' +
+
+          '<section class="card panel-section active" data-panel="dados">' +
+            '<h3>Dados pessoais</h3>' +
+            '<p class="panel-hint">Usados para identificar sua conta e agilizar o preenchimento nas compras.</p>' +
+            '<form id="profileForm" novalidate>' +
+              '<div class="field-grid">' +
+                '<div class="field-row">' +
+                  '<div class="field-group" data-field="name">' +
+                    '<label class="field-label" for="f-name">Nome completo <span class="field-required">*</span></label>' +
+                    '<input class="field-input" id="f-name" name="name" autocomplete="name" required>' +
+                    '<p class="field-error">Informe seu nome completo.</p>' +
+                  '</div>' +
+                  '<div class="field-group" data-field="nickname">' +
+                    '<label class="field-label" for="f-nickname">Nickname / Gamertag</label>' +
+                    '<input class="field-input" id="f-nickname" name="nickname" placeholder="Seu nome no jogo">' +
+                    '<p class="field-hint">Sugerido automaticamente no campo de ID do jogador durante a compra.</p>' +
+                  '</div>' +
+                '</div>' +
+                '<div class="field-row">' +
+                  '<div class="field-group" data-field="email">' +
+                    '<label class="field-label" for="f-email">E-mail <span class="field-required">*</span>' +
+                      (user.emailVerified ? '<span class="badge-verified">Verificado</span>' : '<span class="badge-pending">Pendente</span>') +
+                    '</label>' +
+                    '<input class="field-input" id="f-email" name="email" type="email" autocomplete="email" required>' +
+                    '<p class="field-error">Informe um e-mail válido.</p>' +
+                  '</div>' +
+                  '<div class="field-group" data-field="phone">' +
+                    '<label class="field-label" for="f-phone">WhatsApp' +
+                      (user.phoneVerified ? '<span class="badge-verified">Verificado</span>' : '<span class="badge-pending">Pendente</span>') +
+                    '</label>' +
+                    '<input class="field-input" id="f-phone" name="phone" autocomplete="tel" placeholder="(11) 99999-9999">' +
+                    '<p class="field-hint">Usamos só para avisos sobre seus pedidos.</p>' +
+                  '</div>' +
+                '</div>' +
+                '<div class="field-row">' +
+                  '<div class="field-group">' +
+                    '<label class="field-label" for="f-language">Idioma</label>' +
+                    '<select class="field-select" id="f-language" name="language">' +
+                      '<option>Português (Brasil)</option><option>English</option><option>Español</option>' +
+                    '</select>' +
+                  '</div>' +
+                  '<div class="field-group">' +
+                    '<label class="field-label" for="f-region">País / Região</label>' +
+                    '<select class="field-select" id="f-region" name="region">' +
+                      '<option>Brasil</option><option>Canadá</option><option>Estados Unidos</option><option>México</option>' +
+                    '</select>' +
+                  '</div>' +
+                '</div>' +
+                '<div class="field-group" style="max-width:260px">' +
+                  '<label class="field-label" for="f-birthday">Data de nascimento</label>' +
+                  '<input class="field-input" id="f-birthday" name="birthday" type="date">' +
+                  '<p class="field-hint">Opcional — usamos para liberar recompensas de aniversário.</p>' +
+                '</div>' +
+              '</div>' +
+              '<div class="field-actions">' +
+                '<button class="cta-primary" type="submit" id="saveBtn" disabled>Salvar alterações</button>' +
+                '<button class="cta-secondary" type="button" id="cancelBtn" disabled>Cancelar</button>' +
+              '</div>' +
+            '</form>' +
+          '</section>' +
+
+          '<section class="card panel-section" data-panel="jogos">' +
+            '<h3>IDs de jogos</h3>' +
+            '<p class="panel-hint">Salve o ID da sua conta em cada jogo para vir pré-preenchido na hora da compra.</p>' +
+            '<form id="linkAccountForm" novalidate>' +
+              '<div class="field-grid">' +
+                '<div class="field-group" data-field="linkGame">' +
+                  '<label class="field-label" for="f-linkGame">Jogo <span class="field-required">*</span></label>' +
+                  '<select class="field-select" id="f-linkGame">' +
+                    '<option value="">Selecione um jogo</option>' +
+                  '</select>' +
+                '</div>' +
+                '<div id="linkDynamicFields"></div>' +
+                '<div class="field-group" data-field="linkNickname">' +
+                  '<label class="field-label" for="f-linkNickname">Apelido (opcional)</label>' +
+                  '<input class="field-input" id="f-linkNickname" placeholder="Ex: Conta principal, conta do irmão">' +
+                  '<p class="field-hint">Útil quando você salva mais de um ID para o mesmo jogo.</p>' +
+                '</div>' +
+              '</div>' +
+              '<div class="field-actions">' +
+                '<button class="cta-primary" type="submit" id="linkAccountBtn" disabled>Salvar ID</button>' +
+              '</div>' +
+            '</form>' +
+            '<div id="linkedAccountsList" style="margin-top:22px;"></div>' +
+          '</section>' +
+
+          '<section class="card panel-section" data-panel="pagamento">' +
+            '<h3>Métodos de pagamento</h3>' +
+            '<p class="panel-hint">Pix e boleto não exigem cadastro prévio — você escolhe na hora da compra.</p>' +
+            '<div class="empty-note">Nenhum cartão salvo ainda.</div>' +
+            '<div style="margin-top:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">' +
+              '<button class="ghost-btn" type="button" disabled title="Em breve">Adicionar cartão</button>' +
+              '<span class="badge-soon">Em breve</span>' +
+            '</div>' +
+            '<div class="profile-row" style="margin-top:18px;"><span class="lbl">Aceitos no checkout</span><span class="val payment-row"><span class="payment-badge">Pix</span><span class="payment-badge">Cartão</span><span class="payment-badge">Boleto</span></span></div>' +
+          '</section>' +
+
+          '<section class="card panel-section" data-panel="seguranca">' +
+            '<h3>Segurança</h3>' +
+            '<p class="panel-hint">Mantenha sua conta protegida.</p>' +
+            '<form id="passwordForm" novalidate>' +
+              '<div class="field-grid">' +
+                '<div class="field-group" data-field="curpass"><label class="field-label" for="f-curpass">Senha atual</label><input class="field-input" id="f-curpass" type="password" autocomplete="current-password"><p class="field-error">Informe sua senha atual.</p></div>' +
+                '<div class="field-row">' +
+                  '<div class="field-group" data-field="newpass"><label class="field-label" for="f-newpass">Nova senha</label><input class="field-input" id="f-newpass" type="password" autocomplete="new-password"><p class="field-hint">Mínimo de 8 caracteres.</p><p class="field-error">Use ao menos 8 caracteres.</p></div>' +
+                  '<div class="field-group" data-field="confpass"><label class="field-label" for="f-confpass">Confirmar nova senha</label><input class="field-input" id="f-confpass" type="password" autocomplete="new-password"><p class="field-error">As senhas não coincidem.</p></div>' +
+                '</div>' +
+              '</div>' +
+              '<div class="field-actions"><button class="cta-primary" type="submit">Atualizar senha</button></div>' +
+            '</form>' +
+            '<div class="toggle-row" style="margin-top:8px;">' +
+              '<div class="toggle-meta"><strong>Verificação em duas etapas <span class="badge-soon">Em breve</span></strong><span>Uma camada extra de segurança usando seu WhatsApp.</span></div>' +
+              '<div class="switch disabled" role="switch" aria-checked="false" aria-disabled="true"></div>' +
+            '</div>' +
+            '<div class="danger-zone">' +
+              '<h4>Zona de risco</h4>' +
+              '<p>Solicite uma cópia dos seus dados ou o encerramento da sua conta, conforme a LGPD.</p>' +
+              '<div class="danger-actions">' +
+                '<button class="link-btn" type="button" id="exportDataBtn">Baixar meus dados</button>' +
+                '<button class="link-btn link-danger" type="button" id="deleteAccountBtn">Excluir minha conta</button>' +
+              '</div>' +
+            '</div>' +
+          '</section>' +
+
+          '<section class="card panel-section" data-panel="notificacoes">' +
+            '<h3>Notificações</h3>' +
+            '<p class="panel-hint">Escolha como quer ser avisado. Preferências salvam automaticamente.</p>' +
+            '<div class="toggle-row">' +
+              '<div class="toggle-meta"><strong>Status do pedido por e-mail</strong><span>Confirmações de compra e entrega de código.</span></div>' +
+              '<div class="switch" data-toggle="orderEmail" role="switch" tabindex="0"></div>' +
+            '</div>' +
+            // Fase 0: WhatsApp não é canal de entrega nem de aviso — não há
+            // número real nem integração. Oculto (não removido), igual ao que
+            // foi feito em product.html/checkout.html. Ver .toggle-row.phase0-hidden.
+            '<div class="toggle-row phase0-hidden">' +
+              '<div class="toggle-meta"><strong>Status do pedido por WhatsApp</strong><span>Avisos rápidos sobre processamento e entrega.</span></div>' +
+              '<div class="switch" data-toggle="orderWhatsapp" role="switch" tabindex="0"></div>' +
+            '</div>' +
+            '<div class="toggle-row">' +
+              '<div class="toggle-meta"><strong>Novidades e promoções</strong><span>Cupons, lançamentos de jogos e ofertas exclusivas.</span></div>' +
+              '<div class="switch" data-toggle="promo" role="switch" tabindex="0"></div>' +
+            '</div>' +
+            '<p class="inline-confirm" id="notifConfirm">Preferência salva.</p>' +
+          '</section>' +
+
+          '<section class="card panel-section" data-panel="pedidos">' +
+            '<h3>Pedidos recentes</h3>' +
+            '<p class="panel-hint">Últimos 3 pedidos — veja o histórico completo a qualquer momento.</p>' +
+            '<div id="ordersMini"></div>' +
+            '<div class="profile-link-row" onclick="location.href=\'my-orders.html\'" style="margin-top:6px;"><span class="val" style="color:var(--orange);">Ver todos os pedidos</span><svg width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M7.5 5L12.5 10L7.5 15" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>' +
+          '</section>' +
+        '</div>' +
+      '</div>';
+
+    /* ── populate form + orders ── */
+    var f = {
+      name: document.getElementById('f-name'),
+      nickname: document.getElementById('f-nickname'),
+      email: document.getElementById('f-email'),
+      phone: document.getElementById('f-phone'),
+      language: document.getElementById('f-language'),
+      region: document.getElementById('f-region'),
+      birthday: document.getElementById('f-birthday')
+    };
+    Object.keys(f).forEach(function (k) { if (user[k]) f[k].value = user[k]; });
+
+    var orders = (hasStore && RecargaStore.getOrders) ? RecargaStore.getOrders().slice(0, 3) : MOCK_ORDERS;
+    var ordersMini = document.getElementById('ordersMini');
+    ordersMini.innerHTML = orders.length ? orders.map(function (o) {
+      var name = o.product || (hasStore && RecargaStore.getProductById && RecargaStore.getProductById(o.productId) ? RecargaStore.getProductById(o.productId).name : o.productId);
+      return '<div class="order-row-mini" onclick="location.href=\'order-details.html?id=' + encodeURIComponent(o.id) + '\'">' +
+        '<div class="order-row-thumb-mini" style="--thumb-color:' + (o.color || '#F5700A') + '">' + escapeHtml((name || '?').slice(0, 2).toUpperCase()) + '</div>' +
+        '<div class="order-row-mini-info"><strong>' + escapeHtml(name) + '</strong><span>' + escapeHtml(o.pkg || o.packageLabel || '') + ' · ' + escapeHtml(o.date || '') + '</span></div>' +
+        '<span class="status-pill ' + o.status + '">' + statusLabel(o.status) + '</span>' +
+      '</div>';
+    }).join('') : '<div class="empty-note">Nenhum pedido ainda.</div>';
+
+    /* ── IDs de jogos vinculados ──
+       The game list comes live from shared/data/products.js
+       (RecargaStore.getProducts, filtered to type "direct") — nothing here
+       is hardcoded, so adding/removing a game in the catalog is enough to
+       change what shows up in this dropdown. Only DTU ("direct") products
+       have redemption fields worth saving; code/gift-card products don't
+       ask for a player ID at all. */
+    var directProducts = (hasStore && RecargaStore.getProducts)
+      ? RecargaStore.getProducts().filter(function (p) { return p.type === 'direct'; })
+      : [];
+
+    var linkSection = document.querySelector('[data-panel="jogos"]');
+    var gameSelect = document.getElementById('f-linkGame');
+    var linkDynamicFields = document.getElementById('linkDynamicFields');
+    var linkNickname = document.getElementById('f-linkNickname');
+    var linkForm = document.getElementById('linkAccountForm');
+    var linkBtn = document.getElementById('linkAccountBtn');
+    var linkedList = document.getElementById('linkedAccountsList');
+    var linkFieldsValid = {};
+
+    if (!directProducts.length) {
+      linkSection.innerHTML = '<h3>IDs de jogos</h3><div class="empty-note">Esta seção depende do catálogo de jogos e só funciona com a loja carregada normalmente.</div>';
+    } else {
+      gameSelect.innerHTML += directProducts.map(function (p) {
+        return '<option value="' + p.id + '">' + escapeHtml(p.name) + '</option>';
+      }).join('');
+
+      function updateLinkBtn() {
+        var gameOk = !!gameSelect.value;
+        var keys = Object.keys(linkFieldsValid);
+        var fieldsOk = keys.length > 0 && keys.every(function (k) { return linkFieldsValid[k]; });
+        linkBtn.disabled = !(gameOk && fieldsOk);
+      }
+
+      function renderLinkFields(productId) {
+        var product = directProducts.find(function (p) { return p.id === productId; });
+        var fields = (product && product.redemption && product.redemption.fields) || [];
+        linkDynamicFields.innerHTML = fields.map(function (fld) {
+          return '<div class="field-group" data-linkfield="' + fld.key + '">' +
+            '<label class="field-label" for="link-' + fld.key + '">' + escapeHtml(fld.label) + ' <span class="field-required">*</span></label>' +
+            '<input class="field-input" id="link-' + fld.key + '" placeholder="' + escapeHtml(fld.placeholder || '') + '" autocomplete="off">' +
+            (fld.help ? '<p class="field-hint">' + escapeHtml(fld.help) + '</p>' : '') +
+            '<p class="field-error">Preencha este campo corretamente.</p>' +
+          '</div>';
+        }).join('');
+        linkFieldsValid = {};
+        fields.forEach(function (fld) { linkFieldsValid[fld.key] = false; });
+        fields.forEach(function (fld) {
+          var input = document.getElementById('link-' + fld.key);
+          var group = input.closest('.field-group');
+          input.addEventListener('input', function () {
+            linkFieldsValid[fld.key] = new RegExp(fld.pattern).test(input.value.trim());
+            group.classList.toggle('is-invalid', !linkFieldsValid[fld.key] && input.value.length > 0);
+            group.classList.toggle('is-valid', linkFieldsValid[fld.key]);
+            updateLinkBtn();
+          });
+        });
+        updateLinkBtn();
+      }
+
+      gameSelect.addEventListener('change', function () { renderLinkFields(gameSelect.value); });
+
+      function renderLinkedList() {
+        var accounts = (hasStore && RecargaStore.getLinkedAccounts) ? RecargaStore.getLinkedAccounts() : [];
+        linkedList.innerHTML = accounts.length ? accounts.map(function (a) {
+          var product = directProducts.find(function (p) { return p.id === a.productId; }) || {};
+          var fieldSummary = Object.keys(a.fields || {}).map(function (k) { return a.fields[k]; }).filter(Boolean).join(' · ');
+          return '<div class="linked-account-row">' +
+            '<div class="order-row-thumb-mini" style="--thumb-color:' + (product.color || '#F5700A') + '">' + escapeHtml((product.short || product.name || '?').slice(0, 3).toUpperCase()) + '</div>' +
+            '<div class="order-row-mini-info"><strong>' + escapeHtml(product.name || a.productId) + (a.nickname ? ' · ' + escapeHtml(a.nickname) : '') + '</strong><span>' + escapeHtml(fieldSummary) + '</span></div>' +
+            '<button class="link-btn link-danger" type="button" data-remove="' + a.id + '">Remover</button>' +
+          '</div>';
+        }).join('') : '<div class="empty-note">Nenhum ID salvo ainda.</div>';
+
+        linkedList.querySelectorAll('[data-remove]').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            if (hasStore && RecargaStore.removeLinkedAccount) RecargaStore.removeLinkedAccount(btn.dataset.remove);
+            renderLinkedList();
+            showBanner('ID removido', 'A conta foi desvinculada do seu perfil.');
+          });
+        });
+      }
+
+      linkForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        if (linkBtn.disabled) return;
+        var fields = {};
+        Object.keys(linkFieldsValid).forEach(function (k) {
+          var input = document.getElementById('link-' + k);
+          if (input) fields[k] = input.value.trim();
+        });
+        var entry = { productId: gameSelect.value, fields: fields, nickname: linkNickname.value.trim() || null };
+        if (hasStore && RecargaStore.addLinkedAccount) RecargaStore.addLinkedAccount(entry);
+        linkForm.reset();
+        linkDynamicFields.innerHTML = '';
+        linkFieldsValid = {};
+        updateLinkBtn();
+        renderLinkedList();
+        showBanner('ID salvo', 'Vai aparecer pré-preenchido na próxima compra desse jogo.');
+      });
+
+      renderLinkedList();
+    }
+
+    /* ── tab switching w/ deep-link ── */
+    var tabButtons = document.querySelectorAll('.profile-menu [data-tab]');
+    var panels = document.querySelectorAll('[data-panel]');
+    function showTab(name) {
+      panels.forEach(function (p) { p.classList.toggle('active', p.dataset.panel === name); });
+      tabButtons.forEach(function (b) { b.classList.toggle('active', b.dataset.tab === name); });
+      history.replaceState(null, '', '#' + name);
+    }
+    var stackedLayout = window.matchMedia('(max-width: 860px)');
+    tabButtons.forEach(function (b) {
+      b.addEventListener('click', function () {
+        showTab(b.dataset.tab);
+        // on the stacked mobile layout the sidebar sits above the content,
+        // so bring the newly-selected panel into view instead of leaving
+        // the user staring at an unchanged sidebar.
+        if (stackedLayout.matches) {
+          var target = document.querySelector('[data-panel="' + b.dataset.tab + '"]');
+          if (target) setTimeout(function () { target.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 60);
+        }
+      });
+    });
+    var initialTab = location.hash ? location.hash.slice(1) : 'dados';
+    if (![].slice.call(panels).some(function (p) { return p.dataset.panel === initialTab; })) initialTab = 'dados';
+    showTab(initialTab);
+
+    /* ── dirty tracking + validation + save ── */
+    var form = document.getElementById('profileForm');
+    var saveBtn = document.getElementById('saveBtn');
+    var cancelBtn = document.getElementById('cancelBtn');
+    var banner = document.getElementById('saveBanner');
+    var bannerTimer, bannerHideTimer;
+
+    function showBanner(title, sub) {
+      document.getElementById('saveBannerTitle').textContent = title;
+      document.getElementById('saveBannerSub').textContent = sub;
+      clearTimeout(bannerTimer);
+      clearTimeout(bannerHideTimer);
+      banner.style.display = 'flex';
+      // force reflow so the opacity/transform transition plays from its resting state
+      void banner.offsetWidth;
+      banner.classList.add('show');
+      bannerTimer = setTimeout(function () {
+        banner.classList.remove('show');
+        bannerHideTimer = setTimeout(function () { banner.style.display = 'none'; }, 220);
+      }, 4000);
+    }
+
+    function checkDirty() {
+      var dirty = Object.keys(f).some(function (k) { return f[k].value !== (snapshot[k] || ''); });
+      saveBtn.disabled = !dirty;
+      cancelBtn.disabled = !dirty;
+      return dirty;
+    }
+    Object.keys(f).forEach(function (k) { f[k].addEventListener('input', checkDirty); f[k].addEventListener('change', checkDirty); });
+
+    cancelBtn.addEventListener('click', function () {
+      Object.keys(f).forEach(function (k) { f[k].value = snapshot[k] || ''; f[k].closest('.field-group') && f[k].closest('.field-group').classList.remove('is-invalid', 'is-valid'); });
+      checkDirty();
+    });
+
+    function setInvalid(group, invalid) { if (group) group.classList.toggle('is-invalid', invalid); if (group && !invalid) group.classList.remove('is-invalid'); }
+
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var valid = true;
+      var nameGroup = f.name.closest('.field-group');
+      var emailGroup = f.email.closest('.field-group');
+      if (!f.name.value.trim()) { setInvalid(nameGroup, true); valid = false; } else nameGroup.classList.remove('is-invalid');
+      var emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email.value.trim());
+      if (!emailOk) { setInvalid(emailGroup, true); valid = false; } else emailGroup.classList.remove('is-invalid');
+      if (!valid) return;
+
+      Object.keys(f).forEach(function (k) { user[k] = f[k].value; snapshot[k] = f[k].value; });
+      if (hasStore && RecargaStore.updateUser) { try { RecargaStore.updateUser(user); } catch (err) {} }
+      document.getElementById('sidebarName').textContent = user.name;
+      document.getElementById('sidebarEmail').textContent = user.email;
+      document.getElementById('avatarInitials').textContent = initials(user.name);
+      navName.textContent = user.name.split(' ')[0];
+      var pct = completion(user);
+      document.getElementById('completionPct').textContent = pct + '%';
+      document.getElementById('completionFill').style.width = pct + '%';
+      checkDirty();
+      showBanner('Alterações salvas', 'Seus dados foram atualizados.');
+    });
+
+    /* ── password form (client-side only demo) ── */
+    var passForm = document.getElementById('passwordForm');
+    passForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var cur = document.getElementById('f-curpass');
+      var np = document.getElementById('f-newpass');
+      var cp = document.getElementById('f-confpass');
+      var ok = true;
+      setInvalid(cur.closest('.field-group'), !cur.value); if (!cur.value) ok = false;
+      setInvalid(np.closest('.field-group'), np.value.length < 8); if (np.value.length < 8) ok = false;
+      setInvalid(cp.closest('.field-group'), cp.value !== np.value || !cp.value); if (cp.value !== np.value || !cp.value) ok = false;
+      if (!ok) return;
+      cur.value = np.value = cp.value = '';
+      showBanner('Senha atualizada', 'Use a nova senha no seu próximo login.');
+    });
+
+    /* ── notification toggles (auto-save) ── */
+    var notifConfirm = document.getElementById('notifConfirm');
+    document.querySelectorAll('.switch[data-toggle]').forEach(function (sw) {
+      var key = sw.dataset.toggle;
+      sw.classList.toggle('on', !!user.notifications[key]);
+      sw.setAttribute('aria-checked', String(!!user.notifications[key]));
+      function toggle() {
+        user.notifications[key] = !user.notifications[key];
+        sw.classList.toggle('on', user.notifications[key]);
+        sw.setAttribute('aria-checked', String(user.notifications[key]));
+        // Bug fix: this used to only mutate the in-memory `user` object and
+        // never actually saved it, so the toggle silently reset on reload.
+        if (hasStore && RecargaStore.updateUser) { try { RecargaStore.updateUser({ notifications: user.notifications }); } catch (e) {} }
+        notifConfirm.classList.add('show');
+        setTimeout(function () { notifConfirm.classList.remove('show'); }, 2200);
+      }
+      sw.addEventListener('click', toggle);
+      sw.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
+    });
+
+    /* ── logout ── */
+    document.getElementById('logoutBtn').addEventListener('click', function () {
+      if (hasStore && RecargaStore.logout) RecargaStore.logout();
+      window.location.href = 'index.html';
+    });
+
+    /* ── LGPD: baixar meus dados ──
+       Exports exactly what this prototype actually stores (profile +
+       order history, both from RecargaStore/localStorage) as a JSON file.
+       A real backend should include anything it holds server-side too. */
+    var exportBtn = document.getElementById('exportDataBtn');
+    if (exportBtn) exportBtn.addEventListener('click', function () {
+      var exportPayload = {
+        exportedAt: new Date().toISOString(),
+        profile: (hasStore && RecargaStore.getUser) ? RecargaStore.getUser() : user,
+        orders: (hasStore && RecargaStore.getOrders) ? RecargaStore.getOrders() : []
+      };
+      var blob = new Blob([JSON.stringify(exportPayload, null, 2)], { type: 'application/json' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'recarga-games-meus-dados.json';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+      showBanner('Dados exportados', 'O arquivo com suas informações foi baixado.');
+    });
+
+    /* ── LGPD: excluir minha conta ──
+       Clears the local profile/session (RecargaStore.logout). Order
+       history is intentionally kept — real stores generally can't erase
+       completed transaction records outright (tax/financial retention
+       rules), so a backend implementation should soft-delete/anonymize
+       the profile rather than the orders themselves. */
+    var deleteBtn = document.getElementById('deleteAccountBtn');
+    if (deleteBtn) deleteBtn.addEventListener('click', function () {
+      var confirmed = window.confirm('Tem certeza que deseja excluir sua conta? Essa ação não pode ser desfeita.');
+      if (!confirmed) return;
+      if (hasStore && RecargaStore.logout) RecargaStore.logout();
+      window.location.href = 'index.html?accountDeleted=1';
+    });
+  })();
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,611 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Recarga Games — Meus pedidos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800;900&family=Barlow+Condensed:wght@700;800;900&display=swap" rel="stylesheet" />
+<style>
+  /* ── Tokens (brand system — orange/lime, v7.8.2e) ── */
+  :root {
+    --void: #0D0F1A; --page: #090C14; --surface: #1A1D2E; --surface-2: #151A2A;
+    --warm: #F5F4F0; --muted: #9B99A8; --muted-2: #777588;
+    --border: #2E3047; --border-2: #454967;
+    --orange: #F5700A; --orange-hi: #FF8C2A; --lime: #2ECC8A; --gold: #F0B429; --danger: #FF5C47;
+    --max: 1900px; --tight: 1280px; --header-h: 72px;
+    --ease: cubic-bezier(.2,.75,.2,1);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; background: var(--page); }
+  body {
+    margin: 0; min-height: 100vh; color: var(--warm);
+    background: linear-gradient(180deg, #090C14 0%, #0A0D16 45%, #080B12 100%);
+    font-family: 'Barlow', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    line-height: 1.45; overflow-x: hidden; -webkit-font-smoothing: antialiased;
+  }
+  a { color: inherit; text-decoration: none; }
+  button, input, select { font: inherit; }
+  button { color: inherit; background: transparent; border: 0; appearance: none; }
+  svg { display: block; }
+  .sr-only { position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0; }
+  .tight { width: min(100%, var(--tight)); margin: 0 auto; padding: 0 clamp(16px,2.2vw,40px); }
+  .muted { color: var(--muted); }
+  .tiny { font-size: 12px; }
+  .eyebrow { display: inline-flex; align-items: center; gap: 7px; color: #FFB37C; font-size: 12px; font-weight: 800; margin-bottom: 7px; letter-spacing: .04em; text-transform: uppercase; }
+
+  /* ── NAV ── */
+  .topbar { position: sticky; top: 0; z-index: 80; background: rgba(9,12,20,.94); border-bottom: 1px solid rgba(46,48,71,.78); backdrop-filter: blur(16px); }
+  .nav { max-width: var(--max); min-height: var(--header-h); margin: 0 auto; padding: 0 clamp(18px,2.2vw,40px); display: grid; grid-template-columns: auto auto minmax(280px,1fr) auto; align-items: center; gap: 28px; }
+  .brand { display: inline-flex; align-items: center; gap: 10px; min-width: 178px; }
+  .brand-mark { width: 29px; height: 29px; flex: 0 0 auto; }
+  .brand-text { display: grid; line-height: 1; text-transform: uppercase; }
+  .brand-text strong { color: var(--orange); font-family: 'Barlow Condensed', sans-serif; font-size: 23px; letter-spacing: .055em; font-weight: 900; }
+  .brand-text span { color: var(--warm); font-size: 10px; letter-spacing: .42em; opacity: .82; margin-top: 1px; }
+  .desktop-nav { display: flex; align-items: center; gap: 22px; color: var(--muted); font-size: 14px; font-weight: 800; white-space: nowrap; }
+  .desktop-nav a, .desktop-nav button { position: relative; padding: 24px 0 22px; color: inherit; cursor: pointer; display: inline-flex; align-items: center; }
+  .desktop-nav a:hover, .desktop-nav button:hover { color: var(--warm); }
+  .desktop-nav .active { color: var(--warm); }
+  .desktop-nav .active::after { content: ""; position: absolute; left: 0; right: 0; bottom: 13px; height: 2px; border-radius: 999px; background: var(--orange); }
+  .search-wrap { position: relative; justify-self: stretch; max-width: 620px; width: 100%; }
+  .search { position: relative; width: 100%; }
+  .search input { width: 100%; height: 44px; border: 1px solid var(--border); background: #101522; border-radius: 999px; color: var(--warm); padding: 0 46px 0 44px; outline: none; font-size: 14px; font-weight: 500; transition: border-color .18s var(--ease); }
+  .search input::placeholder { color: #838091; }
+  .search input:focus { border-color: var(--orange); background: #0E1320; box-shadow: 0 0 0 4px rgba(245,112,10,.12); }
+  .search-icon { width: 18px; height: 18px; position: absolute; left: 16px; top: 13px; color: var(--orange); pointer-events: none; }
+  .nav-actions { display: flex; align-items: center; gap: 10px; justify-content: flex-end; }
+  .account-btn, .lang-btn { border: 1px solid var(--border); background: linear-gradient(180deg, rgba(34,38,64,.86), rgba(26,29,46,.76)); min-height: 44px; border-radius: 14px; color: var(--warm); font-weight: 900; cursor: pointer; transition: border-color .18s var(--ease); }
+  .account-btn:hover, .lang-btn:hover { border-color: rgba(245,112,10,.55); box-shadow: 0 0 0 3px rgba(245,112,10,.08); }
+  .account-btn { display: grid; grid-template-columns: 24px auto; column-gap: 10px; align-items: center; padding: 0 14px 0 12px; min-width: 148px; text-align: left; }
+  .account-icon { width: 24px; height: 24px; border-radius: 999px; display: grid; place-items: center; border: 1px solid rgba(245,112,10,.42); color: var(--orange); }
+  .account-btn strong { display: block; line-height: 1; font-size: 14px; }
+  .account-btn small { display: block; line-height: 1.1; color: var(--muted); font-size: 12px; margin-top: 3px; font-weight: 500; }
+  .lang-btn { padding: 0 15px; letter-spacing: .02em; }
+
+  /* ── BREADCRUMB ── */
+  .breadcrumb-bar { padding: 12px 0; border-bottom: 1px solid rgba(46,48,71,.5); }
+  .breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); flex-wrap: wrap; }
+  .breadcrumb a { color: #D5D3E1; }
+  .breadcrumb a:hover { color: var(--orange-hi); }
+  .breadcrumb .sep { opacity: .38; }
+  .breadcrumb .current { color: var(--warm); font-weight: 600; }
+
+  /* ── CARDS ── */
+  .card { border: 1px solid var(--border); background: linear-gradient(180deg, rgba(22,26,44,.92), rgba(14,17,30,.92)); border-radius: 18px; }
+
+  /* ── ACCOUNT SHELL ── */
+  .account-shell { padding: 28px 0 72px; }
+  .account-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 22px; }
+  .account-title { font-family: 'Barlow Condensed', sans-serif; text-transform: uppercase; font-size: clamp(28px,3vw,40px); font-weight: 900; margin: 0 0 6px; letter-spacing: .01em; }
+  .account-sub { margin: 0; color: var(--muted); font-size: 14px; }
+  .btn-primary-sm { display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 18px; border-radius: 12px; background: linear-gradient(180deg, var(--orange-hi), var(--orange)); color: #fff; font-weight: 900; font-size: 14px; box-shadow: 0 4px 16px rgba(245,112,10,.26); }
+  .btn-primary-sm:hover { filter: brightness(1.06); }
+
+  /* ── STATS ── */
+  .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+  .stat-card { padding: 16px 18px; display: grid; gap: 3px; }
+  .stat-card strong { font-family: 'Barlow Condensed', sans-serif; font-size: 30px; font-weight: 900; line-height: 1; }
+  .stat-card span { color: var(--muted); font-size: 12.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; }
+  .stat-card.accent-lime strong { color: var(--lime); }
+  .stat-card.accent-orange strong { color: var(--orange-hi); }
+
+  /* ── LAYOUT: list + aside ── */
+  .orders-layout { display: grid; grid-template-columns: minmax(0,1fr) 300px; gap: 20px; align-items: start; }
+
+  /* ── TOOLBAR ── */
+  .toolbar { padding: 16px 18px; display: grid; gap: 14px; margin-bottom: 14px; }
+  .search-field { position: relative; }
+  .search-field input { width: 100%; height: 46px; border: 1px solid var(--border); background: #101522; border-radius: 12px; color: var(--warm); padding: 0 16px 0 42px; outline: none; font-size: 14px; }
+  .search-field input:focus { border-color: var(--orange); box-shadow: 0 0 0 4px rgba(245,112,10,.1); }
+  .search-field input::placeholder { color: #6f6c7d; }
+  .search-field svg { position: absolute; left: 14px; top: 15px; width: 16px; height: 16px; color: var(--muted); pointer-events: none; }
+  .toolbar-row2 { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+  .orders-filters { display: flex; gap: 8px; flex-wrap: wrap; }
+  .orders-filter { border: 1px solid var(--border); background: rgba(255,255,255,.02); color: var(--muted); border-radius: 999px; padding: 8px 14px; font-size: 13px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+  .orders-filter .count { font-size: 11px; padding: 1px 6px; border-radius: 999px; background: rgba(255,255,255,.06); }
+  .orders-filter.active { border-color: rgba(245,112,10,.55); background: rgba(245,112,10,.12); color: #FFB37C; }
+  .orders-filter.active .count { background: rgba(245,112,10,.25); color: #FFD9B0; }
+  .sort-field { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted); font-weight: 700; }
+  .sort-field select { height: 38px; border-radius: 10px; border: 1px solid var(--border); background: #101522; color: var(--warm); padding: 0 10px; outline: none; }
+  .sort-field select:focus { border-color: var(--orange); }
+  .results-count { margin: 0 2px 10px; font-size: 12.5px; color: var(--muted-2); font-weight: 600; }
+
+  /* ── ORDER ROWS ── */
+  .orders-list { display: grid; gap: 12px; }
+  .order-row { display: flex; align-items: stretch; gap: 4px; }
+  .order-row-main {
+    flex: 1; min-width: 0; display: grid;
+    grid-template-columns: 52px 1.5fr auto auto auto 16px; align-items: center; gap: 16px;
+    padding: 16px 18px; cursor: pointer;
+  }
+  .order-row-thumb {
+    width: 52px; height: 52px; border-radius: 14px; display: grid; place-items: center;
+    font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 13px; color: #fff; text-align: center; line-height: 1.05;
+    background: linear-gradient(160deg, color-mix(in srgb, var(--thumb-color, var(--orange)) 55%, #0B0E1C), #0B0E1C 78%);
+    border: 1px solid color-mix(in srgb, var(--thumb-color, var(--orange)) 45%, transparent);
+  }
+  .order-row-info { min-width: 0; }
+  .order-row-info strong { display: block; font-size: 15px; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .order-row-info span { display: block; font-size: 12.5px; color: var(--muted); }
+  .order-row-date { font-size: 13px; color: var(--muted); white-space: nowrap; }
+  .order-row-amount { font-family: 'Barlow Condensed', sans-serif; font-size: 18px; font-weight: 900; white-space: nowrap; }
+  .order-row-chevron { width: 16px; height: 16px; color: var(--muted-2); transition: transform .15s var(--ease); }
+  .order-row-main:hover .order-row-chevron { transform: translateX(3px); color: var(--orange-hi); }
+  .order-row-main:hover { background: rgba(255,255,255,.015); border-radius: 14px; }
+
+  .status-pill { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px; border-radius: 999px; font-size: 11.5px; font-weight: 900; text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; }
+  .status-pill::before { content: ""; width: 7px; height: 7px; border-radius: 999px; flex: 0 0 auto; }
+  .status-pill.completed { background: rgba(46,204,138,.12); border: 1px solid rgba(46,204,138,.4); color: #B9F8D9; }
+  .status-pill.completed::before { background: var(--lime); }
+  .status-pill.processing { background: rgba(240,180,41,.12); border: 1px solid rgba(240,180,41,.4); color: #FFE3A3; }
+  .status-pill.processing::before { background: var(--gold); animation: pulse-dot 1.4s ease-in-out infinite; }
+  .status-pill.failed { background: rgba(255,92,71,.12); border: 1px solid rgba(255,92,71,.4); color: #FFC1B7; }
+  .status-pill.failed::before { background: var(--danger); }
+  @keyframes pulse-dot { 0%,100% { opacity:1;transform:scale(1); } 50% { opacity:.45;transform:scale(.65); } }
+
+  .order-row-actions { flex: 0 0 auto; display: flex; align-items: center; padding: 0 14px; }
+  .order-row-action { font-size: 12.5px; font-weight: 800; padding: 9px 14px; border-radius: 10px; border: 1px solid rgba(245,112,10,.5); color: #FFB37C; background: rgba(245,112,10,.07); white-space: nowrap; }
+  .order-row-action:hover { background: rgba(245,112,10,.14); }
+  .order-row-action.danger { border-color: rgba(255,92,71,.5); color: #FFC1B7; background: rgba(255,92,71,.07); }
+  .order-row-action.danger:hover { background: rgba(255,92,71,.14); }
+
+  .load-more { display: block; width: 100%; margin-top: 14px; height: 46px; border-radius: 12px; border: 1px solid var(--border-2); background: rgba(255,255,255,.02); color: var(--warm); font-weight: 800; font-size: 13.5px; cursor: pointer; }
+  .load-more:hover { border-color: rgba(245,112,10,.44); background: rgba(245,112,10,.05); }
+
+  .empty-state { text-align: center; padding: 56px 24px; color: var(--muted); }
+  .empty-state svg { color: var(--muted); margin: 0 auto 14px; }
+  .empty-state h2 { font-family: 'Barlow Condensed', sans-serif; text-transform: uppercase; color: var(--warm); font-size: 20px; margin: 0 0 8px; }
+  .empty-state p { margin: 0 0 18px; font-size: 13.5px; }
+
+  /* ── ASIDE ── */
+  .orders-aside { display: grid; gap: 14px; }
+  .help-card { padding: 20px 20px 18px; }
+  .help-card h2 { margin: 6px 0 8px; font-family: 'Barlow Condensed', sans-serif; text-transform: uppercase; font-size: 20px; }
+  .cta-secondary { display: block; text-align: center; width: 100%; min-height: 44px; line-height: 44px; border: 1px solid var(--border-2); border-radius: 12px; color: #E7E5F1; font-weight: 800; font-size: 13.5px; margin-top: 4px; }
+  .cta-secondary:hover { border-color: rgba(245,112,10,.44); background: rgba(245,112,10,.05); }
+
+  /* ── TOAST ── */
+
+  /* ── FOOTER ── */
+  footer { border-top: 1px solid var(--border); background: #111318; margin-top: 40px; }
+  .footer-inner { padding-top: 30px; padding-bottom: 28px; color: #D7D3E0; }
+  .footer-desktop { display: grid; grid-template-columns: minmax(220px,1.35fr) repeat(3,minmax(130px,.72fr)) minmax(200px,1fr) minmax(200px,1fr); gap: 26px; align-items: start; }
+  .footer-brand { display: grid; gap: 12px; }
+  .footer-logo { display: inline-flex; align-items: center; gap: 10px; width: fit-content; }
+  .footer-copy { margin: 0; color: #B5B1C0; font-size: 13px; line-height: 1.45; max-width: 300px; }
+  .social-row, .payment-row { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; }
+  .social-link { width: 32px; height: 32px; border-radius: 999px; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.1); background: rgba(26,29,46,.62); color: var(--warm); font-weight: 800; font-size: 11px; }
+  .social-link:hover { border-color: rgba(245,112,10,.55); color: var(--orange-hi); }
+  .footer-col h3 { margin: 0 0 12px; color: var(--warm); font-size: 15px; font-weight: 800; }
+  .footer-list { display: grid; gap: 9px; }
+  .footer-list a, .footer-list span { color: #D1CDDA; font-size: 13px; }
+  .footer-list a:hover { color: var(--orange-hi); }
+  .payment-badge { min-height: 30px; padding: 0 11px; border-radius: 7px; display: inline-flex; align-items: center; border: 1px solid rgba(255,255,255,.12); background: #F5F4F0; color: #111318; font-size: 12px; font-weight: 800; }
+  .newsletter-form { display: grid; grid-template-columns: 1fr auto; gap: 8px; border-bottom: 1px solid rgba(255,255,255,.25); padding-bottom: 10px; }
+  .newsletter-form input { min-width: 0; border: 0; background: transparent; color: var(--warm); outline: none; font-size: 14px; }
+  .newsletter-form input::placeholder { color: #9B99A8; }
+  .newsletter-form button { border: 0; border-radius: 999px; background: var(--orange); color: white; padding: 0 14px; min-height: 30px; font-size: 12px; font-weight: 700; cursor: pointer; }
+  .footer-mobile { display: none; padding: 18px 0 14px; }
+  .footer-mobile-top { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 14px; padding-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,.07); margin-bottom: 12px; }
+  .footer-accordion { border-top: 1px solid rgba(255,255,255,.07); }
+  .footer-accordion summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; align-items: center; padding: 13px 0; color: #D1CDDA; font-size: 14px; font-weight: 800; }
+  .footer-accordion summary::-webkit-details-marker { display: none; }
+  .footer-accordion summary::after { content: "▾"; color: var(--muted); font-size: 16px; }
+  .footer-accordion[open] summary::after { transform: rotate(180deg); }
+  .footer-accordion .footer-list { padding-bottom: 12px; }
+  .footer-mobile-bottom { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,.07); margin-top: 12px; flex-wrap: wrap; }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 1100px) {
+    .desktop-nav { display: none; }
+    .nav { grid-template-columns: auto minmax(200px,1fr) auto; }
+    .footer-desktop { grid-template-columns: repeat(3, 1fr); }
+  }
+  @media (max-width: 980px) {
+    .orders-layout { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 760px) {
+    html, body { width: 100%; max-width: 100%; overflow-x: hidden; }
+    :root { --header-h: auto; }
+    .account-head { flex-direction: column; align-items: center; text-align: center; gap: 14px; }
+    .account-head > div:first-child { width: 100%; }
+    .nav { grid-template-columns: auto auto; min-height: 0; padding: 12px 16px 10px; gap: 10px 12px; }
+    .brand { min-width: 0; }
+    .brand-mark { width: 27px; height: 27px; }
+    .brand-text strong { font-size: 21px; }
+    .brand-text span { font-size: 9px; }
+    .search-wrap { grid-column: 1 / -1; order: 3; max-width: 100%; }
+    .search input { height: 44px; font-size: 16px; }
+    .nav-actions { justify-self: end; gap: 8px; }
+    .lang-btn { display: none; }
+    .account-btn { min-width: 0; min-height: 40px; width: auto; padding: 0 12px; }
+    .account-btn strong { font-size: 13px; }
+    .account-btn small { font-size: 11px; }
+    .tight { width: 100%; max-width: 100%; padding-left: 14px; padding-right: 14px; }
+    .stats-row { grid-template-columns: 1fr 1fr; }
+    .stats-row .stat-card:last-child { grid-column: 1 / -1; }
+    .order-row { flex-direction: column; }
+    .order-row-main { grid-template-columns: 44px 1fr; grid-template-areas: "thumb info" "thumb meta" "thumb amount"; row-gap: 6px; padding: 14px 16px; }
+    .order-row-thumb { grid-area: thumb; width: 44px; height: 44px; }
+    .order-row-info { grid-area: info; }
+    .order-row-date { grid-area: meta; justify-self: start; }
+    .order-row-main .status-pill { grid-area: amount; justify-self: start; }
+    .order-row-amount { grid-area: amount; justify-self: end; }
+    .order-row-chevron { display: none; }
+    .order-row-actions { padding: 0 16px 14px; }
+    .order-row-action { width: 100%; text-align: center; }
+    .toolbar-row2 { flex-direction: column; align-items: stretch; }
+    .sort-field { justify-content: space-between; }
+    footer { overflow: hidden; }
+    .footer-inner { width: 100%; max-width: 100%; box-sizing: border-box; }
+    .footer-desktop { display: none; }
+    .footer-mobile { display: block; width: 100%; }
+  }
+
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <nav class="nav" aria-label="Navegação principal">
+    <a class="brand" href="index.html" aria-label="Recarga Games">
+      <svg class="brand-mark" viewBox="0 0 28 28" fill="none" aria-hidden="true">
+        <rect x="4" y="4" width="20" height="20" rx="2.5" transform="rotate(45 14 14)" fill="#F5700A"/>
+        <path d="M15.6 7.5 9.5 15.5h5.2l-2.3 5 8.1-9.5H15l2.2-3.5h-1.6Z" fill="white"/>
+      </svg>
+      <span class="brand-text"><strong>Recarga</strong><span>Games</span></span>
+    </a>
+    <div class="desktop-nav" aria-label="Links principais">
+      <a href="index.html">Loja</a>
+      <a href="index.html#catalog">Todos os jogos</a>
+      <a href="campaign.html">Ganhe créditos</a>
+      <button type="button" class="active" aria-current="page">Meus pedidos</button>
+      <button type="button" onclick="location.href='help-center.html'">Suporte</button>
+    </div>
+    <div class="search-wrap">
+      <div class="search">
+        <svg class="search-icon" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+          <circle cx="8" cy="8" r="5.5" stroke="currentColor" stroke-width="1.6"/>
+          <path d="M12.5 12.5L16 16" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+        </svg>
+        <input type="search" placeholder="Buscar jogo, gift card ou código" aria-label="Buscar produto" />
+      </div>
+    </div>
+    <div class="nav-actions">
+      <button class="account-btn" type="button" aria-label="Cadastre-se ou entrar" onclick="location.href='account-profile.html'">
+        <span class="account-icon">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+            <circle cx="7" cy="5" r="2.5" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M2.5 12c0-2.485 2.015-4.5 4.5-4.5s4.5 2.015 4.5 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span><strong>Cadastre-se</strong><small>Entrar</small></span>
+      </button>
+      <button class="lang-btn" type="button">PT-BR</button>
+          </div>
+  </nav>
+</header>
+
+<div class="breadcrumb-bar">
+  <div class="tight">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <a href="index.html">Loja</a><span class="sep">›</span>
+      <span class="current">Meus pedidos</span>
+    </nav>
+  </div>
+</div>
+
+<main>
+  <div class="tight account-shell">
+
+    <div class="account-head">
+      <div>
+        <h1 class="account-title">Meus pedidos</h1>
+        <p class="account-sub">Acompanhe o status, o histórico e o valor de todas as suas recargas.</p>
+      </div>
+      <a class="btn-primary-sm" href="index.html#catalog">Nova recarga</a>
+    </div>
+
+    <div class="stats-row" id="statsRow" aria-label="Resumo dos pedidos"></div>
+
+    <div class="orders-layout">
+      <div class="orders-main">
+
+        <div class="toolbar card">
+          <div class="search-field">
+            <svg viewBox="0 0 18 18" fill="none" aria-hidden="true">
+              <circle cx="8" cy="8" r="5.5" stroke="currentColor" stroke-width="1.6"/>
+              <path d="M12.5 12.5L16 16" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+            </svg>
+            <input id="orderSearch" type="search" placeholder="Buscar por jogo ou número do pedido" aria-label="Buscar pedidos">
+          </div>
+          <div class="toolbar-row2">
+            <div class="orders-filters" id="ordersFilters" role="tablist" aria-label="Filtrar pedidos">
+              <button class="orders-filter active" type="button" role="tab" aria-selected="true" data-filter="all">Todos <span class="count" id="count-all">0</span></button>
+              <button class="orders-filter" type="button" role="tab" aria-selected="false" data-filter="completed">Concluídos <span class="count" id="count-completed">0</span></button>
+              <button class="orders-filter" type="button" role="tab" aria-selected="false" data-filter="processing">Processando <span class="count" id="count-processing">0</span></button>
+              <button class="orders-filter" type="button" role="tab" aria-selected="false" data-filter="failed">Falhas <span class="count" id="count-failed">0</span></button>
+            </div>
+            <label class="sort-field">Ordenar
+              <select id="orderSort" aria-label="Ordenar pedidos">
+                <option value="recent">Mais recentes</option>
+                <option value="old">Mais antigos</option>
+                <option value="high">Maior valor</option>
+                <option value="low">Menor valor</option>
+              </select>
+            </label>
+          </div>
+        </div>
+
+        <p class="results-count" id="resultsCount" aria-live="polite"></p>
+        <div class="orders-list" id="ordersList"></div>
+        <button class="load-more" id="loadMoreBtn" type="button" hidden>Carregar mais pedidos</button>
+
+      </div>
+
+      <aside class="orders-aside">
+        <div class="card help-card">
+          <span class="eyebrow">Precisa de ajuda?</span>
+          <h2>Fale com o suporte</h2>
+          <p class="muted">Tenha em mãos o número do pedido (formato RG-AAMMDD-XXXX) para agilizar o atendimento.</p>
+          <a class="cta-secondary" href="help-center.html">Abrir suporte</a>
+          <hr style="border:0;border-top:1px solid var(--border);margin:16px 0">
+          <p class="tiny muted" style="margin:0">O status é atualizado automaticamente após a confirmação do pagamento ou da entrega.</p>
+        </div>
+      </aside>
+    </div>
+
+  </div>
+</main>
+
+<footer>
+  <div class="tight footer-inner">
+    <div class="footer-desktop">
+      <div class="footer-brand">
+        <a class="footer-logo" href="index.html" aria-label="Recarga Games">
+          <svg class="brand-mark" viewBox="0 0 28 28" fill="none" aria-hidden="true"><rect x="4" y="4" width="20" height="20" rx="2.5" transform="rotate(45 14 14)" fill="#F5700A"/><path d="M15.6 7.5 9.5 15.5h5.2l-2.3 5 8.1-9.5H15l2.2-3.5h-1.6Z" fill="white"/></svg>
+          <span class="brand-text"><strong>Recarga</strong><span>Games</span></span>
+        </a>
+        <p class="footer-copy">© 2026 Recarga Games Brasil.<br>Não somos afiliados aos desenvolvedores dos jogos.</p>
+        <div class="social-row" aria-label="Redes sociais">
+          <a class="social-link" href="#" aria-label="Instagram">IG</a>
+          <a class="social-link" href="#" aria-label="TikTok">TT</a>
+          <a class="social-link" href="#" aria-label="Discord">DC</a>
+          <a class="social-link" href="#" aria-label="X">X</a>
+        </div>
+      </div>
+      <div class="footer-col"><h3>Políticas</h3><div class="footer-list"><a href="terms.html">Termos e Condições</a><a href="privacy-policy.html">Política de Privacidade</a><a href="cookie-policy.html">Política de Cookies</a><a href="refund-policy.html">Trocas e Reembolsos</a><a href="faq.html">Perguntas Frequentes</a></div></div>
+      <div class="footer-col"><h3>Sobre nós</h3><div class="footer-list"><a href="about.html">Quem somos</a><a href="contact.html">Contato</a></div></div>
+      <div class="footer-col"><h3>Suporte</h3><div class="footer-list"><a href="help-center.html">Central de ajuda</a><a href="my-orders.html">Acompanhar pedido</a><span>support@recargagames.com</span></div></div>
+      <div class="footer-col"><h3>Pagamento</h3><div class="payment-row"><span class="payment-badge">Pix</span><span class="payment-badge">Cartão</span><span class="payment-badge">Boleto</span></div></div>
+      <div class="footer-col"><h3>Newsletter</h3><form class="newsletter-form"><input type="email" placeholder="Seu e-mail" aria-label="E-mail para newsletter"><button type="button">Assinar</button></form></div>
+    </div>
+    <div class="footer-mobile">
+      <div class="footer-mobile-top">
+        <a class="footer-logo" href="index.html" aria-label="Recarga Games">
+          <svg class="brand-mark" viewBox="0 0 28 28" fill="none" aria-hidden="true"><rect x="4" y="4" width="20" height="20" rx="2.5" transform="rotate(45 14 14)" fill="#F5700A"/><path d="M15.6 7.5 9.5 15.5h5.2l-2.3 5 8.1-9.5H15l2.2-3.5h-1.6Z" fill="white"/></svg>
+          <span class="brand-text"><strong>Recarga</strong><span>Games</span></span>
+        </a>
+        <div class="social-row" aria-label="Redes sociais">
+          <a class="social-link" href="#" aria-label="Instagram">IG</a>
+          <a class="social-link" href="#" aria-label="TikTok">TT</a>
+          <a class="social-link" href="#" aria-label="Discord">DC</a>
+        </div>
+      </div>
+      <details class="footer-accordion"><summary>Políticas</summary><div class="footer-list"><a href="terms.html">Termos e Condições</a><a href="privacy-policy.html">Política de Privacidade</a><a href="cookie-policy.html">Política de Cookies</a><a href="refund-policy.html">Trocas e Reembolsos</a><a href="faq.html">Perguntas Frequentes</a></div></details>
+      <details class="footer-accordion"><summary>Suporte</summary><div class="footer-list"><a href="help-center.html">Central de ajuda</a><a href="my-orders.html">Acompanhar pedido</a><span>support@recargagames.com</span></div></details>
+      <div class="footer-mobile-bottom">
+        <div class="payment-row"><span class="payment-badge">Pix</span><span class="payment-badge">Cartão</span><span class="payment-badge">Boleto</span></div>
+        <p class="footer-copy" style="max-width:none;">© 2026 Recarga Games Brasil.</p>
+      </div>
+    </div>
+  </div>
+</footer>
+
+
+<script src="shared/data/products.js"></script>
+<script src="shared/data/orders.js"></script>
+<script src="shared/js/market.js"></script>
+<script src="shared/js/store.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* ── Preview fallback: only used if the real shared/store files (used on
+     the live site) aren't present, e.g. when opening this file standalone. ── */
+  if (typeof window.RecargaStore === 'undefined') {
+    var demoProducts = [
+      { id: 'mobilelegends', name: 'Mobile Legends', short: 'ML', color: '#3B82F6' },
+      { id: 'freefire', name: 'Free Fire', short: 'FF', color: '#F5700A' },
+      { id: 'steam', name: 'Steam', short: 'ST', color: '#1B2838' },
+      { id: 'pubgmobile', name: 'PUBG Mobile', short: 'PM', color: '#F0B429' },
+      { id: 'genshin', name: 'Genshin Impact', short: 'GI', color: '#2ECC8A' }
+    ];
+    var demoOrders = [
+      { id: 'RG-260906-3310', productId: 'genshin', packageLabel: 'Bênção da Lua · 980 Genesis Crystals', amount: 89.90, status: 'processing', createdAt: '2026-09-06T11:20:00' },
+      { id: 'RG-260901-7421', productId: 'mobilelegends', packageLabel: 'Pacote Diamantes Plus', amount: 24.90, status: 'processing', createdAt: '2026-09-01T16:05:00' },
+      { id: 'RG-260828-4821', productId: 'freefire', packageLabel: '572 Diamantes', amount: 20.90, status: 'completed', createdAt: '2026-08-28T14:32:00' },
+      { id: 'RG-260824-1198', productId: 'steam', packageLabel: 'Crédito de R$ 50', amount: 50.00, status: 'completed', createdAt: '2026-08-24T19:10:00' },
+      { id: 'RG-260819-2207', productId: 'pubgmobile', packageLabel: '660 UC', amount: 34.90, status: 'failed', createdAt: '2026-08-19T09:47:00' },
+      { id: 'RG-260810-9042', productId: 'freefire', packageLabel: '1200 Diamantes', amount: 42.90, status: 'completed', createdAt: '2026-08-10T20:02:00' },
+      { id: 'RG-260802-5518', productId: 'mobilelegends', packageLabel: 'Pacote Iniciante', amount: 9.90, status: 'completed', createdAt: '2026-08-02T13:15:00' }
+    ];
+    window.RecargaStore = {
+      getOrders: function () { return demoOrders; },
+      getProductById: function (id) { return demoProducts.filter(function (p) { return p.id === id; })[0]; },
+      formatDate: function (iso) {
+        var d = new Date(iso);
+        return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }) + ', ' +
+          d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      },
+      formatBRL: function (n) { return 'R$ ' + n.toFixed(2).replace('.', ','); }
+    };
+  }
+
+  var listEl = document.getElementById('ordersList');
+  var filtersEl = document.getElementById('ordersFilters');
+  var statsEl = document.getElementById('statsRow');
+  var resultsEl = document.getElementById('resultsCount');
+  var searchEl = document.getElementById('orderSearch');
+  var sortEl = document.getElementById('orderSort');
+  var loadMoreBtn = document.getElementById('loadMoreBtn');
+  var activeFilter = 'all';
+  var searchTerm = '';
+  var sortMode = 'recent';
+  var PAGE_SIZE = 6;
+  var visibleCount = PAGE_SIZE;
+
+  var STATUS_LABEL = { completed: 'Concluído', processing: 'Processando', failed: 'Falhou' };
+
+  window.__retryOrder = function (id) {
+    location.href = 'checkout.html?retry=' + encodeURIComponent(id);
+  };
+  window.__reorder = function (productId) {
+    location.href = 'product.html?id=' + encodeURIComponent(productId);
+  };
+
+  function enrich(order) {
+    var product = RecargaStore.getProductById(order.productId);
+    return {
+      order: order,
+      name: product ? product.name : order.productId,
+      color: product ? product.color : '#F5700A',
+      short: product ? product.short : '?'
+    };
+  }
+
+  function renderStats(all) {
+    var total = all.length;
+    var completed = all.filter(function (o) { return o.status === 'completed'; }).length;
+    var spent = all.filter(function (o) { return o.status === 'completed'; })
+      .reduce(function (sum, o) { return sum + o.amount; }, 0);
+    statsEl.innerHTML =
+      '<div class="card stat-card"><strong>' + total + '</strong><span>Pedidos</span></div>' +
+      '<div class="card stat-card accent-lime"><strong>' + completed + '</strong><span>Entregues</span></div>' +
+      '<div class="card stat-card accent-orange"><strong>' + RecargaStore.formatBRL(spent) + '</strong><span>Total em recargas</span></div>';
+  }
+
+  function renderCounts(all) {
+    var byStatus = { all: all.length, completed: 0, processing: 0, failed: 0 };
+    all.forEach(function (o) { if (byStatus[o.status] !== undefined) byStatus[o.status]++; });
+    Object.keys(byStatus).forEach(function (key) {
+      var el = document.getElementById('count-' + key);
+      if (el) el.textContent = byStatus[key];
+    });
+  }
+
+  function applySearch(orders) {
+    if (!searchTerm) return orders;
+    var q = searchTerm.toLowerCase();
+    return orders.filter(function (o) {
+      var e = enrich(o);
+      return e.name.toLowerCase().indexOf(q) > -1 ||
+        o.id.toLowerCase().indexOf(q) > -1 ||
+        o.packageLabel.toLowerCase().indexOf(q) > -1;
+    });
+  }
+
+  function applySort(orders) {
+    var copy = orders.slice();
+    if (sortMode === 'recent') copy.sort(function (a, b) { return new Date(b.createdAt) - new Date(a.createdAt); });
+    if (sortMode === 'old') copy.sort(function (a, b) { return new Date(a.createdAt) - new Date(b.createdAt); });
+    if (sortMode === 'high') copy.sort(function (a, b) { return b.amount - a.amount; });
+    if (sortMode === 'low') copy.sort(function (a, b) { return a.amount - b.amount; });
+    return copy;
+  }
+
+  function orderRowHTML(o) {
+    var e = enrich(o);
+    var actionHTML = '';
+    if (o.status === 'completed') {
+      actionHTML = '<div class="order-row-actions"><button class="order-row-action" type="button" onclick="__reorder(\'' + o.productId + '\')">Comprar novamente</button></div>';
+    } else if (o.status === 'failed') {
+      actionHTML = '<div class="order-row-actions"><button class="order-row-action danger" type="button" onclick="__retryOrder(\'' + o.id + '\')">Tentar novamente</button></div>';
+    }
+    return (
+      '<div class="card order-row" data-status="' + o.status + '">' +
+        '<a class="order-row-main" href="order-details.html?id=' + encodeURIComponent(o.id) + '" aria-label="Ver detalhes do pedido ' + o.id + '">' +
+          '<div class="order-row-thumb" style="--thumb-color:' + e.color + '">' + e.short + '</div>' +
+          '<div class="order-row-info"><strong>' + e.name + '</strong><span>' + o.packageLabel + ' · Pedido ' + o.id + '</span></div>' +
+          '<div class="order-row-date">' + RecargaStore.formatDate(o.createdAt) + '</div>' +
+          '<span class="status-pill ' + o.status + '">' + STATUS_LABEL[o.status] + '</span>' +
+          '<div class="order-row-amount">' + RecargaStore.formatBRL(o.amount) + '</div>' +
+          '<svg class="order-row-chevron" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
+        '</a>' +
+        actionHTML +
+      '</div>'
+    );
+  }
+
+  function render() {
+    var all = RecargaStore.getOrders();
+    renderStats(all);
+    renderCounts(all);
+
+    var filtered = activeFilter === 'all' ? all : all.filter(function (o) { return o.status === activeFilter; });
+    filtered = applySearch(filtered);
+    filtered = applySort(filtered);
+
+    if (!filtered.length) {
+      resultsEl.textContent = '';
+      loadMoreBtn.hidden = true;
+      listEl.innerHTML =
+        '<div class="card empty-state">' +
+          '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" aria-hidden="true" style="margin:0 auto 14px;"><path d="M12 3L20 8.5V15.5L12 21L4 15.5V8.5L12 3Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M12 8v4M12 14v.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>' +
+          '<h2>Nenhum pedido encontrado</h2>' +
+          '<p>' + (searchTerm ? 'Nada corresponde à sua busca. Tente outro termo.' : 'Você ainda não tem pedidos' + (activeFilter !== 'all' ? ' com esse status' : '') + '. Que tal recarregar um jogo agora?') + '</p>' +
+          '<a class="btn-primary-sm" href="index.html#catalog">Ver produtos</a>' +
+        '</div>';
+      return;
+    }
+
+    var shown = filtered.slice(0, visibleCount);
+    listEl.innerHTML = shown.map(orderRowHTML).join('');
+
+    resultsEl.textContent = filtered.length === all.length && !searchTerm
+      ? filtered.length + ' pedido' + (filtered.length === 1 ? '' : 's')
+      : shown.length + ' de ' + filtered.length + ' pedido' + (filtered.length === 1 ? '' : 's') + ' encontrado' + (filtered.length === 1 ? '' : 's');
+
+    loadMoreBtn.hidden = visibleCount >= filtered.length;
+  }
+
+  filtersEl.addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-filter]');
+    if (!btn) return;
+    activeFilter = btn.dataset.filter;
+    visibleCount = PAGE_SIZE;
+    filtersEl.querySelectorAll('.orders-filter').forEach(function (b) {
+      var isActive = b === btn;
+      b.classList.toggle('active', isActive);
+      b.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    });
+    render();
+  });
+
+  var searchDebounce;
+  searchEl.addEventListener('input', function () {
+    clearTimeout(searchDebounce);
+    searchDebounce = setTimeout(function () {
+      searchTerm = searchEl.value.trim();
+      visibleCount = PAGE_SIZE;
+      render();
+    }, 150);
+  });
+
+  sortEl.addEventListener('change', function () {
+    sortMode = sortEl.value;
+    render();
+  });
+
+  loadMoreBtn.addEventListener('click', function () {
+    visibleCount += PAGE_SIZE;
+    render();
+  });
+
+  render();
+})();
+</script>
+
+</body>
+</html>
