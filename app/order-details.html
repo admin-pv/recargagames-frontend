@@ -1,0 +1,591 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Recarga Games — Detalhes do pedido</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800;900&family=Barlow+Condensed:wght@700;800;900&display=swap" rel="stylesheet" />
+<style>
+  /* ── Tokens (kept from v7.8.2e / orange theme) ── */
+  :root {
+    --void: #0D0F1A; --page: #090C14; --surface: #1A1D2E; --surface-2: #151A2A;
+    --warm: #F5F4F0; --muted: #9B99A8; --muted-2: #777588;
+    --border: #2E3047; --border-2: #454967;
+    --orange: #F5700A; --orange-hi: #FF8C2A;
+    --lime: #2ECC8A; --gold: #F0B429; --danger: #FF5C47;
+    --max: 1900px; --tight: 1100px; --header-h: 72px;
+    --ease: cubic-bezier(.2,.75,.2,1);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; background: var(--page); }
+  body {
+    margin: 0; min-height: 100vh; color: var(--warm);
+    background: linear-gradient(180deg, #090C14 0%, #0A0D16 45%, #080B12 100%);
+    font-family: 'Barlow', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    line-height: 1.45; overflow-x: hidden; -webkit-font-smoothing: antialiased;
+  }
+  a { color: inherit; text-decoration: none; }
+  button, input { font: inherit; }
+  button { color: inherit; background: transparent; border: 0; cursor: pointer; appearance: none; }
+  svg { display: block; }
+  .sr-only { position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0; }
+
+  /* ── NAV ── */
+  .topbar { position: sticky; top: 0; z-index: 80; background: rgba(9,12,20,.94); border-bottom: 1px solid rgba(46,48,71,.78); backdrop-filter: blur(16px); }
+  .nav { max-width: var(--max); min-height: var(--header-h); margin: 0 auto; padding: 0 clamp(18px,2.2vw,40px); display: grid; grid-template-columns: auto auto minmax(200px,1fr) auto; align-items: center; gap: 24px; }
+  .brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; }
+  .brand-mark { width: 29px; height: 29px; flex: 0 0 auto; }
+  .brand-text { display: grid; line-height: 1; text-transform: uppercase; }
+  .brand-text strong { color: var(--orange); font-family: 'Barlow Condensed', sans-serif; font-size: 23px; letter-spacing: .055em; font-weight: 900; }
+  .brand-text span { color: var(--warm); font-size: 10px; letter-spacing: .42em; opacity: .82; margin-top: 1px; }
+  .desktop-nav { display: flex; align-items: center; gap: 22px; color: var(--muted); font-size: 14px; font-weight: 800; white-space: nowrap; }
+  .desktop-nav a, .desktop-nav button { position: relative; padding: 24px 0 22px; color: inherit; display: inline-flex; align-items: center; }
+  .desktop-nav a:hover, .desktop-nav button:hover { color: var(--warm); }
+  .nav-actions { display: flex; align-items: center; gap: 10px; justify-content: flex-end; }
+  .account-btn { border: 1px solid var(--border); background: linear-gradient(180deg, rgba(34,38,64,.86), rgba(26,29,46,.76)); min-height: 44px; border-radius: 14px; color: var(--warm); font-weight: 900; }
+  .account-btn { display: grid; grid-template-columns: 24px auto; column-gap: 10px; align-items: center; padding: 0 14px 0 12px; text-align: left; }
+  .account-icon { width: 24px; height: 24px; border-radius: 999px; display: grid; place-items: center; border: 1px solid rgba(245,112,10,.42); color: var(--orange); }
+  .account-btn strong { display: block; line-height: 1; font-size: 14px; }
+  .account-btn small { display: block; line-height: 1.1; color: var(--muted); font-size: 12px; margin-top: 3px; font-weight: 500; }
+
+  .tight { width: min(100%, var(--tight)); margin: 0 auto; padding: 0 clamp(16px,2.2vw,40px); }
+
+  /* ── BREADCRUMB ── */
+  .breadcrumb-bar { padding: 12px 0; border-bottom: 1px solid rgba(46,48,71,.5); }
+  .breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); flex-wrap: wrap; }
+  .breadcrumb a { color: #D5D3E1; }
+  .breadcrumb a:hover { color: var(--orange-hi); }
+  .breadcrumb .sep { opacity: .38; }
+  .breadcrumb .current { color: var(--warm); font-weight: 600; }
+
+  /* ── CARDS ── */
+  .card { border: 1px solid var(--border); background: linear-gradient(180deg, rgba(22,26,44,.92), rgba(14,17,30,.92)); border-radius: 22px; overflow: hidden; }
+
+  /* ── ACCOUNT HEAD ── */
+  .account-shell { padding: 28px 0 72px; }
+  .account-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+  .account-head-left { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .account-title-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
+  .account-title { font-family: 'Barlow Condensed', sans-serif; text-transform: uppercase; font-size: clamp(26px,3vw,36px); font-weight: 900; margin: 0; letter-spacing: .01em; }
+  .copy-id-btn { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--border-2); background: rgba(255,255,255,.04); border-radius: 999px; padding: 5px 10px; font-size: 11px; font-weight: 800; color: var(--muted); text-transform: none; letter-spacing: 0; transition: border-color .15s, color .15s; }
+  .copy-id-btn:hover { border-color: rgba(245,112,10,.5); color: var(--orange-hi); }
+  .copy-id-btn svg { width: 12px; height: 12px; }
+  .copy-id-btn.copied { border-color: rgba(46,204,138,.5); color: var(--lime); }
+  .account-sub { margin: 0; color: var(--muted); font-size: 14px; }
+  .back-link { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border-2); border-radius: 12px; padding: 10px 14px; font-size: 13px; font-weight: 800; color: var(--warm); background: rgba(255,255,255,.03); }
+  .back-link:hover { border-color: rgba(245,112,10,.5); }
+  .back-link svg { width: 14px; height: 14px; }
+
+  .status-pill { display: inline-flex; align-items: center; gap: 7px; padding: 7px 13px; border-radius: 999px; font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: .04em; flex: 0 0 auto; }
+  .status-pill::before { content: ""; width: 7px; height: 7px; border-radius: 999px; flex: 0 0 auto; }
+  .status-pill.completed { background: rgba(46,204,138,.12); border: 1px solid rgba(46,204,138,.4); color: #B9F8D9; }
+  .status-pill.completed::before { background: var(--lime); }
+  .status-pill.processing { background: rgba(240,180,41,.12); border: 1px solid rgba(240,180,41,.4); color: #FFE3A3; }
+  .status-pill.processing::before { background: var(--gold); animation: pulse-dot 1.4s ease-in-out infinite; }
+  .status-pill.failed { background: rgba(255,92,71,.12); border: 1px solid rgba(255,92,71,.4); color: #FFC1B7; }
+  .status-pill.failed::before { background: var(--danger); }
+  @keyframes pulse-dot { 0%,100% { opacity:1;transform:scale(1); } 50% { opacity:.45;transform:scale(.65); } }
+
+  .success-banner { display: flex; align-items: center; gap: 12px; padding: 16px 20px; border-radius: 16px; margin-bottom: 20px; background: linear-gradient(135deg, rgba(46,204,138,.14), rgba(46,204,138,.05)); border: 1px solid rgba(46,204,138,.35); color: #DFFCEE; }
+  .success-banner svg { flex: 0 0 auto; color: var(--lime); }
+  .success-banner strong { display: block; font-size: 15px; }
+  .success-banner span { display: block; font-size: 13px; color: #B9F8D9; margin-top: 2px; }
+
+  /* ── TIMELINE ── */
+  .timeline-card { padding: 20px 22px; }
+  .timeline-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+  .timeline-head h2 { margin: 0; font-size: 16px; font-weight: 900; text-transform: uppercase; letter-spacing: .03em; }
+  .live-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 800; color: var(--muted); }
+  .live-badge::before { content: ""; width: 6px; height: 6px; border-radius: 999px; background: var(--lime); animation: pulse-dot 1.6s ease-in-out infinite; }
+  .timeline { display: grid; gap: 0; }
+  .t-step { display: grid; grid-template-columns: 30px 1fr; gap: 14px; position: relative; }
+  .t-step:not(:last-child) { padding-bottom: 18px; }
+  .t-step:not(:last-child)::before { content: ""; position: absolute; left: 14px; top: 30px; bottom: 0; width: 2px; background: var(--border); }
+  .t-step.done:not(:last-child)::before { background: var(--lime); }
+  .t-dot { width: 30px; height: 30px; border-radius: 999px; display: grid; place-items: center; font-size: 13px; font-weight: 900; flex: 0 0 auto; border: 2px solid var(--border); background: var(--surface-2); color: var(--muted); z-index: 1; }
+  .t-step.done .t-dot { background: var(--lime); border-color: var(--lime); color: #06120D; }
+  .t-step.active .t-dot { background: rgba(240,180,41,.15); border-color: var(--gold); color: var(--gold); }
+  .t-step.error .t-dot { background: rgba(255,92,71,.15); border-color: var(--danger); color: var(--danger); }
+  .t-copy strong { display: block; font-size: 14px; font-weight: 800; margin-bottom: 2px; }
+  .t-copy span { display: block; font-size: 12.5px; color: var(--muted); line-height: 1.45; }
+  .t-step.error .t-copy strong { color: #FFC1B7; }
+
+  .delivery-tip { display: flex; align-items: flex-start; gap: 9px; margin-top: 16px; padding: 11px 13px; border-radius: 12px; background: rgba(245,112,10,.07); border: 1px solid rgba(245,112,10,.22); }
+  .delivery-tip svg { width: 15px; height: 15px; color: var(--orange-hi); flex: 0 0 auto; margin-top: 1px; }
+  .delivery-tip p { margin: 0; font-size: 12.5px; color: #E7DDF8; line-height: 1.5; }
+  .delivery-tip b { color: #FFB37C; }
+
+  .legal-note { margin-top: 12px; padding: 11px 13px; border-radius: 12px; background: rgba(255,255,255,.03); border: 1px dashed var(--border-2); font-size: 12.5px; color: var(--muted); line-height: 1.5; }
+  .legal-note a { color: var(--orange-hi); font-weight: 800; }
+
+  .fail-note { margin-top: 4px; padding: 14px 16px; border-radius: 14px; background: rgba(255,92,71,.08); border: 1px solid rgba(255,92,71,.3); color: #FFC1B7; font-size: 13px; line-height: 1.55; }
+  .fail-note strong { display: block; margin-bottom: 3px; color: #FFD3CC; }
+  .fail-actions { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+  .chip-btn { border: 1px solid rgba(255,92,71,.4); background: rgba(255,92,71,.08); color: #FFD3CC; border-radius: 999px; padding: 8px 14px; font-size: 12.5px; font-weight: 800; }
+  .chip-btn:hover { background: rgba(255,92,71,.16); }
+
+  /* ── REDEEM / CODE CARD ── */
+  .redeem-code-card { padding: 20px 22px; margin: 0 0 20px; border: 1px solid rgba(46,204,138,.28); background: linear-gradient(160deg, rgba(14,28,22,.9), rgba(12,17,28,.92)); }
+  .redeem-code-head { display: flex; align-items: center; gap: 9px; margin-bottom: 12px; }
+  .redeem-code-head svg { width: 17px; height: 17px; color: var(--lime); }
+  .redeem-code-head h3 { margin: 0; font-size: 14px; font-weight: 900; text-transform: uppercase; letter-spacing: .03em; }
+  .code-box { display: flex; align-items: center; gap: 10px; border: 1.5px dashed rgba(46,204,138,.4); background: rgba(46,204,138,.05); border-radius: 12px; padding: 12px 14px; }
+  .code-value { flex: 1; font-family: 'Barlow Condensed', sans-serif; font-size: 19px; font-weight: 800; letter-spacing: .06em; color: var(--warm); }
+  .code-value.masked { color: var(--muted-2); letter-spacing: .18em; }
+  .code-btn-row { display: flex; gap: 8px; flex: 0 0 auto; }
+  .icon-btn { width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--border-2); background: rgba(255,255,255,.04); display: grid; place-items: center; }
+  .icon-btn:hover { border-color: rgba(46,204,138,.5); }
+  .icon-btn svg { width: 15px; height: 15px; }
+  .icon-btn.copied { border-color: var(--lime); color: var(--lime); }
+  .redeem-mini-steps { margin-top: 12px; padding-top: 12px; border-top: 1px dashed rgba(46,204,138,.22); display: grid; gap: 7px; }
+  .redeem-mini-step { display: flex; align-items: baseline; gap: 8px; font-size: 12.5px; color: var(--muted); }
+  .redeem-mini-step b { color: var(--lime); font-family: 'Barlow Condensed', sans-serif; font-weight: 900; }
+
+  .confirm-delivery { display: flex; align-items: center; gap: 10px; margin-top: 16px; padding: 12px 14px; border-radius: 12px; background: rgba(46,204,138,.07); border: 1px solid rgba(46,204,138,.24); }
+  .confirm-delivery svg { width: 18px; height: 18px; color: var(--lime); flex: 0 0 auto; }
+  .confirm-delivery span { font-size: 13px; color: #DFFCEE; }
+  .confirm-delivery b { color: var(--lime); }
+
+  /* ── ORDER DETAIL GRID ── */
+  .order-detail-grid { display: grid; grid-template-columns: 1.3fr 1fr; gap: 18px; align-items: start; }
+  /* Order info comes first visually — the user already knows the status
+     from My Orders before clicking in, so Acompanhamento is secondary. */
+  .order-detail-summary-col { order: -1; }
+  .order-detail-product { display: flex; align-items: center; gap: 14px; padding: 20px 22px; border-bottom: 1px solid var(--border); }
+  .order-detail-thumb { width: 52px; height: 52px; border-radius: 15px; display: grid; place-items: center; flex: 0 0 auto; font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 14px; color: #fff; text-align: center; line-height: 1.05; background: linear-gradient(160deg, color-mix(in srgb, var(--thumb-color, var(--orange)) 55%, #0B0E1C), #0B0E1C 78%); border: 1px solid color-mix(in srgb, var(--thumb-color, var(--orange)) 45%, transparent); }
+  .order-detail-product h2 { margin: 0 0 3px; font-family: 'Barlow Condensed', sans-serif; text-transform: uppercase; font-size: 20px; }
+  .order-detail-product p { margin: 0; color: var(--muted); font-size: 13px; }
+
+  .detail-lines { padding: 4px 22px 18px; display: grid; gap: 0; }
+  .detail-line { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px dashed var(--border); font-size: 13.5px; }
+  .detail-line:last-child { border-bottom: 0; }
+  .detail-line .lbl { color: var(--muted); }
+  .detail-line .val { font-weight: 800; text-align: right; }
+  .detail-line .val.masked { font-variant-numeric: tabular-nums; color: var(--muted-2); }
+  .detail-total { display: flex; align-items: center; justify-content: space-between; padding: 16px 22px; border-top: 1px solid var(--border); background: rgba(255,255,255,.02); }
+  .detail-total .lbl { font-size: 12.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; font-weight: 800; }
+  .detail-total .val { font-family: 'Barlow Condensed', sans-serif; font-size: 24px; font-weight: 900; }
+
+  .order-actions { display: grid; gap: 9px; padding: 20px 22px 4px; }
+  .cta-primary { width: 100%; min-height: 50px; border: 0; border-radius: 14px; background: linear-gradient(180deg, var(--orange-hi), var(--orange)); color: white; font-family: 'Barlow Condensed', sans-serif; font-size: 17px; font-weight: 900; letter-spacing: .05em; text-transform: uppercase; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 20px rgba(245,112,10,.26); }
+  .cta-primary:hover { filter: brightness(1.08); }
+  .cta-secondary { width: 100%; min-height: 42px; border: 1px solid var(--border-2); background: transparent; border-radius: 12px; color: #E7E5F1; font-weight: 800; font-size: 13.5px; display: flex; align-items: center; justify-content: center; }
+  .cta-secondary:hover { border-color: rgba(245,112,10,.44); background: rgba(245,112,10,.05); }
+  .help-row { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 2px; font-size: 12px; color: var(--muted-2); text-align: center; }
+  .help-row a { color: var(--orange-hi); font-weight: 700; }
+
+  .summary-trust-strip { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px 12px; padding: 16px 22px; border-top: 1px solid rgba(46,48,71,.5); margin-top: 14px; }
+  .st-item { font-size: 11.5px; font-weight: 700; color: var(--muted); display: flex; align-items: center; gap: 6px; min-width: 0; }
+  .st-item span { color: var(--lime); font-weight: 900; flex: 0 0 auto; }
+
+  .receipt-row { padding: 14px 22px 20px; }
+  .receipt-btn { width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; border: 1px dashed var(--border-2); border-radius: 12px; min-height: 42px; font-size: 12.5px; font-weight: 800; color: var(--muted); }
+  .receipt-btn:hover { border-color: rgba(245,112,10,.5); color: var(--orange-hi); }
+  .receipt-btn svg { width: 14px; height: 14px; }
+
+  #statusAnnounce { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+
+  /* ── FOOTER ── */
+  footer { border-top: 1px solid var(--border); background: #111318; margin-top: 24px; }
+  .footer-inner { padding-top: 30px; padding-bottom: 28px; color: #D7D3E0; }
+  .footer-desktop { display: grid; grid-template-columns: minmax(220px,1.3fr) repeat(3,minmax(120px,.7fr)); gap: 26px; align-items: start; }
+  .footer-brand { display: grid; gap: 12px; }
+  .footer-logo { display: inline-flex; align-items: center; gap: 10px; width: fit-content; }
+  .footer-copy { margin: 0; color: #B5B1C0; font-size: 13px; line-height: 1.45; max-width: 300px; }
+  .social-row, .payment-row { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; }
+  .social-link { width: 32px; height: 32px; border-radius: 999px; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.1); background: rgba(26,29,46,.62); color: var(--warm); font-weight: 800; font-size: 11px; }
+  .footer-col h3 { margin: 0 0 12px; color: var(--warm); font-size: 15px; font-weight: 800; }
+  .footer-list { display: grid; gap: 9px; }
+  .footer-list a, .footer-list span { color: #D1CDDA; font-size: 13px; }
+  .footer-list a:hover { color: var(--orange-hi); }
+  .payment-badge { min-height: 30px; padding: 0 11px; border-radius: 7px; display: inline-flex; align-items: center; border: 1px solid rgba(255,255,255,.12); background: #F5F4F0; color: #111318; font-size: 12px; font-weight: 800; }
+
+  @media (max-width: 900px) {
+    .order-detail-grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 1100px) {
+    .desktop-nav { display: none; }
+    .nav { grid-template-columns: auto minmax(160px,1fr) auto; }
+  }
+  @media (max-width: 720px) {
+    html, body { width: 100%; max-width: 100%; overflow-x: hidden; }
+    .nav { grid-template-columns: auto auto; padding: 12px 16px 10px; gap: 10px 12px; }
+    .tight { padding-left: 14px; padding-right: 14px; }
+    .account-shell { padding: 18px 0 60px; }
+    .account-head { flex-direction: column; align-items: center; text-align: center; gap: 14px; }
+    .account-head > div:first-child { width: 100%; }
+    .account-title-row { flex-direction: column; align-items: center; }
+    .footer-desktop { grid-template-columns: 1fr 1fr; }
+  }
+
+  /* ── PRINT (used by "Baixar recibo") ── */
+  @media print {
+    .topbar, .breadcrumb-bar, footer, .order-actions, .receipt-row, .back-link, .copy-id-btn, .help-row { display: none !important; }
+    body { background: #fff !important; color: #111 !important; }
+    .card, .timeline-card, .redeem-code-card { background: #fff !important; border-color: #ccc !important; color: #111 !important; box-shadow: none !important; }
+    .t-copy span, .detail-line .lbl, .account-sub { color: #555 !important; }
+    .order-detail-grid { grid-template-columns: 1fr !important; }
+  }
+
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <nav class="nav" aria-label="Navegação principal">
+    <a class="brand" href="index.html" aria-label="Recarga Games">
+      <svg class="brand-mark" viewBox="0 0 28 28" fill="none" aria-hidden="true">
+        <rect x="4" y="4" width="20" height="20" rx="2.5" transform="rotate(45 14 14)" fill="#F5700A"/>
+        <path d="M15.6 7.5 9.5 15.5h5.2l-2.3 5 8.1-9.5H15l2.2-3.5h-1.6Z" fill="white"/>
+      </svg>
+      <span class="brand-text"><strong>Recarga</strong><span>Games</span></span>
+    </a>
+    <div class="desktop-nav" aria-label="Links principais">
+      <a href="index.html">Loja</a>
+      <a href="index.html#catalog">Todos os jogos</a>
+      <a href="campaign.html">Ganhe créditos</a>
+      <button type="button" onclick="location.href='my-orders.html'">Meus pedidos</button>
+      <button type="button" onclick="location.href='help-center.html'">Suporte</button>
+    </div>
+    <div></div>
+    <div class="nav-actions">
+      <button class="account-btn" type="button" aria-label="Cadastre-se ou entrar" onclick="location.href='account-profile.html'">
+        <span class="account-icon">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><circle cx="7" cy="5" r="2.5" stroke="currentColor" stroke-width="1.5"/><path d="M2.5 12c0-2.485 2.015-4.5 4.5-4.5s4.5 2.015 4.5 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </span>
+        <span><strong>Cadastre-se</strong><small>Entrar</small></span>
+      </button>
+          </div>
+  </nav>
+</header>
+
+<div class="breadcrumb-bar">
+  <div class="tight">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <a href="index.html">Loja</a><span class="sep">›</span>
+      <a href="my-orders.html">Meus pedidos</a><span class="sep">›</span>
+      <span class="current" id="breadcrumbOrderId">Pedido</span>
+    </nav>
+  </div>
+</div>
+
+<main>
+  <div class="tight account-shell">
+    <div id="statusAnnounce" role="status" aria-live="polite"></div>
+    <div id="orderContent"><div class="empty-state"><p>Carregando pedido…</p></div></div>
+  </div>
+</main>
+
+<footer>
+  <div class="tight footer-inner">
+    <div class="footer-desktop">
+      <div class="footer-brand">
+        <a class="footer-logo" href="index.html" aria-label="Recarga Games">
+          <svg class="brand-mark" viewBox="0 0 28 28" fill="none" aria-hidden="true"><rect x="4" y="4" width="20" height="20" rx="2.5" transform="rotate(45 14 14)" fill="#F5700A"/><path d="M15.6 7.5 9.5 15.5h5.2l-2.3 5 8.1-9.5H15l2.2-3.5h-1.6Z" fill="white"/></svg>
+          <span class="brand-text"><strong>Recarga</strong><span>Games</span></span>
+        </a>
+        <p class="footer-copy">© 2026 Recarga Games Brasil.<br>Não somos afiliados aos desenvolvedores dos jogos.</p>
+        <div class="social-row" aria-label="Redes sociais">
+          <a class="social-link" href="#" aria-label="Instagram">IG</a>
+          <a class="social-link" href="#" aria-label="TikTok">TT</a>
+          <a class="social-link" href="#" aria-label="Discord">DC</a>
+          <a class="social-link" href="#" aria-label="X">X</a>
+        </div>
+      </div>
+      <div class="footer-col"><h3>Políticas</h3><div class="footer-list"><a href="terms.html">Termos e Condições</a><a href="privacy-policy.html">Política de Privacidade</a><a href="cookie-policy.html">Política de Cookies</a><a href="refund-policy.html">Trocas e Reembolsos</a><a href="faq.html">Perguntas Frequentes</a></div></div>
+      <div class="footer-col"><h3>Suporte</h3><div class="footer-list"><a href="help-center.html">Central de ajuda</a><a href="my-orders.html">Acompanhar pedido</a><span>suporte@recargagames.com</span></div></div>
+      <div class="footer-col"><h3>Pagamento</h3><div class="payment-row"><span class="payment-badge">Pix</span><span class="payment-badge">Cartão</span><span class="payment-badge">Boleto</span></div></div>
+    </div>
+  </div>
+</footer>
+
+<script src="shared/data/products.js"></script>
+<script src="shared/data/orders.js"></script>
+<script src="shared/js/market.js"></script>
+<script src="shared/js/store.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var container = document.getElementById('orderContent');
+  var announce = document.getElementById('statusAnnounce');
+  var breadcrumbId = document.getElementById('breadcrumbOrderId');
+  var hasStore = !!window.RecargaStore;
+
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]; }); }
+  function formatDate(iso) {
+    if (!iso) return '—';
+    var d = new Date(iso);
+    return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }) + ', ' +
+           d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  }
+  function formatBRL(n) { return hasStore ? RecargaStore.formatBRL(n) : 'R$ ' + Number(n || 0).toFixed(2).replace('.', ','); }
+  function statusLabel(s) { return hasStore ? RecargaStore.statusLabel(s) : ({ completed: 'Concluído', processing: 'Processando', failed: 'Falhou' }[s] || s); }
+  function maskId(id) {
+    id = String(id);
+    if (id.length <= 4) return id;
+    return '•••••' + id.slice(-4);
+  }
+
+  /* ── Timeline markup ── */
+  function buildTimeline(order) {
+    var steps = [];
+    steps.push({
+      state: 'done', label: 'Pedido criado',
+      desc: formatDate(order.createdAt)
+    });
+    if (order.status === 'failed') {
+      steps.push({
+        state: 'error', label: 'Pagamento não confirmado',
+        desc: order.failReason || 'Não foi possível confirmar o pagamento deste pedido.'
+      });
+    } else {
+      steps.push({
+        state: 'done', label: 'Pagamento identificado',
+        desc: order.paidAt ? formatDate(order.paidAt) : 'Aguardando confirmação da operadora.'
+      });
+      if (order.status === 'completed') {
+        steps.push({
+          state: 'done', label: 'Entrega concluída',
+          desc: formatDate(order.completedAt)
+        });
+      } else {
+        steps.push({
+          state: 'active', label: 'Entrega em processamento',
+          desc: 'Normalmente concluída em poucos minutos. Avisamos por e-mail assim que finalizar.'
+        });
+      }
+    }
+    return steps.map(function (s, i) {
+      return '<div class="t-step ' + s.state + (i === steps.length - 1 ? '' : ' done') + '">' +
+        '<div class="t-dot">' + (s.state === 'done' ? '✓' : s.state === 'error' ? '✕' : (i + 1)) + '</div>' +
+        '<div class="t-copy"><strong>' + esc(s.label) + '</strong><span>' + esc(s.desc) + '</span></div>' +
+        '</div>';
+    }).join('');
+  }
+
+  function renderNotFound(id) {
+    document.title = 'Recarga Games — Pedido não encontrado';
+    breadcrumbId.textContent = 'Pedido não encontrado';
+    container.innerHTML =
+      '<div class="card" style="padding:56px 28px;text-align:center;">' +
+        '<h1 style="font-family:\'Barlow Condensed\',sans-serif;text-transform:uppercase;font-size:28px;margin:0 0 10px;">Pedido não encontrado</h1>' +
+        '<p style="color:var(--muted);font-size:14px;margin:0 auto 24px;max-width:38ch;">' +
+          (id ? 'Não encontramos o pedido <strong style="color:var(--warm)">' + esc(id) + '</strong>. Verifique o link ou veja a lista completa.'
+              : 'Nenhum pedido foi informado. Acesse pela lista de pedidos.') +
+        '</p>' +
+        '<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">' +
+          '<a class="cta-primary" style="width:auto;padding:0 26px;" href="my-orders.html">Meus pedidos</a>' +
+          '<a class="cta-secondary" style="width:auto;padding:0 26px;" href="index.html">Voltar para a loja</a>' +
+        '</div>' +
+      '</div>';
+  }
+
+  /* Product fallback for an order whose product was removed from the
+     catalog since it was placed — keeps the page from breaking. */
+  function fallbackProduct(order) {
+    return { id: order.productId, name: order.productId, category: '', color: '#F5700A', short: '?', type: null, redemption: { fields: [] } };
+  }
+
+  function renderOrder(order, product, showSuccess) {
+    document.title = 'Recarga Games — Pedido ' + order.id;
+    breadcrumbId.textContent = 'Pedido ' + order.id;
+    announce.textContent = 'Status do pedido ' + order.id + ': ' + statusLabel(order.status);
+
+    // 'direct' products credit an in-game account; 'code'/'giftcard' hand over
+    // a redeem code by e-mail — same two delivery styles the design already has.
+    var redemptionKind = product.type === 'direct' ? 'account' : (product.type === 'code' || product.type === 'giftcard') ? 'code' : null;
+
+    var bannerHtml = (order.status === 'completed' && showSuccess) ? (
+      '<div class="success-banner">' +
+        '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/><path d="m8 12.5 2.5 2.5L16 9.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
+        '<div><strong>Pagamento confirmado!</strong><span>Seu pedido ' + esc(order.id) + ' foi processado com sucesso.</span></div>' +
+      '</div>'
+    ) : '';
+
+    var deliveryTipHtml = (order.status !== 'failed' && redemptionKind === 'account') ? (
+      '<div class="delivery-tip"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 9v4M12 16.5h.01M10.3 3.86 2.3 18a1.5 1.5 0 0 0 1.3 2.25h16.8A1.5 1.5 0 0 0 21.7 18l-8-14.14a1.5 1.5 0 0 0-2.6 0Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>' +
+      '<p><b>Não feche o jogo</b> durante a entrega — o crédito é enviado direto para o ID informado, sem necessidade de código.</p></div>'
+    ) : '';
+
+    var failHtml = order.status === 'failed' ? (
+      '<div class="fail-note"><strong>Pagamento não concluído.</strong>' + esc(order.failReason || 'Não foi possível confirmar o pagamento deste pedido.') +
+      '<div class="fail-actions"><button class="chip-btn" onclick="location.href=\'checkout.html?retry=' + esc(order.id) + '\'">Tentar outro cartão</button>' +
+      '<button class="chip-btn" onclick="location.href=\'checkout.html?retry=' + esc(order.id) + '&method=pix\'">Pagar com Pix</button></div></div>'
+    ) : '';
+
+    var mainFieldValue = null;
+    (product.redemption && product.redemption.fields || []).some(function (f) {
+      if (order[f.key]) { mainFieldValue = order[f.key]; return true; }
+      return false;
+    });
+
+    var confirmDeliveryHtml = (order.status === 'completed' && redemptionKind === 'account') ? (
+      '<div class="confirm-delivery"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/><path d="m8 12.5 2.5 2.5L16 9.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
+      '<span>Já creditado na conta <b>#' + esc(mainFieldValue || '—') + '</b>. Confira seu saldo dentro do jogo.</span></div>'
+    ) : '';
+
+    var redeemCodeHtml = (order.status === 'completed' && redemptionKind === 'code' && order.code) ? (
+      '<div class="redeem-code-card">' +
+        '<div class="redeem-code-head"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M3 9h18" stroke="currentColor" stroke-width="1.5"/></svg><h3>Seu código de resgate</h3></div>' +
+        '<div class="code-box"><span class="code-value masked" id="codeValue" data-code="' + esc(order.code) + '">•••• •••• •••• ••••</span>' +
+          '<div class="code-btn-row">' +
+            '<button class="icon-btn" id="revealBtn" type="button" aria-label="Mostrar código"><svg viewBox="0 0 24 24" fill="none"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/></svg></button>' +
+            '<button class="icon-btn" id="copyBtn" type="button" aria-label="Copiar código"><svg viewBox="0 0 24 24" fill="none"><rect x="8" y="8" width="12" height="12" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M4 16V5a1 1 0 0 1 1-1h11" stroke="currentColor" stroke-width="1.5"/></svg></button>' +
+          '</div></div>' +
+        '<div class="redeem-mini-steps">' +
+          '<div class="redeem-mini-step"><b>1.</b> Abra o jogo e acesse "Resgatar código".</div>' +
+          '<div class="redeem-mini-step"><b>2.</b> Cole o código acima e confirme.</div>' +
+          '<div class="redeem-mini-step"><b>3.</b> O saldo aparece na sua conta em instantes.</div>' +
+        '</div>' +
+      '</div>'
+    ) : (order.status === 'completed' && redemptionKind === 'code') ? (
+      '<div style="margin-bottom:20px">' +
+      '<div class="confirm-delivery"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/><path d="m8 12.5 2.5 2.5L16 9.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
+      (order.deliveryMethod === 'whatsapp'
+        ? '<span>Código enviado para o WhatsApp <b>' + esc(order.phone || 'informado') + '</b>.</span></div>'
+        : '<span>Código enviado para <b>' + esc(order.email || 'seu e-mail') + '</b>.</span></div>') +
+      '</div>'
+    ) : '';
+
+    var legalNoteHtml = order.status !== 'failed' ? (
+      '<div class="legal-note">Se o status não mudar dentro do prazo esperado, ' +
+      '<a href="help-center.html?order=' + esc(order.id) + '">fale com o suporte</a> informando o número do pedido.</div>'
+    ) : '';
+
+    // Every extra redemption field this product needs (playerId, zoneId, riotId, ...),
+    // read generically off product.redemption.fields instead of hardcoded field names.
+    var extraFieldsHtml = (product.redemption && product.redemption.fields || []).map(function (f) {
+      if (!order[f.key]) return '';
+      var val = f.key === 'playerId' ? maskId(order[f.key]) : order[f.key];
+      var cls = f.key === 'playerId' ? ' masked' : '';
+      return '<div class="detail-line"><span class="lbl">' + esc(f.label) + '</span><span class="val' + cls + '">' + esc(val) + '</span></div>';
+    }).join('');
+
+    var primaryActionHtml = order.status === 'failed'
+      ? '<a class="cta-primary" href="checkout.html?retry=' + esc(order.id) + '">Tentar novamente</a>'
+      : '<a class="cta-primary" href="product.html?id=' + esc(order.productId) + '">Comprar novamente</a>';
+
+    container.innerHTML =
+      bannerHtml +
+      '<div class="account-head">' +
+        '<div>' +
+          '<div class="account-title-row">' +
+            '<h1 class="account-title">Pedido ' + esc(order.id) + '</h1>' +
+            '<button class="copy-id-btn" id="copyIdBtn" data-id="' + esc(order.id) + '" type="button">' +
+              '<svg viewBox="0 0 24 24" fill="none"><rect x="8" y="8" width="12" height="12" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M4 16V5a1 1 0 0 1 1-1h11" stroke="currentColor" stroke-width="1.6"/></svg>Copiar ID' +
+            '</button>' +
+          '</div>' +
+          '<p class="account-sub">Realizado em ' + formatDate(order.createdAt) + '</p>' +
+        '</div>' +
+        '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">' +
+          '<span class="status-pill ' + order.status + '">' + statusLabel(order.status) + '</span>' +
+          '<a class="back-link" href="my-orders.html"><svg viewBox="0 0 24 24" fill="none"><path d="M15 5 8 12l7 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Meus pedidos</a>' +
+        '</div>' +
+      '</div>' +
+
+      redeemCodeHtml +
+
+      '<div class="order-detail-grid">' +
+        '<div class="order-detail-timeline-col">' +
+          '<div class="card timeline-card">' +
+            '<div class="timeline-head"><h2>Acompanhamento</h2>' + (order.status === 'processing' ? '<span class="live-badge">Atualização automática</span>' : '') + '</div>' +
+            '<div class="timeline">' + buildTimeline(order) + '</div>' +
+            deliveryTipHtml + confirmDeliveryHtml + legalNoteHtml +
+          '</div>' +
+          failHtml +
+        '</div>' +
+
+        '<div class="order-detail-summary-col card">' +
+          '<div class="order-detail-product">' +
+            '<div class="order-detail-thumb" style="--thumb-color:' + product.color + '">' + esc(product.short) + '</div>' +
+            '<div><h2>' + esc(product.name) + '</h2><p>' + esc(product.category) + '</p></div>' +
+          '</div>' +
+          '<div class="detail-lines">' +
+            '<div class="detail-line"><span class="lbl">Pacote</span><span class="val">' + esc(order.packageLabel) + '</span></div>' +
+            '<div class="detail-line"><span class="lbl">Quantidade</span><span class="val">' + order.qty + '</span></div>' +
+            extraFieldsHtml +
+            (order.deliveryMethod === 'whatsapp'
+              ? '<div class="detail-line"><span class="lbl">WhatsApp</span><span class="val">' + esc(order.phone || '—') + '</span></div>'
+              : '<div class="detail-line"><span class="lbl">E-mail</span><span class="val">' + esc(order.email || '—') + '</span></div>') +
+            '<div class="detail-line"><span class="lbl">Pagamento</span><span class="val">' + esc(order.paymentMethod) + '</span></div>' +
+            '<div class="detail-line"><span class="lbl">Data do pedido</span><span class="val">' + formatDate(order.createdAt) + '</span></div>' +
+            (order.completedAt ? '<div class="detail-line"><span class="lbl">Concluído em</span><span class="val">' + formatDate(order.completedAt) + '</span></div>' : '') +
+          '</div>' +
+          '<div class="detail-total"><span class="lbl">Total pago</span><span class="val">' + formatBRL(order.amount) + '</span></div>' +
+          '<div class="order-actions">' +
+            primaryActionHtml +
+            '<a class="cta-secondary" href="my-orders.html">Ver todos os pedidos</a>' +
+          '</div>' +
+          '<div class="help-row">Precisa de ajuda? <a href="help-center.html?order=' + esc(order.id) + '">Falar com o suporte</a></div>' +
+          '<div class="summary-trust-strip" aria-label="Sinais de confiança">' +
+            '<div class="st-item"><span>✓</span> Pagamento seguro</div>' +
+            '<div class="st-item"><span>✓</span> Pedido rastreável</div>' +
+            '<div class="st-item"><span>✓</span> Suporte em português</div>' +
+            '<div class="st-item"><span>✓</span> Nota fiscal disponível</div>' +
+          '</div>' +
+          '<div class="receipt-row"><button class="receipt-btn" id="receiptBtn" type="button"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Baixar recibo (PDF)</button></div>' +
+        '</div>' +
+      '</div>';
+
+    wireInteractions(order);
+  }
+
+  function wireInteractions(order) {
+    var copyIdBtn = document.getElementById('copyIdBtn');
+    if (copyIdBtn) copyIdBtn.addEventListener('click', function () { copyText(order.id, copyIdBtn, 'Copiar ID'); });
+
+    var receiptBtn = document.getElementById('receiptBtn');
+    if (receiptBtn) receiptBtn.addEventListener('click', function () { window.print(); });
+
+    var revealBtn = document.getElementById('revealBtn');
+    var codeValue = document.getElementById('codeValue');
+    if (revealBtn && codeValue) {
+      revealBtn.addEventListener('click', function () {
+        var masked = codeValue.classList.toggle('masked');
+        codeValue.textContent = masked ? '•••• •••• •••• ••••' : codeValue.getAttribute('data-code');
+      });
+    }
+    var copyBtn = document.getElementById('copyBtn');
+    if (copyBtn && codeValue) {
+      copyBtn.addEventListener('click', function () {
+        copyText(codeValue.getAttribute('data-code'), copyBtn, null);
+      });
+    }
+  }
+
+  function copyText(text, btn, restoreLabel) {
+    function done() {
+      btn.classList.add('copied');
+      if (restoreLabel) { var prev = btn.innerHTML; btn.innerHTML = btn.querySelector('svg').outerHTML + 'Copiado!'; setTimeout(function () { btn.innerHTML = prev; btn.classList.remove('copied'); }, 1600); }
+      else { setTimeout(function () { btn.classList.remove('copied'); }, 1200); }
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done).catch(done);
+    } else { done(); }
+  }
+
+  /* ============================================================
+     Real integration: read ?id= and look the order up in
+     RecargaStore (localStorage-backed today; swap for a real API
+     call here later without touching the render functions above).
+  ============================================================ */
+  var params = new URLSearchParams(window.location.search);
+  var id = params.get('id');
+  var order = (hasStore && id) ? RecargaStore.getOrderById(id) : null;
+
+  if (!order) {
+    renderNotFound(id);
+  } else {
+    var product = hasStore ? RecargaStore.getProductById(order.productId) : null;
+    if (!product) product = fallbackProduct(order);
+    var showSuccess = params.get('new') === '1' || params.get('retried') === '1';
+    renderOrder(order, product, showSuccess);
+  }
+})();
+</script>
+
+</body>
+</html>

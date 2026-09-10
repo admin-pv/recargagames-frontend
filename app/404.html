@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="robots" content="noindex,follow" />
+  <title>Recarga Games — Página não encontrada</title>
+  <meta name="description" content="Essa página não existe mais ou o link mudou. Volte para a loja, veja seus pedidos ou confira as recargas mais buscadas." />
+  <meta property="og:title" content="Página não encontrada | Recarga Games" />
+  <meta property="og:description" content="O link pode ter mudado. Volte para a loja e continue de onde parou." />
+  <meta property="og:type" content="website" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800;900&family=Barlow+Condensed:wght@700;800;900&display=swap" rel="stylesheet" />
+<style>
+    /* ── Tokens (orange system) ── */
+    :root {
+      --page: #090C14;
+      --warm: #F5F4F0;
+      --muted: #9B99A8;
+      --muted-2: #777588;
+      --border: #2E3047;
+      --border-2: #454967;
+      --orange: #F5700A;
+      --orange-hi: #FF8C2A;
+      --lime: #2ECC8A;
+      --max: 1900px;
+      --tight: 1280px;
+      --header-h: 72px;
+      --ease: cubic-bezier(.2,.75,.2,1);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; background: var(--page); }
+    body {
+      margin: 0; min-height: 100vh; color: var(--warm);
+      background: linear-gradient(180deg, #090C14 0%, #0A0D16 45%, #080B12 100%);
+      font-family: 'Barlow', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      line-height: 1.45; overflow-x: hidden;
+      -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+    }
+    a { color: inherit; text-decoration: none; }
+    button, input, select { font: inherit; }
+    button { color: inherit; background: transparent; border: 0; -webkit-appearance: none; appearance: none; }
+    svg { display: block; }
+    .sr-only { position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0; }
+
+    /* ── NAV ── */
+    .topbar { position: sticky; top: 0; z-index: 80; background: rgba(9,12,20,.94); border-bottom: 1px solid rgba(46,48,71,.78); backdrop-filter: blur(16px); }
+    .nav { max-width: var(--max); min-height: var(--header-h); margin: 0 auto; padding: 0 clamp(18px,2.2vw,40px); display: grid; grid-template-columns: auto auto minmax(280px,1fr) auto; align-items: center; gap: 28px; }
+    .brand { display: inline-flex; align-items: center; gap: 10px; min-width: 178px; text-decoration: none; }
+    .brand-mark { width: 29px; height: 29px; flex: 0 0 auto; }
+    .brand-text { display: grid; line-height: 1; text-transform: uppercase; }
+    .brand-text strong { color: var(--orange); font-family: 'Barlow Condensed', sans-serif; font-size: 23px; letter-spacing: .055em; font-weight: 900; }
+    .brand-text span { color: var(--warm); font-size: 10px; letter-spacing: .42em; opacity: .82; margin-top: 1px; }
+    .desktop-nav { display: flex; align-items: center; gap: 22px; color: var(--muted); font-size: 14px; font-weight: 800; white-space: nowrap; }
+    .desktop-nav a, .desktop-nav button { position: relative; border: 0; background: transparent; padding: 24px 0 22px; color: inherit; cursor: pointer; display: inline-flex; align-items: center; }
+    .desktop-nav a:hover, .desktop-nav button:hover { color: var(--warm); }
+    .search-wrap { position: relative; justify-self: stretch; max-width: 620px; width: 100%; }
+    .search { position: relative; width: 100%; }
+    .search input { width: 100%; height: 44px; border: 1px solid var(--border); background: #101522; border-radius: 999px; color: var(--warm); padding: 0 46px 0 44px; outline: none; font-size: 14px; font-weight: 500; transition: border-color .18s var(--ease), box-shadow .18s var(--ease); }
+    .search input::placeholder { color: #838091; }
+    .search input:focus { border-color: var(--orange); background: #0E1320; box-shadow: 0 0 0 4px rgba(245,112,10,.12); }
+    .search-icon { width: 18px; height: 18px; position: absolute; left: 16px; top: 13px; color: var(--orange); pointer-events: none; }
+    .nav-actions { display: flex; align-items: center; gap: 10px; justify-content: flex-end; }
+    .account-btn, .lang-btn { border: 1px solid var(--border); background: linear-gradient(180deg, rgba(34,38,64,.86), rgba(26,29,46,.76)); min-height: 44px; border-radius: 14px; color: var(--warm); font-weight: 900; cursor: pointer; transition: border-color .18s var(--ease), box-shadow .18s var(--ease); }
+    .account-btn:hover, .lang-btn:hover { border-color: rgba(245,112,10,.55); box-shadow: 0 0 0 3px rgba(245,112,10,.08); }
+    .account-btn { display: grid; grid-template-columns: 24px auto; column-gap: 10px; align-items: center; padding: 0 14px 0 12px; min-width: 148px; text-align: left; }
+    .account-icon { width: 24px; height: 24px; border-radius: 999px; display: grid; place-items: center; border: 1px solid rgba(245,112,10,.42); color: var(--orange); }
+    .account-btn strong { display: block; line-height: 1; font-size: 14px; }
+    .account-btn small { display: block; line-height: 1.1; color: var(--muted); font-size: 12px; margin-top: 3px; font-weight: 500; }
+    .lang-btn { padding: 0 15px; letter-spacing: .02em; }
+
+    /* ── LAYOUT ── */
+    .tight { width: min(100%, var(--tight)); margin: 0 auto; padding: 0 clamp(16px,2.2vw,40px); }
+    .card { border: 1px solid var(--border); background: linear-gradient(180deg, rgba(22,26,44,.92), rgba(14,17,30,.92)); border-radius: 22px; overflow: hidden; }
+
+    /* ── 404 CENTER CARD ── */
+    .center-shell { min-height: calc(100vh - var(--header-h) - 340px); display: grid; place-items: center; padding: 56px 20px 24px; }
+    .center-card { width: min(480px, 100%); text-align: center; padding: 40px 30px 34px; }
+    .center-card .big-mark {
+      width: 64px; height: 64px; border-radius: 18px; margin: 0 auto 18px; display: grid; place-items: center;
+      background: rgba(245,112,10,.12); border: 1px solid rgba(245,112,10,.32); color: var(--orange);
+    }
+    .code-404 { font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: clamp(56px, 12vw, 84px); line-height: 1; color: var(--orange); margin-bottom: 6px; }
+    .center-card h1 { font-family: 'Barlow Condensed', sans-serif; text-transform: uppercase; font-size: clamp(22px, 5vw, 28px); margin: 0 0 10px; }
+    .center-card p { color: var(--muted); font-size: 14px; line-height: 1.55; margin: 0 0 22px; }
+
+    .cta-primary {
+      min-height: 50px; border: 0; border-radius: 14px; padding: 0 26px;
+      background: linear-gradient(180deg, var(--orange-hi), var(--orange));
+      color: white; font-family: 'Barlow Condensed', sans-serif;
+      font-size: 17px; font-weight: 900; letter-spacing: .05em; text-transform: uppercase;
+      cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      transition: filter .16s var(--ease), box-shadow .16s var(--ease), transform .08s var(--ease);
+      box-shadow: 0 4px 20px rgba(245,112,10,.26);
+    }
+    .cta-primary:hover { filter: brightness(1.08); box-shadow: 0 8px 28px rgba(245,112,10,.36); }
+    .cta-primary:active { transform: scale(.985); }
+
+    .center-links { margin-top: 16px; font-size: 13px; color: var(--muted); }
+    .center-links a { color: var(--muted); border-bottom: 1px dashed var(--border-2); padding-bottom: 1px; }
+    .center-links a:hover { color: var(--orange-hi); border-color: var(--orange-hi); }
+    .center-links .sep { opacity: .5; padding: 0 8px; }
+
+    /* ── On-card search ── */
+    .notfound-search { display: flex; gap: 8px; margin: 4px 0 20px; }
+    .notfound-search .field { position: relative; flex: 1; min-width: 0; }
+    .notfound-search input {
+      width: 100%; height: 46px; border: 1.5px solid var(--border); background: #101522;
+      border-radius: 12px; color: var(--warm); padding: 0 14px 0 40px; outline: none;
+      font-size: 14px; font-weight: 500; transition: border-color .18s var(--ease), box-shadow .18s var(--ease);
+    }
+    .notfound-search input::placeholder { color: #6b6878; }
+    .notfound-search input:focus { border-color: var(--orange); box-shadow: 0 0 0 4px rgba(245,112,10,.12); }
+    .notfound-search .field svg { position: absolute; left: 13px; top: 14px; width: 18px; height: 18px; color: var(--orange); pointer-events: none; }
+    .notfound-search button {
+      flex: 0 0 auto; height: 46px; padding: 0 18px; border-radius: 12px;
+      background: rgba(245,112,10,.14); border: 1px solid rgba(245,112,10,.4);
+      color: #FFB37C; font-weight: 800; font-size: 13.5px; cursor: pointer; transition: background .16s;
+    }
+    .notfound-search button:hover { background: rgba(245,112,10,.22); }
+
+    /* ── Popular / trending rail ── */
+    .popular-section { border: 1px solid var(--border); background: rgba(16,19,34,.72); border-radius: 18px; padding: 18px 20px; margin: 0 0 40px; }
+    .popular-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+    .popular-title { font-family: 'Barlow Condensed', sans-serif; font-size: 17px; font-weight: 900; text-transform: uppercase; letter-spacing: .04em; margin: 0; display: flex; align-items: center; gap: 8px; }
+    .popular-title::before { content: ""; width: 3px; height: 15px; border-radius: 999px; background: var(--orange); flex: 0 0 auto; }
+    .popular-sub { margin: 0; color: var(--muted); font-size: 12.5px; font-weight: 600; }
+    .popular-rail { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .mini-product {
+      border: 1px solid var(--border); background: #111625; border-radius: 14px; padding: 14px 12px;
+      display: grid; gap: 8px; text-decoration: none; transition: border-color .16s, transform .1s;
+    }
+    .mini-product:hover { border-color: rgba(245,112,10,.5); transform: translateY(-2px); }
+    .mini-logo {
+      height: 40px; width: 40px; border-radius: 10px; display: grid; place-items: center;
+      font-family: 'Barlow Condensed', sans-serif; font-size: 15px; font-weight: 900; color: #fff;
+      background: linear-gradient(160deg, color-mix(in srgb, var(--mini-color, var(--orange)) 55%, #0B0E1C), #0B0E1C 78%);
+      border: 1px solid color-mix(in srgb, var(--mini-color, var(--orange)) 45%, transparent);
+    }
+    .mini-product strong { font-size: 13px; font-weight: 900; line-height: 1.2; }
+    .mini-product .mini-price { color: var(--muted); font-size: 11.5px; font-weight: 600; }
+
+    /* ── FOOTER ── */
+    footer { border-top: 1px solid var(--border); background: #111318; }
+    .footer-inner { padding-top: 30px; padding-bottom: 28px; color: #D7D3E0; }
+    .footer-desktop { display: grid; grid-template-columns: minmax(220px,1.35fr) repeat(3,minmax(130px,.72fr)) minmax(200px,1fr) minmax(200px,1fr); gap: 26px; align-items: start; }
+    .footer-brand { display: grid; gap: 12px; }
+    .footer-logo { display: inline-flex; align-items: center; gap: 10px; width: fit-content; }
+    .footer-copy { margin: 0; color: #B5B1C0; font-size: 13px; line-height: 1.45; max-width: 300px; }
+    .social-row, .payment-row { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; }
+    .social-link { width: 32px; height: 32px; border-radius: 999px; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.1); background: rgba(26,29,46,.62); color: var(--warm); font-weight: 800; font-size: 11px; }
+    .social-link:hover { border-color: rgba(245,112,10,.55); color: var(--orange-hi); }
+    .footer-col h3 { margin: 0 0 12px; color: var(--warm); font-size: 15px; font-weight: 800; }
+    .footer-list { display: grid; gap: 9px; }
+    .footer-list a, .footer-list span { color: #D1CDDA; font-size: 13px; }
+    .footer-list a:hover { color: var(--orange-hi); }
+    .payment-badge { min-height: 30px; padding: 0 11px; border-radius: 7px; display: inline-flex; align-items: center; border: 1px solid rgba(255,255,255,.12); background: #F5F4F0; color: #111318; font-size: 12px; font-weight: 800; }
+    .newsletter-form { display: grid; grid-template-columns: 1fr auto; gap: 8px; border-bottom: 1px solid rgba(255,255,255,.25); padding-bottom: 10px; }
+    .newsletter-form input { min-width: 0; border: 0; background: transparent; color: var(--warm); outline: none; font-size: 14px; }
+    .newsletter-form input::placeholder { color: #9B99A8; }
+    .newsletter-form button { border: 0; border-radius: 999px; background: var(--orange); color: white; padding: 0 14px; min-height: 30px; font-size: 12px; font-weight: 700; cursor: pointer; }
+    .footer-mobile { display: none; }
+    .footer-accordion summary { list-style: none; cursor: pointer; color: var(--warm); font-weight: 800; font-size: 13.5px; padding: 12px 0; border-top: 1px dashed var(--border); }
+    .footer-accordion summary::-webkit-details-marker { display: none; }
+    .footer-mobile-bottom { padding-top: 14px; border-top: 1px dashed var(--border); margin-top: 4px; display: grid; gap: 12px; }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 1100px) {
+      .desktop-nav { display: none; }
+      .nav { grid-template-columns: auto minmax(200px,1fr) auto; }
+      .footer-desktop { grid-template-columns: repeat(3, 1fr); }
+      .popular-rail { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 760px) {
+      html, body { width: 100%; max-width: 100%; overflow-x: hidden; }
+      :root { --header-h: auto; }
+      .nav { grid-template-columns: auto auto; min-height: 0; padding: 12px 16px 10px; gap: 10px 12px; }
+      .brand { min-width: 0; }
+      .brand-mark { width: 27px; height: 27px; }
+      .brand-text strong { font-size: 21px; }
+      .brand-text span { font-size: 9px; }
+      .search-wrap { grid-column: 1 / -1; order: 3; max-width: 100%; }
+      .search input { height: 44px; font-size: 16px; }
+      .nav-actions { justify-self: end; gap: 8px; }
+      .lang-btn { display: none; }
+      .account-btn { min-width: 0; min-height: 40px; width: auto; padding: 0 12px; grid-template-columns: 24px auto; column-gap: 8px; }
+      .account-btn strong { font-size: 13px; }
+      .account-btn small { font-size: 11px; }
+      .tight { width: 100%; max-width: 100%; padding-left: 14px; padding-right: 14px; box-sizing: border-box; }
+      .center-shell { padding: 32px 0 8px; }
+      .center-card { padding: 30px 20px 26px; }
+      .notfound-search { flex-direction: column; }
+      .notfound-search button { width: 100%; }
+      .popular-section { padding: 16px; }
+      .popular-rail { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+      .footer-desktop { display: none; }
+      .footer-mobile { display: block; width: 100%; }
+    }
+
+</style>
+<script src="shared/js/market.js"></script>
+</head>
+<body>
+
+<header class="topbar">
+  <nav class="nav" aria-label="Navegação principal">
+    <a class="brand" href="index.html" aria-label="Recarga Games">
+      <svg class="brand-mark" viewBox="0 0 28 28" fill="none" aria-hidden="true">
+        <rect x="4" y="4" width="20" height="20" rx="2.5" transform="rotate(45 14 14)" fill="#F5700A"/>
+        <path d="M15.6 7.5 9.5 15.5h5.2l-2.3 5 8.1-9.5H15l2.2-3.5h-1.6Z" fill="white"/>
+      </svg>
+      <span class="brand-text"><strong>Recarga</strong><span>Games</span></span>
+    </a>
+    <div class="desktop-nav" aria-label="Links principais">
+      <a href="index.html">Loja</a>
+      <a href="index.html#catalog">Todos os jogos</a>
+      <a href="campaign.html">Ganhe créditos</a>
+      <button type="button" onclick="location.href='my-orders.html'">Meus pedidos</button>
+      <button type="button" onclick="location.href='help-center.html'">Suporte</button>
+    </div>
+    <div class="search-wrap">
+      <div class="search">
+        <svg class="search-icon" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+          <circle cx="8" cy="8" r="5.5" stroke="currentColor" stroke-width="1.6"/>
+          <path d="M12.5 12.5L16 16" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+        </svg>
+        <input type="search" placeholder="Buscar jogo, gift card ou código" aria-label="Buscar produto" />
+      </div>
+    </div>
+    <div class="nav-actions">
+      <button class="account-btn" type="button" aria-label="Cadastre-se ou entrar" onclick="location.href='account-profile.html'">
+        <span class="account-icon">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+            <circle cx="7" cy="5" r="2.5" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M2.5 12c0-2.485 2.015-4.5 4.5-4.5s4.5 2.015 4.5 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span><strong>Cadastre-se</strong><small>Entrar</small></span>
+      </button>
+      <button class="lang-btn" type="button">PT-BR</button>
+          </div>
+  </nav>
+</header>
+
+<main>
+  <div class="tight center-shell">
+    <div class="card center-card">
+      <div class="big-mark" aria-hidden="true">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+          <path d="M4 4l16 16M8.5 8.2a7 7 0 0 1 9.3 0M5.2 5.4A11 11 0 0 1 12 3c2.6 0 5 .9 6.9 2.5M12 17.2v.1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="code-404">404</div>
+      <h1>Essa página saiu da partida</h1>
+      <p>O link pode ter mudado ou a página foi movida. Busque o jogo que você procurava ou volte para a loja e continue de onde parou.</p>
+
+      <form class="notfound-search" action="index.html" method="get" role="search">
+        <div class="field">
+          <svg viewBox="0 0 18 18" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="5.5" stroke="currentColor" stroke-width="1.6"/><path d="M12.5 12.5L16 16" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          <label class="sr-only" for="notFoundQuery">Buscar jogo</label>
+          <input id="notFoundQuery" name="q" type="search" placeholder="Buscar Free Fire, Steam, Roblox...">
+        </div>
+        <button type="submit">Buscar</button>
+      </form>
+
+      <a class="cta-primary" href="index.html">Voltar para a loja</a>
+
+      <div class="center-links">
+        <a href="my-orders.html">Ver meus pedidos</a>
+        <span class="sep">·</span>
+        <a href="help-center.html">Falar com o suporte</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="tight">
+    <section class="popular-section" aria-label="Recargas mais buscadas">
+      <div class="popular-head">
+        <h2 class="popular-title">Mais buscados agora</h2>
+        <p class="popular-sub">Talvez seja um destes</p>
+      </div>
+      <div class="popular-rail">
+        <a class="mini-product" href="index.html?game=free-fire" style="--mini-color:#F5700A">
+          <span class="mini-logo">FF</span>
+          <strong>Free Fire</strong>
+          <span class="mini-price">a partir de R$ 5</span>
+        </a>
+        <a class="mini-product" href="index.html?game=steam" style="--mini-color:#2ECC8A">
+          <span class="mini-logo">ST</span>
+          <strong>Steam</strong>
+          <span class="mini-price">a partir de R$ 10</span>
+        </a>
+        <a class="mini-product" href="index.html?game=roblox" style="--mini-color:#F0B429">
+          <span class="mini-logo">RB</span>
+          <strong>Roblox</strong>
+          <span class="mini-price">a partir de R$ 8</span>
+        </a>
+        <a class="mini-product" href="index.html?game=mobile-legends" style="--mini-color:#E0379A">
+          <span class="mini-logo">ML</span>
+          <strong>Mobile Legends</strong>
+          <span class="mini-price">a partir de R$ 6</span>
+        </a>
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer>
+  <div class="tight footer-inner">
+    <div class="footer-desktop">
+      <div class="footer-brand">
+        <a class="footer-logo" href="index.html" aria-label="Recarga Games">
+          <svg class="brand-mark" viewBox="0 0 28 28" fill="none" aria-hidden="true"><rect x="4" y="4" width="20" height="20" rx="2.5" transform="rotate(45 14 14)" fill="#F5700A"/><path d="M15.6 7.5 9.5 15.5h5.2l-2.3 5 8.1-9.5H15l2.2-3.5h-1.6Z" fill="white"/></svg>
+          <span class="brand-text"><strong>Recarga</strong><span>Games</span></span>
+        </a>
+        <p class="footer-copy">© 2026 Recarga Games Brasil.<br>Não somos afiliados aos desenvolvedores dos jogos.</p>
+        <div class="social-row" aria-label="Redes sociais">
+          <a class="social-link" href="#" aria-label="Instagram">IG</a>
+          <a class="social-link" href="#" aria-label="TikTok">TT</a>
+          <a class="social-link" href="#" aria-label="Discord">DC</a>
+          <a class="social-link" href="#" aria-label="X">X</a>
+        </div>
+      </div>
+      <div class="footer-col"><h3>Políticas</h3><div class="footer-list"><a href="terms.html">Termos e Condições</a><a href="privacy-policy.html">Política de Privacidade</a><a href="cookie-policy.html">Política de Cookies</a><a href="refund-policy.html">Trocas e Reembolsos</a><a href="faq.html">Perguntas Frequentes</a></div></div>
+      <div class="footer-col"><h3>Sobre nós</h3><div class="footer-list"><a href="about.html">Quem somos</a><a href="contact.html">Contato</a></div></div>
+      <div class="footer-col"><h3>Suporte</h3><div class="footer-list"><a href="help-center.html">Central de ajuda</a><a href="my-orders.html">Acompanhar pedido</a><span>support@recargagames.com</span></div></div>
+      <div class="footer-col"><h3>Pagamento</h3><div class="payment-row"><span class="payment-badge">Pix</span><span class="payment-badge">Cartão</span><span class="payment-badge">Boleto</span></div></div>
+      <div class="footer-col"><h3>Newsletter</h3><form class="newsletter-form"><input type="email" placeholder="Seu e-mail" aria-label="E-mail para newsletter"><button type="button">Assinar</button></form></div>
+    </div>
+    <div class="footer-mobile">
+      <div class="footer-mobile-top">
+        <a class="footer-logo" href="index.html" aria-label="Recarga Games">
+          <svg class="brand-mark" viewBox="0 0 28 28" fill="none" aria-hidden="true"><rect x="4" y="4" width="20" height="20" rx="2.5" transform="rotate(45 14 14)" fill="#F5700A"/><path d="M15.6 7.5 9.5 15.5h5.2l-2.3 5 8.1-9.5H15l2.2-3.5h-1.6Z" fill="white"/></svg>
+          <span class="brand-text"><strong>Recarga</strong><span>Games</span></span>
+        </a>
+        <div class="social-row" aria-label="Redes sociais">
+          <a class="social-link" href="#" aria-label="Instagram">IG</a>
+          <a class="social-link" href="#" aria-label="TikTok">TT</a>
+          <a class="social-link" href="#" aria-label="Discord">DC</a>
+        </div>
+      </div>
+      <details class="footer-accordion"><summary>Políticas</summary><div class="footer-list"><a href="terms.html">Termos e Condições</a><a href="privacy-policy.html">Política de Privacidade</a><a href="cookie-policy.html">Política de Cookies</a><a href="refund-policy.html">Trocas e Reembolsos</a><a href="faq.html">Perguntas Frequentes</a></div></details>
+      <details class="footer-accordion"><summary>Suporte</summary><div class="footer-list"><a href="help-center.html">Central de ajuda</a><a href="my-orders.html">Acompanhar pedido</a><span>support@recargagames.com</span></div></details>
+      <div class="footer-mobile-bottom">
+        <div class="payment-row"><span class="payment-badge">Pix</span><span class="payment-badge">Cartão</span><span class="payment-badge">Boleto</span></div>
+        <p class="footer-copy" style="max-width:none;">© 2026 Recarga Games Brasil.</p>
+      </div>
+    </div>
+  </div>
+</footer>
+
+
+</body>
+</html>

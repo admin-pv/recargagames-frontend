@@ -1,9 +1,164 @@
+# ══════════════════════════════════════════════════════════════════════════
+# IMPORTANTE: estas regras estão duplicadas em _redirects, na mesma ordem.
+# O Netlify avalia as regras do netlify.toml primeiro e depois as do
+# _redirects; o _redirects é mantido em sync por portabilidade.
+# Mudou aqui, muda lá. O _redirects tem os comentários longos explicando
+# cada bloco — este arquivo é a versão curta.
+# ══════════════════════════════════════════════════════════════════════════
+
+# ── 1. /app/ não é endereço público ───────────────────────────────────────
+# O gate (netlify/edge-functions/gate.ts) só casa com /br, /br/* e
+# /_gate/auth. Sem isto, /app/* serviria a loja sem senha. Forçada porque os
+# arquivos existem e venceriam uma regra não-forçada.
 [[redirects]]
-  from = "/br/*"
+  from = "/app/*"
+  to = "/br/:splat"
+  status = 301
+  force = true
+
+# ── 2. URLs antigas de jogo → produto novo ────────────────────────────────
+# 2a. Slugs que casam com um id de app/shared/data/products.js
+[[redirects]]
+  from = "/br/arena-breakout/"
+  to = "/br/product.html?id=arena-breakout"
+  status = 301
+
+[[redirects]]
+  from = "/br/blood-strike/"
+  to = "/br/product.html?id=blood-strike"
+  status = 301
+
+[[redirects]]
+  from = "/br/candy-crush/"
+  to = "/br/product.html?id=candy-crush"
+  status = 301
+
+[[redirects]]
+  from = "/br/free-fire/"
+  to = "/br/product.html?id=free-fire"
+  status = 301
+
+[[redirects]]
+  from = "/br/genshin-impact/"
+  to = "/br/product.html?id=genshin-impact"
+  status = 301
+
+[[redirects]]
+  from = "/br/google-play/"
+  to = "/br/product.html?id=google-play"
+  status = 301
+
+[[redirects]]
+  from = "/br/honkai-star-rail/"
+  to = "/br/product.html?id=honkai-star-rail"
+  status = 301
+
+[[redirects]]
+  from = "/br/league-of-legends/"
+  to = "/br/product.html?id=league-of-legends"
+  status = 301
+
+[[redirects]]
+  from = "/br/mobile-legends/"
+  to = "/br/product.html?id=mobile-legends"
+  status = 301
+
+[[redirects]]
+  from = "/br/playstation/"
+  to = "/br/product.html?id=playstation"
+  status = 301
+
+[[redirects]]
+  from = "/br/pubg-mobile/"
+  to = "/br/product.html?id=pubg-mobile"
+  status = 301
+
+[[redirects]]
+  from = "/br/roblox/"
+  to = "/br/product.html?id=roblox"
+  status = 301
+
+[[redirects]]
+  from = "/br/valorant/"
+  to = "/br/product.html?id=valorant"
+  status = 301
+
+# 2b. Mesmo produto, id escrito diferente no catálogo novo
+[[redirects]]
+  from = "/br/nintendo-e-shop/"
+  to = "/br/product.html?id=nintendo-eshop"
+  status = 301
+
+[[redirects]]
+  from = "/br/steam-voucher/"
+  to = "/br/product.html?id=steam"
+  status = 301
+
+[[redirects]]
+  from = "/br/zenless-zone-zero/"
+  to = "/br/product.html?id=zzz"
+  status = 301
+
+# 2c. Sem equivalente no catálogo novo → catálogo
+[[redirects]]
+  from = "/br/arena-of-valor/"
   to = "/br/index.html"
+  status = 301
+
+[[redirects]]
+  from = "/br/bigo-live/"
+  to = "/br/index.html"
+  status = 301
+
+[[redirects]]
+  from = "/br/conquer-online-mobile/"
+  to = "/br/index.html"
+  status = 301
+
+[[redirects]]
+  from = "/br/conquer-online-pc/"
+  to = "/br/index.html"
+  status = 301
+
+[[redirects]]
+  from = "/br/delta-force/"
+  to = "/br/index.html"
+  status = 301
+
+[[redirects]]
+  from = "/br/farlight84/"
+  to = "/br/index.html"
+  status = 301
+
+[[redirects]]
+  from = "/br/lords-mobile/"
+  to = "/br/index.html"
+  status = 301
+
+# ── 3. Mercados → arquivos em /app/ ───────────────────────────────────────
+# A regra SPA antiga (/br/* → /br/index.html 200) saiu: o frontend v2 são
+# páginas .html de verdade, não um router client-side.
+# Sem force: arquivos existentes (/br/_gate.html) têm precedência, que é o
+# que mantém a Edge Function do gate funcionando.
+[[redirects]]
+  from = "/br/"
+  to = "/app/index.html"
   status = 200
 
 [[redirects]]
-  from = "/mx/*"
-  to = "/mx/index.html"
+  from = "/br/*"
+  to = "/app/:splat"
   status = 200
+
+# /mx/ fica comentado de propósito: o gate só protege /br/*, então ativar
+# hoje publicaria a loja sem senha. Para ligar na Fase 1, descomentar E
+# acrescentar "/mx" e "/mx/*" ao `path` de netlify/edge-functions/gate.ts.
+# [[redirects]]
+#   from = "/mx/"
+#   to = "/app/index.html"
+#   status = 200
+#
+# [[redirects]]
+#   from = "/mx/*"
+#   to = "/app/:splat"
+#   status = 200

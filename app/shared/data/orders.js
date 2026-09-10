@@ -1,0 +1,95 @@
+// Seed order history for the Recarga Games prototype (both branding versions).
+// Real orders created during a session (via checkout) are appended on top of this
+// seed list and persisted in localStorage — see shared/js/store.js.
+window.RECARGA_SEED_ORDERS = [
+  {
+    id: "RG-77291",
+    productId: "free-fire",
+    packageId: "ff-572",
+    packageLabel: "572 Diamantes",
+    packageDetail: "520 + 52 bônus",
+    qty: 1,
+    amount: 20.90,
+    paymentMethod: "Pix",
+    status: "completed",
+    createdAt: "2026-08-29T14:32:00-03:00",
+    completedAt: "2026-08-29T14:32:41-03:00",
+    playerId: "512348821",
+    email: "jogador@email.com"
+  },
+  {
+    id: "RG-77104",
+    productId: "steam",
+    packageId: "steam-50",
+    packageLabel: "R$ 50",
+    packageDetail: "Gift card digital",
+    qty: 1,
+    amount: 50.00,
+    paymentMethod: "Cartão de crédito",
+    status: "completed",
+    createdAt: "2026-08-24T09:12:00-03:00",
+    completedAt: "2026-08-24T09:13:02-03:00",
+    email: "jogador@email.com",
+    code: "STEAM-K7F2-9QXP-3M8T"
+  },
+  {
+    id: "RG-76988",
+    productId: "mobile-legends",
+    packageId: "mlbb-571",
+    packageLabel: "571 Diamantes",
+    packageDetail: "520 + 51 bônus",
+    qty: 1,
+    amount: 39.90,
+    paymentMethod: "Pix",
+    status: "completed",
+    createdAt: "2026-08-19T20:05:00-03:00",
+    completedAt: "2026-08-19T20:05:37-03:00",
+    playerId: "88213045",
+    zoneId: "2151",
+    email: "jogador@email.com"
+  },
+  {
+    id: "RG-76711",
+    productId: "valorant",
+    packageId: "val-1000",
+    packageLabel: "1000 VP",
+    packageDetail: "1000 + 0 bônus",
+    qty: 1,
+    amount: 49.90,
+    paymentMethod: "Boleto",
+    status: "failed",
+    createdAt: "2026-08-11T18:47:00-03:00",
+    failedAt: "2026-08-12T08:00:00-03:00",
+    failReason: "Boleto não pago até o vencimento.",
+    riotId: "Jogador#BR1",
+    email: "jogador@email.com"
+  },
+  {
+    id: "RG-76502",
+    productId: "roblox",
+    packageId: "rbx-800",
+    packageLabel: "800 Robux",
+    packageDetail: "Código de resgate",
+    qty: 1,
+    amount: 49.90,
+    paymentMethod: "Pix",
+    status: "processing",
+    createdAt: "2026-08-01T11:02:00-03:00",
+    email: "jogador@email.com"
+  },
+  {
+    id: "RG-76310",
+    productId: "pubg-mobile",
+    packageId: "pubgm-660",
+    packageLabel: "660 UC",
+    packageDetail: "600 + 60 bônus",
+    qty: 1,
+    amount: 84.90,
+    paymentMethod: "Operadora",
+    status: "completed",
+    createdAt: "2026-07-22T16:40:00-03:00",
+    completedAt: "2026-07-22T16:41:10-03:00",
+    playerId: "5123456789",
+    email: "jogador@email.com"
+  }
+];

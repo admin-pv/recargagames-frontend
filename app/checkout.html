@@ -1,0 +1,476 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Recarga Games — Pagamento</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800;900&family=Barlow+Condensed:wght@700;800;900&display=swap" rel="stylesheet" />
+<style>
+  /* ── Tokens (same system as order-details.html / product.html) ── */
+  :root {
+    --void: #0D0F1A; --page: #090C14; --surface: #1A1D2E; --surface-2: #151A2A;
+    --warm: #F5F4F0; --muted: #9B99A8; --muted-2: #777588;
+    --border: #2E3047; --border-2: #454967;
+    --orange: #F5700A; --orange-hi: #FF8C2A;
+    --lime: #2ECC8A; --gold: #F0B429; --danger: #FF5C47;
+    --max: 1900px; --tight: 1100px; --header-h: 72px;
+    --ease: cubic-bezier(.2,.75,.2,1);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; background: var(--page); }
+  body {
+    margin: 0; min-height: 100vh; color: var(--warm);
+    background: linear-gradient(180deg, #090C14 0%, #0A0D16 45%, #080B12 100%);
+    font-family: 'Barlow', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    line-height: 1.45; overflow-x: hidden; -webkit-font-smoothing: antialiased;
+  }
+  a { color: inherit; text-decoration: none; }
+  button, input { font: inherit; }
+  button { color: inherit; background: transparent; border: 0; cursor: pointer; appearance: none; }
+  svg { display: block; }
+  .sr-only { position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0; }
+
+  /* ── NAV (verbatim from order-details.html) ── */
+  .topbar { position: sticky; top: 0; z-index: 80; background: rgba(9,12,20,.94); border-bottom: 1px solid rgba(46,48,71,.78); backdrop-filter: blur(16px); }
+  .nav { max-width: var(--max); min-height: var(--header-h); margin: 0 auto; padding: 0 clamp(18px,2.2vw,40px); display: grid; grid-template-columns: auto auto minmax(200px,1fr) auto; align-items: center; gap: 24px; }
+  .brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; }
+  .brand-mark { width: 29px; height: 29px; flex: 0 0 auto; }
+  .brand-text { display: grid; line-height: 1; text-transform: uppercase; }
+  .brand-text strong { color: var(--orange); font-family: 'Barlow Condensed', sans-serif; font-size: 23px; letter-spacing: .055em; font-weight: 900; }
+  .brand-text span { color: var(--warm); font-size: 10px; letter-spacing: .42em; opacity: .82; margin-top: 1px; }
+  .desktop-nav { display: flex; align-items: center; gap: 22px; color: var(--muted); font-size: 14px; font-weight: 800; white-space: nowrap; }
+  .desktop-nav a, .desktop-nav button { position: relative; padding: 24px 0 22px; color: inherit; display: inline-flex; align-items: center; }
+  .desktop-nav a:hover, .desktop-nav button:hover { color: var(--warm); }
+  .nav-actions { display: flex; align-items: center; gap: 10px; justify-content: flex-end; }
+  .account-btn, .cart-btn { border: 1px solid var(--border); background: linear-gradient(180deg, rgba(34,38,64,.86), rgba(26,29,46,.76)); min-height: 44px; border-radius: 14px; color: var(--warm); font-weight: 900; }
+  .account-btn { display: grid; grid-template-columns: 24px auto; column-gap: 10px; align-items: center; padding: 0 14px 0 12px; text-align: left; }
+  .account-icon { width: 24px; height: 24px; border-radius: 999px; display: grid; place-items: center; border: 1px solid rgba(245,112,10,.42); color: var(--orange); }
+  .account-btn strong { display: block; line-height: 1; font-size: 14px; }
+  .account-btn small { display: block; line-height: 1.1; color: var(--muted); font-size: 12px; margin-top: 3px; font-weight: 500; }
+  .cart-btn { width: 48px; display: grid; place-items: center; position: relative; }
+  .cart-count { position: absolute; right: -3px; top: -7px; min-width: 17px; height: 17px; padding: 0 5px; border-radius: 999px; display: grid; place-items: center; background: var(--orange); color: white; font-size: 10px; font-weight: 900; box-shadow: 0 0 0 3px var(--page); }
+
+  .tight { width: min(100%, var(--tight)); margin: 0 auto; padding: 0 clamp(16px,2.2vw,40px); }
+
+  /* ── BREADCRUMB ── */
+  .breadcrumb-bar { padding: 12px 0; border-bottom: 1px solid rgba(46,48,71,.5); }
+  .breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); flex-wrap: wrap; }
+  .breadcrumb a { color: #D5D3E1; }
+  .breadcrumb a:hover { color: var(--orange-hi); }
+  .breadcrumb .sep { opacity: .38; }
+  .breadcrumb .current { color: var(--warm); font-weight: 600; }
+
+  /* ── CARDS ── */
+  .card { border: 1px solid var(--border); background: linear-gradient(180deg, rgba(22,26,44,.92), rgba(14,17,30,.92)); border-radius: 22px; overflow: hidden; }
+
+  .account-shell { padding: 28px 0 72px; }
+  .account-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+  .account-title { font-family: 'Barlow Condensed', sans-serif; text-transform: uppercase; font-size: clamp(26px,3vw,36px); font-weight: 900; margin: 0 0 4px; letter-spacing: .01em; }
+  .account-sub { margin: 0; color: var(--muted); font-size: 14px; }
+  .back-link { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border-2); border-radius: 12px; padding: 10px 14px; font-size: 13px; font-weight: 800; color: var(--warm); background: rgba(255,255,255,.03); }
+  .back-link:hover { border-color: rgba(245,112,10,.5); }
+  .back-link svg { width: 14px; height: 14px; }
+
+  .fail-note { margin: 0 0 18px; padding: 14px 16px; border-radius: 14px; background: rgba(255,92,71,.08); border: 1px solid rgba(255,92,71,.3); color: #FFC1B7; font-size: 13px; line-height: 1.55; }
+  .fail-note strong { display: block; margin-bottom: 3px; color: #FFD3CC; }
+
+  /* ── PAYMENT METHOD (verbatim from product.html) ── */
+  .pay-card { padding: 20px 22px; }
+  .pay-card-head { margin-bottom: 14px; }
+  .pay-card-head h2 { margin: 0 0 3px; font-size: 16px; font-weight: 900; text-transform: uppercase; letter-spacing: .03em; }
+  .pay-card-head p { margin: 0; color: var(--muted); font-size: 13px; }
+  .payment-options { display: grid; gap: 10px; }
+  .pay-opt {
+    position: relative;
+    border: 1.5px solid var(--border);
+    background: linear-gradient(160deg, rgba(22,26,44,.9), rgba(14,17,30,.9));
+    border-radius: 14px; padding: 13px 15px;
+    cursor: pointer; display: grid; grid-template-columns: 34px 1fr 20px; gap: 11px; align-items: center;
+    transition: border-color .18s var(--ease), background .18s var(--ease), box-shadow .18s var(--ease);
+    user-select: none; min-height: 60px;
+  }
+  .pay-opt:hover { border-color: rgba(245,112,10,.4); }
+  .pay-opt[aria-checked="true"] { border-color: var(--orange); background: linear-gradient(160deg, rgba(245,112,10,.09), rgba(245,112,10,.04)); box-shadow: 0 0 0 3px rgba(245,112,10,.09); }
+  .pay-icon { width: 34px; height: 34px; border-radius: 10px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.07); display: grid; place-items: center; flex: 0 0 auto; transition: background .18s, border-color .18s; }
+  .pay-opt[aria-checked="true"] .pay-icon { background: rgba(245,112,10,.14); border-color: rgba(245,112,10,.26); }
+  .pay-icon svg { width: 18px; height: 18px; color: var(--muted); transition: color .18s; }
+  .pay-opt[aria-checked="true"] .pay-icon svg { color: var(--orange-hi); }
+  .pay-meta { display: grid; gap: 2px; min-width: 0; }
+  .pay-name { font-size: 14px; font-weight: 800; }
+  .pay-desc { font-size: 11.5px; color: var(--muted); }
+  .pay-trust { font-size: 11px; color: var(--lime); font-weight: 700; margin-top: 1px; }
+  .pay-radio { width: 18px; height: 18px; border-radius: 999px; border: 2px solid var(--border-2); display: grid; place-items: center; flex: 0 0 auto; transition: border-color .18s; }
+  .pay-opt[aria-checked="true"] .pay-radio { border-color: var(--orange); }
+  .pay-radio::after { content: ""; width: 8px; height: 8px; border-radius: 999px; background: var(--orange); opacity: 0; transform: scale(.3); transition: opacity .16s var(--ease), transform .16s var(--ease); }
+  .pay-opt[aria-checked="true"] .pay-radio::after { opacity: 1; transform: scale(1); }
+  .pay-recommended { position: absolute; top: -8px; left: 11px; background: var(--lime); color: #06120D; font-size: 9px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; padding: 2px 7px; border-radius: 999px; }
+
+  /* ── ORDER SUMMARY ── */
+  .order-detail-grid { display: grid; grid-template-columns: 1.3fr 1fr; gap: 18px; align-items: start; }
+  .order-detail-product { display: flex; align-items: center; gap: 14px; padding: 20px 22px; border-bottom: 1px solid var(--border); }
+  .order-detail-thumb { width: 52px; height: 52px; border-radius: 15px; display: grid; place-items: center; flex: 0 0 auto; font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 14px; color: #fff; text-align: center; line-height: 1.05; background: linear-gradient(160deg, color-mix(in srgb, var(--thumb-color, var(--orange)) 55%, #0B0E1C), #0B0E1C 78%); border: 1px solid color-mix(in srgb, var(--thumb-color, var(--orange)) 45%, transparent); }
+  .order-detail-product h2 { margin: 0 0 3px; font-family: 'Barlow Condensed', sans-serif; text-transform: uppercase; font-size: 20px; }
+  .order-detail-product p { margin: 0; color: var(--muted); font-size: 13px; }
+  .detail-lines { padding: 4px 22px 18px; display: grid; gap: 0; }
+  .detail-line { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px dashed var(--border); font-size: 13.5px; }
+  .detail-line:last-child { border-bottom: 0; }
+  .detail-line .lbl { color: var(--muted); }
+  .detail-line .val { font-weight: 800; text-align: right; }
+  .detail-total { display: flex; align-items: center; justify-content: space-between; padding: 16px 22px; border-top: 1px solid var(--border); background: rgba(255,255,255,.02); }
+  .detail-total .lbl { font-size: 12.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; font-weight: 800; }
+  .detail-total .val { font-family: 'Barlow Condensed', sans-serif; font-size: 24px; font-weight: 900; }
+  .order-actions { display: grid; gap: 9px; padding: 20px 22px 4px; }
+  .cta-primary { width: 100%; min-height: 50px; border: 0; border-radius: 14px; background: linear-gradient(180deg, var(--orange-hi), var(--orange)); color: white; font-family: 'Barlow Condensed', sans-serif; font-size: 17px; font-weight: 900; letter-spacing: .05em; text-transform: uppercase; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 20px rgba(245,112,10,.26); }
+  .cta-primary:hover { filter: brightness(1.08); }
+  .cta-primary:disabled { opacity: .6; cursor: not-allowed; filter: none; }
+  .cta-secondary { width: 100%; min-height: 42px; border: 1px solid var(--border-2); background: transparent; border-radius: 12px; color: #E7E5F1; font-weight: 800; font-size: 13.5px; display: flex; align-items: center; justify-content: center; }
+  .cta-secondary:hover { border-color: rgba(245,112,10,.44); background: rgba(245,112,10,.05); }
+  .help-row { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 2px; font-size: 12px; color: var(--muted-2); text-align: center; }
+  .help-row a { color: var(--orange-hi); font-weight: 700; }
+  .summary-trust-strip { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px 12px; padding: 16px 22px; border-top: 1px solid rgba(46,48,71,.5); margin-top: 14px; }
+  .st-item { font-size: 11.5px; font-weight: 700; color: var(--muted); display: flex; align-items: center; gap: 6px; min-width: 0; }
+  .st-item span { color: var(--lime); font-weight: 900; flex: 0 0 auto; }
+
+  /* ── PROCESSING OVERLAY (verbatim from product.html) ── */
+  .modal { position: fixed; inset: 0; z-index: 120; display: none; place-items: center; background: rgba(0,0,0,.66); padding: 20px; }
+  .modal.show { display: grid; }
+  .modal-card { width: min(440px,100%); border: 1px solid var(--border); border-radius: 22px; background: #101522; box-shadow: 0 28px 80px rgba(0,0,0,.55); padding: 22px; }
+  .processing-card { text-align: center; display: grid; justify-items: center; gap: 12px; padding: 40px 24px; }
+  .processing-card h3 { margin: 0; font-family: 'Barlow Condensed', sans-serif; font-size: 22px; text-transform: uppercase; letter-spacing: .02em; }
+  .processing-card p { margin: 0; color: #B9B7C6; font-size: 13px; }
+  .spinner { width: 44px; height: 44px; border-radius: 50%; border: 3px solid rgba(245,112,10,.25); border-top-color: var(--orange); animation: rg-spin .8s linear infinite; }
+  @keyframes rg-spin { to { transform: rotate(360deg); } }
+
+  /* ── FOOTER (verbatim) ── */
+  footer { border-top: 1px solid var(--border); background: #111318; margin-top: 24px; }
+  .footer-inner { padding-top: 30px; padding-bottom: 28px; color: #D7D3E0; }
+  .footer-desktop { display: grid; grid-template-columns: minmax(220px,1.3fr) repeat(3,minmax(120px,.7fr)); gap: 26px; align-items: start; }
+  .footer-brand { display: grid; gap: 12px; }
+  .footer-logo { display: inline-flex; align-items: center; gap: 10px; width: fit-content; }
+  .footer-copy { margin: 0; color: #B5B1C0; font-size: 13px; line-height: 1.45; max-width: 300px; }
+  .social-row, .payment-row { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; }
+  .social-link { width: 32px; height: 32px; border-radius: 999px; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.1); background: rgba(26,29,46,.62); color: var(--warm); font-weight: 800; font-size: 11px; }
+  .footer-col h3 { margin: 0 0 12px; color: var(--warm); font-size: 15px; font-weight: 800; }
+  .footer-list { display: grid; gap: 9px; }
+  .footer-list a, .footer-list span { color: #D1CDDA; font-size: 13px; }
+  .footer-list a:hover { color: var(--orange-hi); }
+  .payment-badge { min-height: 30px; padding: 0 11px; border-radius: 7px; display: inline-flex; align-items: center; border: 1px solid rgba(255,255,255,.12); background: #F5F4F0; color: #111318; font-size: 12px; font-weight: 800; }
+
+  @media (max-width: 900px) { .order-detail-grid { grid-template-columns: 1fr; } }
+  @media (max-width: 1100px) {
+    .desktop-nav { display: none; }
+    .nav { grid-template-columns: auto minmax(160px,1fr) auto; }
+  }
+  @media (max-width: 720px) {
+    html, body { width: 100%; max-width: 100%; overflow-x: hidden; }
+    .nav { grid-template-columns: auto auto; padding: 12px 16px 10px; gap: 10px 12px; }
+    .tight { padding-left: 14px; padding-right: 14px; }
+    .account-shell { padding: 18px 0 60px; }
+    .account-head { flex-direction: column; align-items: center; text-align: center; gap: 14px; }
+    .account-head > div:first-child { width: 100%; }
+    .footer-desktop { grid-template-columns: 1fr 1fr; }
+  }
+
+  /* CART (empty-state modal, shared shape across every page) */
+  .cart-empty-modal { position: fixed; inset: 0; z-index: 130; display: none; place-items: center; background: rgba(0,0,0,.66); padding: 20px; }
+  .cart-empty-modal.show { display: grid; }
+  .cart-empty-card { width: min(380px,100%); border: 1px solid var(--border); border-radius: 20px; background: #101522; box-shadow: 0 28px 80px rgba(0,0,0,.55); padding: 26px; text-align: center; position: relative; }
+  .cart-empty-close { position: absolute; top: 12px; right: 12px; width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; color: var(--muted); }
+  .cart-empty-close:hover { color: var(--warm); background: rgba(255,255,255,.06); }
+  .cart-empty-icon { width: 44px; height: 44px; border-radius: 999px; background: rgba(245,112,10,.12); border: 1px solid rgba(245,112,10,.3); display: grid; place-items: center; margin: 4px auto 14px; color: var(--orange-hi); }
+  .cart-empty-card h3 { margin: 0 0 6px; font-family: 'Barlow Condensed', sans-serif; text-transform: uppercase; font-size: 20px; }
+  .cart-empty-card p { margin: 0 0 18px; color: var(--muted); font-size: 13.5px; }
+  .cart-empty-card .btn-cart { display: inline-flex; align-items: center; justify-content: center; min-height: 46px; padding: 0 22px; border: 0; border-radius: 12px; background: linear-gradient(180deg, var(--orange-hi), var(--orange)); color: #fff; font-weight: 800; font-size: 14px; }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <nav class="nav" aria-label="Navegação principal">
+    <a class="brand" href="index.html" aria-label="Recarga Games">
+      <svg class="brand-mark" viewBox="0 0 28 28" fill="none" aria-hidden="true">
+        <rect x="4" y="4" width="20" height="20" rx="2.5" transform="rotate(45 14 14)" fill="#F5700A"/>
+        <path d="M15.6 7.5 9.5 15.5h5.2l-2.3 5 8.1-9.5H15l2.2-3.5h-1.6Z" fill="white"/>
+      </svg>
+      <span class="brand-text"><strong>Recarga</strong><span>Games</span></span>
+    </a>
+    <div class="desktop-nav" aria-label="Links principais">
+      <a href="index.html">Loja</a>
+      <a href="index.html#catalog">Todos os jogos</a>
+      <a href="campaign.html">Ganhe créditos</a>
+      <button type="button" onclick="location.href='my-orders.html'">Meus pedidos</button>
+      <button type="button" onclick="location.href='help-center.html'">Suporte</button>
+    </div>
+    <div></div>
+    <div class="nav-actions">
+      <button class="account-btn" type="button" aria-label="Cadastre-se ou entrar" onclick="location.href='account-profile.html'">
+        <span class="account-icon">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><circle cx="7" cy="5" r="2.5" stroke="currentColor" stroke-width="1.5"/><path d="M2.5 12c0-2.485 2.015-4.5 4.5-4.5s4.5 2.015 4.5 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </span>
+        <span><strong>Cadastre-se</strong><small>Entrar</small></span>
+      </button>
+      <button class="cart-btn" type="button" aria-label="Carrinho" onclick="document.getElementById('cartEmptyModal').classList.add('show')">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M2 2h2.5l1.5 8h8l1.5-6H6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="8.5" cy="16.5" r="1.5" stroke="currentColor" stroke-width="1.4"/><circle cx="14.5" cy="16.5" r="1.5" stroke="currentColor" stroke-width="1.4"/></svg>
+        <span class="cart-count">0</span>
+      </button>
+    </div>
+  </nav>
+</header>
+
+<div class="breadcrumb-bar">
+  <div class="tight">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <a href="index.html">Loja</a><span class="sep">›</span>
+      <a href="my-orders.html">Meus pedidos</a><span class="sep">›</span>
+      <a href="#" id="breadcrumbOrderLink">Pedido</a><span class="sep">›</span>
+      <span class="current">Pagamento</span>
+    </nav>
+  </div>
+</div>
+
+<main>
+  <div class="tight account-shell">
+    <div id="checkoutContent"><div class="card" style="padding:40px;text-align:center;color:var(--muted)">Carregando…</div></div>
+  </div>
+</main>
+
+<footer>
+  <div class="tight footer-inner">
+    <div class="footer-desktop">
+      <div class="footer-brand">
+        <a class="footer-logo" href="index.html" aria-label="Recarga Games">
+          <svg class="brand-mark" viewBox="0 0 28 28" fill="none" aria-hidden="true"><rect x="4" y="4" width="20" height="20" rx="2.5" transform="rotate(45 14 14)" fill="#F5700A"/><path d="M15.6 7.5 9.5 15.5h5.2l-2.3 5 8.1-9.5H15l2.2-3.5h-1.6Z" fill="white"/></svg>
+          <span class="brand-text"><strong>Recarga</strong><span>Games</span></span>
+        </a>
+        <p class="footer-copy">© 2026 Recarga Games Brasil.<br>Não somos afiliados aos desenvolvedores dos jogos.</p>
+        <div class="social-row" aria-label="Redes sociais">
+          <a class="social-link" href="#" aria-label="Instagram">IG</a>
+          <a class="social-link" href="#" aria-label="TikTok">TT</a>
+          <a class="social-link" href="#" aria-label="Discord">DC</a>
+          <a class="social-link" href="#" aria-label="X">X</a>
+        </div>
+      </div>
+      <div class="footer-col"><h3>Políticas</h3><div class="footer-list"><a href="terms.html">Termos e Condições</a><a href="privacy-policy.html">Política de Privacidade</a><a href="cookie-policy.html">Política de Cookies</a><a href="refund-policy.html">Trocas e Reembolsos</a><a href="faq.html">Perguntas Frequentes</a></div></div>
+      <div class="footer-col"><h3>Suporte</h3><div class="footer-list"><a href="help-center.html">Central de ajuda</a><a href="my-orders.html">Acompanhar pedido</a><span>suporte@recargagames.com</span></div></div>
+      <div class="footer-col"><h3>Pagamento</h3><div class="payment-row"><span class="payment-badge">Pix</span><span class="payment-badge">Cartão</span><span class="payment-badge">Boleto</span></div></div>
+    </div>
+  </div>
+</footer>
+
+<!-- ── PROCESSING PAYMENT OVERLAY (same pattern as product.html) ── -->
+<div class="modal processing-modal" id="processingModal" role="dialog" aria-modal="true" aria-labelledby="processingTitle">
+  <div class="modal-card processing-card">
+    <div class="spinner" aria-hidden="true"></div>
+    <h3 id="processingTitle">Processando pagamento…</h3>
+    <p>Não feche esta janela. Você será redirecionado em instantes.</p>
+  </div>
+</div>
+
+<script src="shared/data/products.js"></script>
+<script src="shared/data/orders.js"></script>
+<script src="shared/js/market.js"></script>
+<script src="shared/js/store.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var params = new URLSearchParams(window.location.search);
+  var retryId = params.get('retry');
+  var presetMethod = params.get('method'); // e.g. 'pix' from the "Pagar com Pix" retry button
+
+  /* ============================================================
+     Real integration point: this reads the order via RecargaStore
+     the same way order-details.html is meant to (see the TODO in
+     that file). Until order-details.html itself is wired to real
+     data, retryId here won't match a real order, so this page
+     falls back to a bundled demo "failed" order below — same
+     stand-in pattern used across the other prototype pages.
+  ============================================================ */
+  var hasStore = !!window.RecargaStore;
+  var order = (hasStore && retryId && typeof RecargaStore.getOrderById === 'function')
+    ? RecargaStore.getOrderById(retryId)
+    : null;
+  var product = (hasStore && order && typeof RecargaStore.getProductById === 'function')
+    ? RecargaStore.getProductById(order.productId)
+    : null;
+
+  var DEMO_ORDER = {
+    id: retryId || 'RG-260831-6190', status: 'failed', productId: 'mobile-legends',
+    packageLabel: 'Pacote Diamantes Mega (1.050 💎)', qty: 1,
+    email: 'alex.***@gmail.com', paymentMethod: 'Cartão de crédito', amount: 89.90,
+    createdAt: '2026-08-31T20:40:00',
+    failReason: 'O cartão foi recusado pela operadora. Nenhum valor foi cobrado.'
+  };
+  var DEMO_PRODUCTS = {
+    'mobile-legends': { name: 'Mobile Legends', category: 'Diamantes', color: '#F5700A', short: 'ML' },
+    'freefire-gift':  { name: 'Free Fire — Cartão Presente', category: 'Gift Card digital', color: '#2ECC8A', short: 'FF' }
+  };
+
+  if (!order) order = DEMO_ORDER;
+  if (!product) product = DEMO_PRODUCTS[order.productId] || { name: order.productId, category: '', color: '#F5700A', short: '?' };
+
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]; }); }
+  function formatBRL(n) {
+    if (hasStore && typeof RecargaStore.formatBRL === 'function') return RecargaStore.formatBRL(n);
+    return 'R$ ' + Number(n || 0).toFixed(2).replace('.', ',');
+  }
+  function formatDate(iso) {
+    if (!iso) return '—';
+    var d = new Date(iso);
+    return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
+  }
+
+  var PAY_METHODS = [
+    { key: 'pix', label: 'Pix', desc: 'Transferência instantânea via QR Code', trust: '✓ Confirmação em segundos', recommended: true,
+      icon: '<svg viewBox="0 0 20 20" fill="none"><path d="M10 3L14.5 7.5H12.5V12.5H7.5V7.5H5.5L10 3Z" fill="currentColor" opacity=".7"/><path d="M10 17L5.5 12.5H7.5V7.5H12.5V12.5H14.5L10 17Z" fill="currentColor"/></svg>' },
+    { key: 'card', label: 'Cartão de crédito', desc: 'Visa, Mastercard, Elo · Parcelas disponíveis', trust: '',
+      icon: '<svg viewBox="0 0 20 20" fill="none"><rect x="2" y="5" width="16" height="11" rx="2" stroke="currentColor" stroke-width="1.4"/><path d="M2 8h16" stroke="currentColor" stroke-width="1.4"/><rect x="4" y="11" width="4" height="1.5" rx=".5" fill="currentColor"/></svg>' },
+    { key: 'boleto', label: 'Boleto bancário', desc: '1–3 dias úteis para compensação', trust: '',
+      icon: '<svg viewBox="0 0 20 20" fill="none"><rect x="3" y="4" width="14" height="12" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M6 8v5M8 7v5M10 8v5M12 7v5M14 8v5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>' }
+  ];
+
+  // Preselect: explicit ?method= param wins, then the order's own failed method
+  // mapped to a key, else Pix (the "safest" alternative after a card decline).
+  function methodToKey(label) {
+    if (!label) return null;
+    label = label.toLowerCase();
+    if (label.indexOf('pix') > -1) return 'pix';
+    if (label.indexOf('cart') > -1) return 'card';
+    if (label.indexOf('boleto') > -1) return 'boleto';
+    return null;
+  }
+  /* ── Fase 0 — o que ainda não tem backend fica oculto, não removido ──
+     PagBrasil ainda não está integrado, então só Pix é oferecido. PAY_METHODS
+     acima fica intacto: para reabrir cartão/boleto, basta acrescentar a chave
+     nesta allowlist. O filtro roda na renderização (e não só no CSS) porque
+     estas opções são geradas por JS — esconder depois deixaria a opção
+     focável por teclado. */
+  var PHASE0_ALLOWED_PAY = ['pix'];
+  var VISIBLE_PAY_METHODS = PAY_METHODS.filter(function (m) {
+    return PHASE0_ALLOWED_PAY.indexOf(m.key) > -1;
+  });
+
+  var requestedKey = PAY_METHODS.some(function (m) { return m.key === presetMethod; }) ? presetMethod
+    : (methodToKey(order.paymentMethod) === 'card' ? 'pix' : (methodToKey(order.paymentMethod) || 'pix'));
+  // Um ?method=card na URL não pode selecionar um método que não está visível.
+  var initialKey = PHASE0_ALLOWED_PAY.indexOf(requestedKey) > -1 ? requestedKey : PHASE0_ALLOWED_PAY[0];
+
+  document.title = 'Recarga Games — Pagamento · Pedido ' + order.id;
+  document.getElementById('breadcrumbOrderLink').textContent = 'Pedido ' + order.id;
+  document.getElementById('breadcrumbOrderLink').setAttribute('href', 'order-details.html?id=' + encodeURIComponent(order.id));
+
+  var failHtml = order.status === 'failed' ? (
+    '<div class="fail-note"><strong>Pagamento anterior não foi concluído.</strong>' + esc(order.failReason || 'Escolha outro método de pagamento para tentar novamente.') + '</div>'
+  ) : '';
+
+  var payOptsHtml = VISIBLE_PAY_METHODS.map(function (m) {
+    var checked = m.key === initialKey;
+    return '<div class="pay-opt" role="radio" aria-checked="' + checked + '" tabindex="0" data-pay="' + m.key + '" data-pay-label="' + esc(m.label) + '">' +
+      (m.recommended ? '<span class="pay-recommended">Recomendado</span>' : '') +
+      '<div class="pay-icon" aria-hidden="true">' + m.icon + '</div>' +
+      '<div class="pay-meta"><div class="pay-name">' + esc(m.label) + '</div><div class="pay-desc">' + esc(m.desc) + '</div>' +
+        (m.trust ? '<div class="pay-trust">' + esc(m.trust) + '</div>' : '') +
+      '</div>' +
+      '<div class="pay-radio" aria-hidden="true"></div>' +
+    '</div>';
+  }).join('');
+
+  document.getElementById('checkoutContent').innerHTML =
+    '<div class="account-head">' +
+      '<div>' +
+        '<h1 class="account-title">Finalizar pagamento</h1>' +
+        '<p class="account-sub">Pedido ' + esc(order.id) + ' · ' + esc(product.name) + '</p>' +
+      '</div>' +
+      '<a class="back-link" href="order-details.html?id=' + encodeURIComponent(order.id) + '"><svg viewBox="0 0 24 24" fill="none"><path d="M15 5 8 12l7 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Voltar ao pedido</a>' +
+    '</div>' +
+
+    '<div class="order-detail-grid">' +
+      '<div>' +
+        failHtml +
+        '<div class="card pay-card">' +
+          '<div class="pay-card-head"><h2>Método de pagamento</h2><p>Escolha como prefere pagar desta vez.</p></div>' +
+          '<div class="payment-options" role="radiogroup" aria-label="Selecione o método de pagamento" id="payOpts">' + payOptsHtml + '</div>' +
+        '</div>' +
+      '</div>' +
+
+      '<div class="card">' +
+        '<div class="order-detail-product">' +
+          '<div class="order-detail-thumb" style="--thumb-color:' + product.color + '">' + esc(product.short) + '</div>' +
+          '<div><h2>' + esc(product.name) + '</h2><p>' + esc(product.category) + '</p></div>' +
+        '</div>' +
+        '<div class="detail-lines">' +
+          '<div class="detail-line"><span class="lbl">Pacote</span><span class="val">' + esc(order.packageLabel) + '</span></div>' +
+          '<div class="detail-line"><span class="lbl">Quantidade</span><span class="val">' + esc(order.qty) + '</span></div>' +
+          '<div class="detail-line"><span class="lbl">E-mail</span><span class="val">' + esc(order.email || '—') + '</span></div>' +
+          '<div class="detail-line"><span class="lbl">Pedido original</span><span class="val">' + formatDate(order.createdAt) + '</span></div>' +
+        '</div>' +
+        '<div class="detail-total"><span class="lbl">Total a pagar</span><span class="val">' + formatBRL(order.amount) + '</span></div>' +
+        '<div class="order-actions">' +
+          '<button class="cta-primary" id="payBtn" type="button">Finalizar pagamento</button>' +
+          '<a class="cta-secondary" href="order-details.html?id=' + encodeURIComponent(order.id) + '">Cancelar e voltar</a>' +
+        '</div>' +
+        '<div class="help-row">Precisa de ajuda? <a href="help-center.html?order=' + encodeURIComponent(order.id) + '">Falar com o suporte</a></div>' +
+        '<div class="summary-trust-strip" aria-label="Sinais de confiança">' +
+          '<div class="st-item"><span>✓</span> Pagamento seguro</div>' +
+          '<div class="st-item"><span>✓</span> Pedido rastreável</div>' +
+          '<div class="st-item"><span>✓</span> Suporte em português</div>' +
+          '<div class="st-item"><span>✓</span> Nota fiscal disponível</div>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+
+  var payOpts = document.getElementById('payOpts');
+  payOpts.addEventListener('click', function (e) {
+    var opt = e.target.closest('[data-pay]');
+    if (!opt) return;
+    payOpts.querySelectorAll('.pay-opt').forEach(function (o) { o.setAttribute('aria-checked', 'false'); });
+    opt.setAttribute('aria-checked', 'true');
+  });
+  payOpts.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    var opt = e.target.closest('[data-pay]');
+    if (opt) { e.preventDefault(); opt.click(); }
+  });
+
+  /* No real payment gateway in this prototype: confirming shows a brief
+     "processing" overlay, marks the order complete via RecargaStore (when
+     available), then hands off to Order Details — same handshake product.html
+     uses for a first-time purchase. */
+  document.getElementById('payBtn').addEventListener('click', function () {
+    var btn = this;
+    btn.disabled = true;
+    document.getElementById('processingModal').classList.add('show');
+    setTimeout(function () {
+      if (hasStore && typeof RecargaStore.completeOrder === 'function') {
+        try { RecargaStore.completeOrder(order.id); } catch (e) { /* ignore in demo mode */ }
+      }
+      window.location.href = 'order-details.html?id=' + encodeURIComponent(order.id) + '&retried=1';
+    }, 1400);
+  });
+})();
+</script>
+
+<div class="cart-empty-modal" id="cartEmptyModal" role="dialog" aria-modal="true" aria-labelledby="cartEmptyTitle">
+  <div class="cart-empty-card">
+    <button class="cart-empty-close" type="button" aria-label="Fechar" onclick="document.getElementById('cartEmptyModal').classList.remove('show')">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 3l10 10M13 3 3 13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+    </button>
+    <div class="cart-empty-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M2 2h2.5l1.5 8h8l1.5-6H6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="8.5" cy="16.5" r="1.5" stroke="currentColor" stroke-width="1.4"/><circle cx="14.5" cy="16.5" r="1.5" stroke="currentColor" stroke-width="1.4"/></svg></div>
+    <h3 id="cartEmptyTitle">Seu carrinho está vazio</h3>
+    <p>Escolha um produto para começar.</p>
+    <a class="btn-cart" href="index.html#catalog">Ver catálogo</a>
+  </div>
+</div>
+<script>
+(function () {
+  var m = document.getElementById('cartEmptyModal');
+  if (!m) return;
+  m.addEventListener('click', function (e) { if (e.target === m) m.classList.remove('show'); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') m.classList.remove('show'); });
+})();
+</script>
+
+</body>
+</html>
