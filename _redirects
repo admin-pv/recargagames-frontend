@@ -23,6 +23,17 @@
 /app/*  /br/:splat  301!
 
 
+# ── 1b. /docs/ não é endereço público ─────────────────────────────────────
+# O publish directory é a raiz do repo, então tudo em docs/ era servido sem
+# senha: o handover do fornecedor é um mapa do que ainda não existe (auth
+# fake, números placeholder, cupons legíveis no fonte) e não é conteúdo de
+# site. Forçada ("!") porque os arquivos existem e venceriam a regra.
+# /404.html não existe na raiz — o status é 404 de qualquer forma, mas o
+# corpo é o padrão do Netlify. Criar um 404 de raiz é o que falta para
+# ficar apresentável.
+/docs/*  /404.html  404!
+
+
 # ── 2. URLs antigas de jogo → produto novo ────────────────────────────────
 # O /br/ antigo era uma SPA que servia /br/<slug>/ para cada linha da tabela
 # `games` do Supabase. O frontend v2 usa /br/product.html?id=<id>.
