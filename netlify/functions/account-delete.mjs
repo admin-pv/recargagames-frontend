@@ -40,6 +40,18 @@
    aqui daria a esta Function um credencial de outro escopo e faria as
    duas caírem juntas numa rotação.
 
+   ── POR QUE .mjs E NÃO .js ──
+
+   Este arquivo é ESM (`export const handler`). O repo não tem
+   package.json — é decisão do projeto, sem build step e sem gerenciador
+   de pacotes — então não há `"type": "module"` para declarar o formato.
+   Um `.js` aqui seria interpretado como CommonJS e morreria no deploy com
+   `SyntaxError: Unexpected token 'export'`. A extensão `.mjs` declara o
+   formato sem introduzir package.json nenhum.
+
+   A rota não muda: netlify/functions/account-delete.mjs continua sendo
+   servido em /.netlify/functions/account-delete.
+
    ── LOG ──
    Nenhum PII. Nem e-mail, nem nome, nem telefone, nem o corpo de erro do
    PostgREST (`message`/`details`/`hint` são justamente onde o Postgres

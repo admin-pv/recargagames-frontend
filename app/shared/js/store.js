@@ -492,7 +492,7 @@
      O browser não consegue fazer isto sozinho: apagar de auth.users exige
      a secret key, que nunca pode chegar ao front. Vai para a Netlify
      Function, que valida o JWT e opera server-side.
-     Ver netlify/functions/account-delete.js. */
+     Ver netlify/functions/account-delete.mjs. */
   async function deleteAccount() {
     try {
       var session = await getSession();
