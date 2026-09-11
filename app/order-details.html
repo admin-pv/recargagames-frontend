@@ -320,10 +320,13 @@
   function formatDate(iso) {
     if (!iso) return '—';
     var d = new Date(iso);
-    return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }) + ', ' +
-           d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    return d.toLocaleDateString(RecargaMarket.locale, { day: '2-digit', month: 'short', year: 'numeric' }) + ', ' +
+           d.toLocaleTimeString(RecargaMarket.locale, { hour: '2-digit', minute: '2-digit' });
   }
-  function formatBRL(n) { return hasStore ? RecargaStore.formatBRL(n) : 'R$ ' + Number(n || 0).toFixed(2).replace('.', ','); }
+  /* Fase 1: formatação vem do market.js (locale + moeda do mercado).
+     O fallback com 'R$' fixo saiu — ele reintroduzia o hardcode de BR
+     justamente no caminho de erro. */
+  function formatBRL(n) { return RecargaMarket.formatMoney(n); }
   function statusLabel(s) { return hasStore ? RecargaStore.statusLabel(s) : ({ completed: 'Concluído', processing: 'Processando', failed: 'Falhou' }[s] || s); }
   function maskId(id) {
     id = String(id);

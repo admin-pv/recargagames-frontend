@@ -438,10 +438,10 @@
       getProductById: function (id) { return demoProducts.filter(function (p) { return p.id === id; })[0]; },
       formatDate: function (iso) {
         var d = new Date(iso);
-        return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }) + ', ' +
-          d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        return d.toLocaleDateString(RecargaMarket.locale, { day: '2-digit', month: 'short', year: 'numeric' }) + ', ' +
+          d.toLocaleTimeString(RecargaMarket.locale, { hour: '2-digit', minute: '2-digit' });
       },
-      formatBRL: function (n) { return 'R$ ' + n.toFixed(2).replace('.', ','); }
+      formatMoney: function (n) { return RecargaMarket.formatMoney(n); }
     };
   }
 
@@ -485,7 +485,7 @@
     statsEl.innerHTML =
       '<div class="card stat-card"><strong>' + total + '</strong><span>Pedidos</span></div>' +
       '<div class="card stat-card accent-lime"><strong>' + completed + '</strong><span>Entregues</span></div>' +
-      '<div class="card stat-card accent-orange"><strong>' + RecargaStore.formatBRL(spent) + '</strong><span>Total em recargas</span></div>';
+      '<div class="card stat-card accent-orange"><strong>' + RecargaStore.formatMoney(spent) + '</strong><span>Total em recargas</span></div>';
   }
 
   function renderCounts(all) {
@@ -532,7 +532,7 @@
           '<div class="order-row-info"><strong>' + e.name + '</strong><span>' + o.packageLabel + ' · Pedido ' + o.id + '</span></div>' +
           '<div class="order-row-date">' + RecargaStore.formatDate(o.createdAt) + '</div>' +
           '<span class="status-pill ' + o.status + '">' + STATUS_LABEL[o.status] + '</span>' +
-          '<div class="order-row-amount">' + RecargaStore.formatBRL(o.amount) + '</div>' +
+          '<div class="order-row-amount">' + RecargaStore.formatMoney(o.amount) + '</div>' +
           '<svg class="order-row-chevron" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
         '</a>' +
         actionHTML +

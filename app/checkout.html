@@ -314,14 +314,14 @@
   if (!product) product = DEMO_PRODUCTS[order.productId] || { name: order.productId, category: '', color: '#F5700A', short: '?' };
 
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]; }); }
-  function formatBRL(n) {
-    if (hasStore && typeof RecargaStore.formatBRL === 'function') return RecargaStore.formatBRL(n);
-    return 'R$ ' + Number(n || 0).toFixed(2).replace('.', ',');
-  }
+  /* Fase 1: formatação vem do market.js (locale + moeda do mercado). O
+     fallback com 'R$' fixo saiu — reintroduzia o hardcode de BR no
+     caminho de erro, que é onde ninguém olha. */
+  function formatBRL(n) { return RecargaMarket.formatMoney(n); }
   function formatDate(iso) {
     if (!iso) return '—';
     var d = new Date(iso);
-    return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
+    return d.toLocaleDateString(RecargaMarket.locale, { day: '2-digit', month: 'short', year: 'numeric' });
   }
 
   var PAY_METHODS = [
