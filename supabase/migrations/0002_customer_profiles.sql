@@ -198,11 +198,66 @@ ALTER TABLE public.customer_profiles ENABLE ROW LEVEL SECURITY;
 -- Blindagem extra: sem GRANT, a RLS nem chega a ser consultada — o
 -- Postgres nega antes, e o PostgREST devolve 401 em vez de lista vazia.
 -- O Supabase concede privilégios amplos por default a anon/authenticated
--- em tabelas novas de `public`; estas duas linhas desfazem isso e
--- reconstroem só o necessário.
+-- em tabelas novas de `public`; a linha abaixo desfaz isso e as duas
+-- seguintes reconstroem só o necessário.
 REVOKE ALL ON public.customer_profiles FROM anon, authenticated;
-GRANT SELECT, UPDATE ON public.customer_profiles TO authenticated;
--- anon: nada. Nem SELECT. Deslogado não tem perfil para ver.
+
+-- anon: NADA. Nem SELECT. Deslogado não tem perfil para ver.
+
+-- SELECT na tabela inteira: a RLS já limita a UMA linha (a própria), e
+-- não há coluna secreta dentro dela.
+GRANT SELECT ON public.customer_profiles TO authenticated;
+
+-- UPDATE POR COLUNA, e não na tabela.
+--
+--    POR QUÊ: a policy de UPDATE controla QUAIS LINHAS o usuário altera;
+--    ela não diz nada sobre QUAIS COLUNAS. Com `GRANT UPDATE` na tabela
+--    inteira, o dono da linha podia reescrever qualquer campo dela —
+--    inclusive os que não são dados de perfil, mas estado do sistema.
+--
+--    Exatamente esse buraco existe hoje em public.profiles e é a razão
+--    desta mudança: lá, `profiles_update_own` permite editar a própria
+--    linha sem restrição de coluna, e quatro policies de escrita do admin
+--    decidem quem é admin lendo `profiles.user_type`. Quem tem linha em
+--    profiles se promove sozinho. Ver docs/divida-tecnica-2-rls.md.
+--
+--    Aqui a lista é a superfície inteira que o browser alcança. O que
+--    ficou de fora, e por quê:
+--      user_id     — é a identidade. Reescrever = sequestrar outro perfil.
+--                    (O WITH CHECK da policy já barraria; isto é a
+--                    segunda tranca, no nível do privilégio.)
+--      email       — espelho de auth.users.email. A troca de e-mail é do
+--                    GoTrue, com confirmação por link; deixar o browser
+--                    escrever aqui criaria um segundo caminho, sem
+--                    confirmação nenhuma.
+--      country_code— o mercado vem do PATH da requisição (ver market.js),
+--                    não de uma escolha do usuário. Escrevível daqui,
+--                    qualquer um se declararia de outro mercado.
+--      deleted_at  — exclusão é da Netlify Function, que opera com a
+--                    secret key. Um cliente não se marca como excluído.
+--      created_at
+--      updated_at  — carimbos do banco. updated_at é escrito pelo trigger
+--                    do item 4, e trigger NÃO precisa de privilégio de
+--                    coluna: o privilégio é checado contra as colunas
+--                    NOMEADAS no UPDATE, não contra as que um BEFORE
+--                    trigger altera depois. Por isso ele continua
+--                    funcionando com a coluna fora desta lista.
+--
+--    A whitelist WRITABLE de app/shared/js/store.js é exatamente esta
+--    lista. As duas TÊM que andar juntas: uma coluna nova que entre num
+--    lugar e não no outro vira 42501 (permission denied for column) em
+--    produção.
+GRANT UPDATE (
+  full_name,
+  phone,
+  locale,
+  nickname,
+  favorite_games,
+  marketing_opt_in,
+  onboarding_done,
+  linked_accounts,
+  notifications
+) ON public.customer_profiles TO authenticated;
 
 
 -- SELECT — o usuário lê a própria linha, e só enquanto ela estiver viva.
@@ -339,28 +394,62 @@ CREATE INDEX IF NOT EXISTS customer_profiles_active_idx
 -- =====================================================================
 -- CONFERÊNCIA PÓS-APLICAÇÃO (read-only)
 --
--- Rode depois e confira:
---   - 16 colunas
---   - rowsecurity = true
---   - exatamente 2 policies, ambas só para {authenticated}
---   - 2 triggers, um em cada tabela
+-- Esperado, item a item:
+--   C-1  16 colunas
+--   C-2  rowsecurity = true
+--   C-3  exatamente 2 policies (select/update), ambas só {authenticated}
+--   C-4  privilégio de TABELA: só SELECT, e só para authenticated.
+--        >>> Se aparecer UPDATE aqui, o GRANT por coluna não pegou e a
+--            proteção de coluna NÃO existe. Parar. <<<
+--   C-5  privilégio de COLUNA: exatamente 9 linhas de UPDATE, e nenhuma
+--        delas para email, user_id, country_code, deleted_at, created_at
+--        ou updated_at
+--   C-6  2 triggers, um em cada tabela
+--   C-7  anon sem nenhum privilégio (zero linhas)
 -- =====================================================================
+
+-- C-1
 -- SELECT column_name, data_type, column_default, is_nullable
 --   FROM information_schema.columns
 --  WHERE table_schema='public' AND table_name='customer_profiles'
 --  ORDER BY ordinal_position;
---
+
+-- C-2
 -- SELECT rowsecurity FROM pg_tables
 --  WHERE schemaname='public' AND tablename='customer_profiles';
---
+
+-- C-3
 -- SELECT policyname, cmd, roles, qual, with_check
 --   FROM pg_policies
 --  WHERE schemaname='public' AND tablename='customer_profiles';
---
--- SELECT grantee, privilege_type FROM information_schema.role_table_grants
---  WHERE table_schema='public' AND table_name='customer_profiles';
---
+
+-- C-4  privilégio no nível da TABELA
+-- SELECT grantee, privilege_type
+--   FROM information_schema.role_table_grants
+--  WHERE table_schema='public' AND table_name='customer_profiles'
+--    AND grantee IN ('anon','authenticated')
+--  ORDER BY grantee, privilege_type;
+
+-- C-5  privilégio no nível da COLUNA — o ponto desta versão da migration.
+--      Deve listar 9 colunas com UPDATE para authenticated:
+--        favorite_games, full_name, linked_accounts, locale,
+--        marketing_opt_in, nickname, notifications, onboarding_done, phone
+-- SELECT grantee, column_name, privilege_type
+--   FROM information_schema.column_privileges
+--  WHERE table_schema='public' AND table_name='customer_profiles'
+--    AND grantee IN ('anon','authenticated')
+--    AND privilege_type = 'UPDATE'
+--  ORDER BY grantee, column_name;
+
+-- C-6
 -- SELECT tgname FROM pg_trigger
 --  WHERE tgrelid IN ('auth.users'::regclass, 'public.customer_profiles'::regclass)
 --    AND NOT tgisinternal;
+
+-- C-7  anon não deve devolver NADA nas duas consultas de privilégio acima.
+--      Esta é só a confirmação direta:
+-- SELECT grantee, privilege_type
+--   FROM information_schema.role_table_grants
+--  WHERE table_schema='public' AND table_name='customer_profiles'
+--    AND grantee = 'anon';
 -- =====================================================================

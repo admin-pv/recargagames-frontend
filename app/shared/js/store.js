@@ -168,13 +168,22 @@
      coluna nova nasce fechada, e um `updateUser({user_id: outro})` vindo
      de um bug de página nunca chega ao banco.
 
-     A RLS já barraria (o WITH CHECK da policy exige user_id = auth.uid()
-     e deleted_at IS NULL), mas defesa em profundidade: melhor o bug
-     morrer aqui, com nome, do que virar um 403 obscuro. */
+     ESTA LISTA ESPELHA O `GRANT UPDATE (...)` DA MIGRATION 0002, coluna
+     por coluna, e as duas TÊM que andar juntas: uma coluna que entre aqui
+     e não no GRANT vira 42501 (permission denied for column) em produção;
+     uma que entre no GRANT e não aqui é escrita que o banco aceita e este
+     código descarta em silêncio.
+
+     São três tranças sobre a mesma coisa, de propósito — a policy diz
+     QUAIS LINHAS, o GRANT diz QUAIS COLUNAS, e esta lista faz o bug morrer
+     aqui, com nome, em vez de virar um 403 obscuro na tela.
+
+     `country_code` saiu na revisão de 11/09: o mercado vem do PATH da
+     requisição (market.js), não de uma escolha do usuário.
+     `email` nunca esteve: a troca é do GoTrue, com confirmação por link. */
   var WRITABLE = [
-    "full_name", "phone", "nickname", "favorite_games",
-    "marketing_opt_in", "notifications", "onboarding_done",
-    "locale", "country_code", "linked_accounts"
+    "full_name", "phone", "locale", "nickname", "favorite_games",
+    "marketing_opt_in", "onboarding_done", "linked_accounts", "notifications"
   ];
 
   /* Cache do perfil, por carregamento de página. O brief pede isso: sem
@@ -214,6 +223,12 @@
     if (msg.indexOf("password should be") > -1 || msg.indexOf("weak") > -1) return "weak_password";
     if (status === 429) return "rate_limited";
     if (status === 0) return "network";
+    /* 42501 = permission denied for column. Na prática só aparece se a
+       WRITABLE acima e o GRANT UPDATE da migration saírem de sincronia.
+       Tem código próprio para ser diagnosticável em vez de virar
+       "unknown" — o sintoma seria "salvar não salva, e ninguém sabe por
+       quê". */
+    if (code === "42501" || msg.indexOf("permission denied for column") > -1) return "permission_denied";
     return "unknown";
   }
 
@@ -392,16 +407,19 @@
         memberSince: res.data.created_at
       });
 
-      /* Sincroniza o espelho quando ele ficou para trás (troca de e-mail
-         confirmada por link, que acontece fora desta aba). Só dispara na
-         divergência, e o resultado não é aguardado: é higiene de dado,
-         não algo de que a tela dependa. */
-      if (res.data.email !== authUser.email) {
-        sb().from("customer_profiles")
-          .update({ email: authUser.email })
-          .eq("user_id", authUser.id)
-          .then(function () {}, function () {});
-      }
+      /* NÃO sincronizamos o espelho `email` daqui. Desde a revisão de
+         11/09 o browser não tem privilégio de UPDATE nessa coluna (GRANT
+         por coluna na migration 0002), e é o desenho certo: a troca de
+         e-mail pertence ao GoTrue, com confirmação por link.
+
+         Consequência a saber: `customer_profiles.email` é um RETRATO DO
+         CADASTRO, gravado uma vez pelo trigger. Depois de uma troca de
+         e-mail confirmada, ele fica defasado. Isso não afeta nada hoje —
+         `email` acima já vem de auth.users, que é a fonte da verdade, e a
+         Function de exclusão sobrescreve a coluna com a secret key. Se um
+         dia a coluna precisar ser confiável (relatório, busca por e-mail),
+         a saída é um trigger em auth.users AFTER UPDATE OF email, não
+         devolver a escrita ao browser. */
 
       profileCache = profile;
       return profile;

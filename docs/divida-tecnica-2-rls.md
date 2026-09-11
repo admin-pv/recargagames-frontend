@@ -6,6 +6,74 @@
 
 ---
 
+## 🔴 Achado de 11/09 — caminho de auto-promoção a admin
+
+Encontrado na introspecção que antecedeu a migration da Fase 1. **Não é
+uma dívida genérica de RLS: é um caminho de escalação de privilégio com
+nome e sobrenome.**
+
+### O mecanismo
+
+Duas peças que, sozinhas, parecem razoáveis:
+
+1. As quatro policies de escrita `admin write games`, `admin write
+   banners`, `admin write game_packages` e `admin write site_content`
+   decidem quem é admin assim:
+
+   ```sql
+   EXISTS (SELECT 1 FROM profiles
+            WHERE id = auth.uid() AND user_type = 'admin')
+   ```
+
+2. A policy `profiles_update_own` permite ao usuário editar **a própria
+   linha em `profiles`, sem restrição de coluna**.
+
+Juntas: quem tem linha em `profiles` faz `UPDATE profiles SET user_type =
+'admin' WHERE id = auth.uid()` e passa a escrever nas quatro tabelas —
+catálogo, banners, pacotes e a copy do site.
+
+O default da coluna é `'regular'`, o que impede que alguém nasça admin.
+Não impede que se promova depois.
+
+### Por que a Fase 1 não piora nada
+
+- **`auth.users` não tem nenhum trigger** (confirmado no pré-voo de
+  11/09). Cadastrar-se na loja **não cria linha em `profiles`**.
+- `profiles` não tem policy de `INSERT` para `authenticated`, então o
+  cliente também não consegue criar a própria linha.
+- O trigger novo da Fase 1 escreve **só** em `customer_profiles`, e nunca
+  toca `user_type`.
+
+Ou seja: o cliente do storefront não tem a linha que a escalação exige, e
+não tem como obtê-la. **A superfície é exatamente quem já tem linha em
+`profiles` hoje — e continua sendo.** A Fase 1 não abre porta nova.
+
+Vale dizer o que isso NÃO significa: a porta existente continua aberta.
+Ela só não foi alargada.
+
+### O conserto (repo do admin)
+
+Trocar as quatro policies por `is_admin()`, que é a função que o resto do
+banco já usa (`bonus_vouchers`, todas as `pv_*`) e que lê de
+`admin_users` — uma tabela que o usuário **não** edita:
+
+```sql
+-- Para cada uma das 4:
+ALTER POLICY "admin write games" ON public.games
+  USING (is_admin()) WITH CHECK (is_admin());
+```
+
+Isso alinha as quatro com o padrão do resto do banco e corta a ligação
+entre "uma coluna que o usuário edita" e "quem é admin".
+
+Complemento recomendado, para fechar a classe do problema e não só a
+instância: restringir `profiles_update_own` por coluna, com
+`GRANT UPDATE (col, col, …)`, do mesmo jeito que a migration 0002 fez em
+`customer_profiles`. Uma policy controla QUAIS LINHAS; ela não diz nada
+sobre QUAIS COLUNAS, e foi essa lacuna que criou o caminho.
+
+---
+
 ## O que é
 
 As tabelas de conteúdo do storefront — `banners`, `featured_games`,
@@ -57,6 +125,10 @@ o DevTools aberto pega a publishable key do HTML e escreve em `banners` e
 
 **Checklist antes de tirar o gate:**
 
+- [ ] 🔴 **As 4 policies `admin write *` trocadas por `is_admin()`** (ver o
+      achado de 11/09 no topo). Este é o item mais urgente da lista e o
+      único que não depende da dívida #1 para ser feito.
+- [ ] `profiles_update_own` restrita por coluna
 - [ ] Dívida #1 fechada: admin autentica como `authenticated`
 - [ ] Policies de escrita de `banners`, `featured_games`, `site_content` e
       catálogo migradas para `is_admin()`
