@@ -1,0 +1,13 @@
+# O site inteiro está atrás do gate de senha (netlify/edge-functions/gate.ts).
+# Enquanto isso for verdade, nada aqui deve ser rastreado ou indexado: o que
+# existe hoje é protótipo — preços, catálogo e login que ainda não são reais.
+#
+# TROCAR NA FASE 4 (abertura ao público), junto com a remoção do gate.
+# Até lá, esta regra é a segunda camada: o gate já devolve 401, mas um 401
+# não impede um crawler de registrar a URL.
+#
+# NÃO adicionar Allow para /mx/, /ph/ ou /ng/ antes de o path entrar no
+# `path` do gate.ts. Regra herdada do log da Fase 0 (§4 e §12).
+
+User-agent: *
+Disallow: /
