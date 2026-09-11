@@ -248,6 +248,11 @@
      falso, que deixou de existir. Reaparecem quando houver provider real:
      apagar esta regra e ligar o signInWithOAuth no script. */
   .divider, .sso-row { display: none !important; }
+
+  /* Fase 1: a dica "mínimo 8 caracteres" deixa de ser aviso permanente e vira
+     confirmação assim que a regra é atendida. Antes ficava lá, idêntica, com
+     8 ou com 40 caracteres — o usuário não tinha como saber se já servia. */
+  .field-label .opt.is-ok { color: var(--lime); font-weight: 800; }
 </style>
 </head>
 <body data-page="onboarding">
@@ -340,7 +345,7 @@
                 <p class="field-error">Digite um e-mail válido.</p>
               </div>
               <div class="field-group">
-                <label class="field-label" for="signupPassword">Senha <span class="field-required">*</span> <span class="opt">mínimo 8 caracteres</span></label>
+                <label class="field-label" for="signupPassword">Senha <span class="field-required">*</span> <span class="opt" id="signupPwHint">mínimo 8 caracteres</span></label>
                 <div class="input-wrap">
                   <input class="field-input has-toggle" id="signupPassword" type="password" placeholder="Crie uma senha" autocomplete="new-password" minlength="8" required>
                   <button class="pw-toggle" type="button" data-toggle-for="signupPassword" aria-label="Mostrar senha">
@@ -349,6 +354,19 @@
                 </div>
                 <div class="pw-strength"><span id="pwStrengthBar"></span></div>
                 <p class="field-error">A senha precisa ter pelo menos 8 caracteres.</p>
+              </div>
+              <!-- Fase 1: confirmação no cadastro. A senha vai mascarada e o
+                   erro de digitação só apareceria no primeiro login, depois de
+                   o e-mail já ter sido confirmado — caro de descobrir tarde. -->
+              <div class="field-group">
+                <label class="field-label" for="signupPasswordConfirm">Confirmar senha <span class="field-required">*</span></label>
+                <div class="input-wrap">
+                  <input class="field-input has-toggle" id="signupPasswordConfirm" type="password" placeholder="Repita a senha" autocomplete="new-password" required>
+                  <button class="pw-toggle" type="button" data-toggle-for="signupPasswordConfirm" aria-label="Mostrar senha">
+                    <svg viewBox="0 0 20 20" fill="none"><path d="M2 10s3-6 8-6 8 6 8 6-3 6-8 6-8-6-8-6Z" stroke="currentColor" stroke-width="1.5"/><circle cx="10" cy="10" r="2.3" stroke="currentColor" stroke-width="1.5"/></svg>
+                  </button>
+                </div>
+                <p class="field-error">As senhas não coincidem.</p>
               </div>
               <label class="check-row">
                 <input type="checkbox" id="termsAccept" required>
@@ -405,7 +423,7 @@
             <p class="step-sub">Você chegou pelo link de redefinição. Defina a nova senha abaixo.</p>
             <div class="field-grid">
               <div class="field-group">
-                <label class="field-label" for="recoveryPassword">Nova senha <span class="opt">mínimo 8 caracteres</span></label>
+                <label class="field-label" for="recoveryPassword">Nova senha <span class="opt" id="recoveryPwHint">mínimo 8 caracteres</span></label>
                 <div class="input-wrap">
                   <input class="field-input has-toggle" id="recoveryPassword" type="password" placeholder="Crie uma senha" autocomplete="new-password" minlength="8" required>
                   <button class="pw-toggle" type="button" data-toggle-for="recoveryPassword" aria-label="Mostrar senha">
@@ -413,6 +431,16 @@
                   </button>
                 </div>
                 <p class="field-error">A senha precisa ter pelo menos 8 caracteres.</p>
+              </div>
+              <div class="field-group">
+                <label class="field-label" for="recoveryPasswordConfirm">Confirmar nova senha</label>
+                <div class="input-wrap">
+                  <input class="field-input has-toggle" id="recoveryPasswordConfirm" type="password" placeholder="Repita a senha" autocomplete="new-password" required>
+                  <button class="pw-toggle" type="button" data-toggle-for="recoveryPasswordConfirm" aria-label="Mostrar senha">
+                    <svg viewBox="0 0 20 20" fill="none"><path d="M2 10s3-6 8-6 8 6 8 6-3 6-8 6-8-6-8-6Z" stroke="currentColor" stroke-width="1.5"/><circle cx="10" cy="10" r="2.3" stroke="currentColor" stroke-width="1.5"/></svg>
+                  </button>
+                </div>
+                <p class="field-error">As senhas não coincidem.</p>
               </div>
             </div>
             <button class="cta-primary" type="submit">Salvar nova senha</button>
@@ -735,16 +763,14 @@
     e.preventDefault();
     clearAlert();
     var input = document.getElementById('recoveryPassword');
-    var ok = input.value.length >= 8;
-    markInvalid(input.closest('.field-group'), !ok);
-    if (!ok) return;
+    if (!recoveryPair.validate()) return;
 
     setBusy(recoveryForm, true, 'Salvando…');
     var res = await RecargaStore.updatePassword(input.value);
     setBusy(recoveryForm, false);
 
     if (!res.ok) { showAlert(res.code); return; }
-    input.value = '';
+    recoveryPair.reset();
     goToDestination();
   });
 
@@ -753,6 +779,82 @@
       var input = document.getElementById(btn.dataset.toggleFor);
       input.type = input.type === 'password' ? 'text' : 'password';
     });
+  });
+
+  /* ── Par senha + confirmação, validado ao digitar ──────────────────────
+
+     Usado no cadastro e no painel de nova senha do reset. Antes a regra só
+     rodava no submit, o que produzia dois problemas relatados no C2: a dica
+     "mínimo 8 caracteres" ficava idêntica com 8 ou com 40 caracteres, e uma
+     confirmação diferente não dizia nada até a pessoa clicar.
+
+     `touched` existe para não acusar erro em campo que a pessoa ainda está
+     preenchendo — o aviso aparece depois do primeiro blur, ou assim que há
+     texto suficiente para a comparação significar alguma coisa.
+
+     Devolve um objeto com validate(), para o submit poder revalidar do
+     zero: botão desabilitado é UX, não checagem — ele some com um clique
+     no DevTools. */
+  function bindPasswordPair(opts) {
+    var pw = document.getElementById(opts.password);
+    var confirm = document.getElementById(opts.confirm);
+    var hint = opts.hint ? document.getElementById(opts.hint) : null;
+    var submit = opts.form.querySelector('button[type="submit"]');
+    var touched = { pw: false, confirm: false };
+    var hintIdle = hint ? hint.textContent : '';
+
+    function state() {
+      return {
+        lenOk: pw.value.length >= 8,
+        matchOk: confirm.value.length > 0 && confirm.value === pw.value
+      };
+    }
+
+    function render() {
+      var st = state();
+      if (hint) {
+        hint.textContent = st.lenOk ? '✓ 8 caracteres ou mais' : hintIdle;
+        hint.classList.toggle('is-ok', st.lenOk);
+      }
+      markInvalid(pw.closest('.field-group'), touched.pw && pw.value.length > 0 && !st.lenOk);
+      markInvalid(confirm.closest('.field-group'), touched.confirm && confirm.value.length > 0 && !st.matchOk);
+      if (submit) submit.disabled = !(st.lenOk && st.matchOk);
+    }
+
+    pw.addEventListener('input', function () { touched.pw = true; render(); });
+    confirm.addEventListener('input', function () { touched.confirm = true; render(); });
+    pw.addEventListener('blur', function () { touched.pw = true; render(); });
+    confirm.addEventListener('blur', function () { touched.confirm = true; render(); });
+    render();
+
+    return {
+      validate: function () {
+        touched.pw = touched.confirm = true;
+        render();
+        var st = state();
+        return st.lenOk && st.matchOk;
+      },
+      reset: function () {
+        pw.value = confirm.value = '';
+        touched.pw = touched.confirm = false;
+        [pw, confirm].forEach(function (el) { markInvalid(el.closest('.field-group'), false); });
+        render();
+      }
+    };
+  }
+
+  var signupPair = bindPasswordPair({
+    form: document.getElementById('signupForm'),
+    password: 'signupPassword',
+    confirm: 'signupPasswordConfirm',
+    hint: 'signupPwHint'
+  });
+
+  var recoveryPair = bindPasswordPair({
+    form: document.getElementById('recoveryForm'),
+    password: 'recoveryPassword',
+    confirm: 'recoveryPasswordConfirm',
+    hint: 'recoveryPwHint'
   });
 
   /* Medidor de força — cosmético. A regra que vale é a do Supabase
@@ -802,11 +904,10 @@
     var termsError = document.getElementById('termsError');
     var nameOk = nameEl.value.trim().length > 0;
     var emailOk = /\S+@\S+\.\S+/.test(emailEl.value);
-    var pwOk = pwEl.value.length >= 8;
+    var pwOk = signupPair.validate();   // comprimento E confirmação
     var termsOk = document.getElementById('termsAccept').checked;
     markInvalid(nameEl.closest('.field-group'), !nameOk);
     markInvalid(emailEl.closest('.field-group'), !emailOk);
-    markInvalid(pwEl.closest('.field-group'), !pwOk);
     termsError.style.display = termsOk ? 'none' : 'block';
     if (!nameOk || !emailOk || !pwOk || !termsOk) return;
 
@@ -820,7 +921,7 @@
 
     if (!res.ok) { showAlert(res.code); return; }
 
-    pwEl.value = '';
+    signupPair.reset();
     if (res.needsConfirmation) {
       document.getElementById('signupSentEmail').textContent = emailEl.value.trim();
       setMode('signup-sent');

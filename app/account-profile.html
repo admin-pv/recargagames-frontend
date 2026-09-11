@@ -173,6 +173,16 @@
     .field-input::placeholder { color: #525062; }
     .field-input:focus, .field-select:focus { border-color: var(--orange); box-shadow: 0 0 0 4px rgba(245,112,10,.12); background: #0E1320; }
     .field-hint { margin: 2px 0 0; color: var(--muted-2); font-size: 12px; font-weight: 600; }
+    /* Fase 1: mostrar/ocultar senha. Mesmo padrão de account-login.html —
+       os campos de senha desta página não tinham, o que obrigava a digitar
+       três senhas às cegas para trocar uma. */
+    .input-wrap { position: relative; }
+    .field-input.has-toggle { padding-right: 46px; }
+    .pw-toggle { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 36px; height: 36px; border-radius: 9px; display: grid; place-items: center; color: var(--muted); cursor: pointer; }
+    .pw-toggle:hover { color: var(--warm); background: rgba(255,255,255,.05); }
+    .pw-toggle svg { width: 18px; height: 18px; }
+    /* Dica que vira confirmação verde quando a regra é atendida. */
+    .field-hint.is-ok { color: var(--lime); }
     .field-error { display: none; margin: 2px 0 0; color: #FF9D91; font-size: 12px; font-weight: 800; }
     .field-group.is-invalid .field-input { border-color: var(--danger); }
     .field-group.is-invalid .field-error { display: block; }
@@ -690,10 +700,16 @@
             '<p class="panel-hint">Mantenha sua conta protegida.</p>' +
             '<form id="passwordForm" novalidate>' +
               '<div class="field-grid">' +
-                '<div class="field-group" data-field="curpass"><label class="field-label" for="f-curpass">Senha atual</label><input class="field-input" id="f-curpass" type="password" autocomplete="current-password"><p class="field-error">Informe sua senha atual.</p></div>' +
+                '<div class="field-group" data-field="curpass"><label class="field-label" for="f-curpass">Senha atual</label>' +
+                  '<div class="input-wrap"><input class="field-input has-toggle" id="f-curpass" type="password" autocomplete="current-password"><button class="pw-toggle" type="button" data-toggle-for="f-curpass" aria-label="Mostrar senha"><svg viewBox="0 0 20 20" fill="none"><path d="M2 10s3-6 8-6 8 6 8 6-3 6-8 6-8-6-8-6Z" stroke="currentColor" stroke-width="1.5"/><circle cx="10" cy="10" r="2.3" stroke="currentColor" stroke-width="1.5"/></svg></button></div>' +
+                '<p class="field-error">Informe sua senha atual.</p></div>' +
                 '<div class="field-row">' +
-                  '<div class="field-group" data-field="newpass"><label class="field-label" for="f-newpass">Nova senha</label><input class="field-input" id="f-newpass" type="password" autocomplete="new-password"><p class="field-hint">Mínimo de 8 caracteres.</p><p class="field-error">Use ao menos 8 caracteres.</p></div>' +
-                  '<div class="field-group" data-field="confpass"><label class="field-label" for="f-confpass">Confirmar nova senha</label><input class="field-input" id="f-confpass" type="password" autocomplete="new-password"><p class="field-error">As senhas não coincidem.</p></div>' +
+                  '<div class="field-group" data-field="newpass"><label class="field-label" for="f-newpass">Nova senha</label>' +
+                    '<div class="input-wrap"><input class="field-input has-toggle" id="f-newpass" type="password" autocomplete="new-password"><button class="pw-toggle" type="button" data-toggle-for="f-newpass" aria-label="Mostrar senha"><svg viewBox="0 0 20 20" fill="none"><path d="M2 10s3-6 8-6 8 6 8 6-3 6-8 6-8-6-8-6Z" stroke="currentColor" stroke-width="1.5"/><circle cx="10" cy="10" r="2.3" stroke="currentColor" stroke-width="1.5"/></svg></button></div>' +
+                    '<p class="field-hint" id="newpassHint">Mínimo de 8 caracteres.</p><p class="field-error">Use ao menos 8 caracteres.</p></div>' +
+                  '<div class="field-group" data-field="confpass"><label class="field-label" for="f-confpass">Confirmar nova senha</label>' +
+                    '<div class="input-wrap"><input class="field-input has-toggle" id="f-confpass" type="password" autocomplete="new-password"><button class="pw-toggle" type="button" data-toggle-for="f-confpass" aria-label="Mostrar senha"><svg viewBox="0 0 20 20" fill="none"><path d="M2 10s3-6 8-6 8 6 8 6-3 6-8 6-8-6-8-6Z" stroke="currentColor" stroke-width="1.5"/><circle cx="10" cy="10" r="2.3" stroke="currentColor" stroke-width="1.5"/></svg></button></div>' +
+                    '<p class="field-error">As senhas não coincidem.</p></div>' +
                 '</div>' +
               '</div>' +
               '<div class="field-actions"><button class="cta-primary" type="submit">Atualizar senha</button></div>' +
@@ -969,21 +985,76 @@
        checagem de segurança que não existe. Quem protege aqui é a
        sessão — e é por isso que ela é curta e renovável. */
     var passForm = document.getElementById('passwordForm');
+    var cur = document.getElementById('f-curpass');
+    var np = document.getElementById('f-newpass');
+    var cp = document.getElementById('f-confpass');
+    var npHint = document.getElementById('newpassHint');
+    var passSubmit = passForm.querySelector('button[type="submit"]');
+
+    /* Mostrar/ocultar nos três campos. */
+    passForm.querySelectorAll('.pw-toggle').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var input = document.getElementById(btn.dataset.toggleFor);
+        var showing = input.type === 'text';
+        input.type = showing ? 'password' : 'text';
+        btn.setAttribute('aria-label', showing ? 'Mostrar senha' : 'Ocultar senha');
+      });
+    });
+
+    /* ── Validação ao digitar ──
+       Antes só rodava no submit: a pessoa digitava as três senhas, clicava,
+       e só então descobria que a confirmação não batia. A regra agora
+       aparece enquanto se digita, e o botão fica desabilitado até valer.
+
+       `touched` evita acusar erro em campo que a pessoa ainda nem terminou
+       de preencher — o aviso só aparece depois do primeiro blur ou quando
+       já há texto suficiente para a comparação fazer sentido. */
+    var touched = { newpass: false, confpass: false };
+
+    function passState() {
+      return {
+        curOk: cur.value.length > 0,
+        lenOk: np.value.length >= 8,
+        matchOk: cp.value.length > 0 && cp.value === np.value
+      };
+    }
+
+    function renderPassValidation() {
+      var st = passState();
+
+      npHint.textContent = st.lenOk ? '✓ Senha com 8 caracteres ou mais' : 'Mínimo de 8 caracteres.';
+      npHint.classList.toggle('is-ok', st.lenOk);
+      np.closest('.field-group').classList.toggle('is-invalid', touched.newpass && np.value.length > 0 && !st.lenOk);
+      np.closest('.field-group').classList.toggle('is-valid', st.lenOk);
+
+      var mismatch = touched.confpass && cp.value.length > 0 && cp.value !== np.value;
+      cp.closest('.field-group').classList.toggle('is-invalid', mismatch);
+      cp.closest('.field-group').classList.toggle('is-valid', st.matchOk);
+
+      passSubmit.disabled = !(st.curOk && st.lenOk && st.matchOk);
+    }
+
+    np.addEventListener('input', function () { touched.newpass = true; renderPassValidation(); });
+    cp.addEventListener('input', function () { touched.confpass = true; renderPassValidation(); });
+    cur.addEventListener('input', renderPassValidation);
+    np.addEventListener('blur', function () { touched.newpass = true; renderPassValidation(); });
+    cp.addEventListener('blur', function () { touched.confpass = true; renderPassValidation(); });
+    renderPassValidation();
+
     passForm.addEventListener('submit', async function (e) {
       e.preventDefault();
-      var cur = document.getElementById('f-curpass');
-      var np = document.getElementById('f-newpass');
-      var cp = document.getElementById('f-confpass');
-      var ok = true;
-      setInvalid(cur.closest('.field-group'), !cur.value); if (!cur.value) ok = false;
-      setInvalid(np.closest('.field-group'), np.value.length < 8); if (np.value.length < 8) ok = false;
-      setInvalid(cp.closest('.field-group'), cp.value !== np.value || !cp.value); if (cp.value !== np.value || !cp.value) ok = false;
-      if (!ok) return;
+      /* O submit revalida do zero. O botão desabilitado é UX; a checagem
+         aqui é a que vale, porque `disabled` some com um clique no
+         DevTools. */
+      touched.newpass = touched.confpass = true;
+      renderPassValidation();
+      var st = passState();
+      setInvalid(cur.closest('.field-group'), !st.curOk);
+      if (!st.curOk || !st.lenOk || !st.matchOk) return;
 
-      var btn = passForm.querySelector('button[type="submit"]');
-      if (btn) btn.disabled = true;
+      passSubmit.disabled = true;
       var res = await RecargaStore.updatePassword(np.value);
-      if (btn) btn.disabled = false;
+      passSubmit.disabled = false;
 
       if (!res.ok) {
         var msg = res.code === 'weak_password' ? 'A senha precisa ter pelo menos 8 caracteres.'
@@ -994,6 +1065,11 @@
         return;
       }
       cur.value = np.value = cp.value = '';
+      touched.newpass = touched.confpass = false;
+      [cur, np, cp].forEach(function (el) {
+        el.closest('.field-group').classList.remove('is-invalid', 'is-valid');
+      });
+      renderPassValidation();
       showBanner('Senha atualizada', 'Use a nova senha no seu próximo login.');
     });
 
