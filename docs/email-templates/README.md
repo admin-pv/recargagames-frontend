@@ -25,10 +25,16 @@ redirect explícito.
 Por isso todo ponto do código que dispara e-mail passa:
 
 ```js
-{ emailRedirectTo: `${location.origin}/${RecargaMarket.country.toLowerCase()}/account-login.html` }
+{ emailRedirectTo: RecargaMarket.pagePath('account-login.html') }
 ```
 
 (`redirectTo` no caso do `resetPasswordForEmail`.)
+
+`pagePath()` monta `origin + '/' + key + '/' + page` usando `key` (`'br'`,
+minúsculo), não `country` (`'BR'`). Montar à mão com `country` e esquecer o
+`toLowerCase()` produz `/BR/account-login.html`, que não casa com nenhuma
+Redirect URL cadastrada e falha com `redirect_to is not allowed`. É por isso
+que o endereço é montado num lugar só, em `app/shared/js/market.js`.
 
 Os templates em si **não precisam saber disso** — `{{ .ConfirmationURL }}`
 já honra o redirect passado na chamada. Está registrado aqui porque, se um
