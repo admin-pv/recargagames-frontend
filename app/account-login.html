@@ -253,6 +253,16 @@
      confirmação assim que a regra é atendida. Antes ficava lá, idêntica, com
      8 ou com 40 caracteres — o usuário não tinha como saber se já servia. */
   .field-label .opt.is-ok { color: var(--lime); font-weight: 800; }
+
+  /* Fase 1: campo de código de 6 dígitos. Monoespaçado e espaçado porque
+     conferir dígito a dígito contra o e-mail é o que a pessoa faz aqui. */
+  .otp-form { text-align: left; margin: 0 0 14px; }
+  .otp-input {
+    font-family: 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 26px; font-weight: 700; letter-spacing: .38em;
+    text-align: center; padding-left: .38em;
+  }
+  .otp-input::placeholder { letter-spacing: .38em; color: #3B3A4A; }
 </style>
 </head>
 <body data-page="onboarding">
@@ -394,7 +404,21 @@
           <div id="forgotSent" style="display:none;text-align:center;padding:6px 0 2px;">
             <div class="success-check"><svg viewBox="0 0 24 24" fill="none"><path d="m6 12 4 4 8-9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
             <h2 class="step-title" style="font-size:20px;">Verifique seu e-mail</h2>
-            <p class="step-sub" style="margin-bottom:20px;">Se existir uma conta com <strong id="forgotSentEmail" style="color:var(--warm)"></strong>, enviamos um link para redefinir a senha em alguns minutos.</p>
+            <p class="step-sub" style="margin-bottom:20px;">Se existir uma conta com <strong id="forgotSentEmail" style="color:var(--warm)"></strong>, enviamos um código de 6 dígitos em alguns minutos. Ele vale por 1 hora.</p>
+            <form class="otp-form" data-otp="recovery" novalidate>
+              <div class="field-group">
+                <label class="field-label" for="recoveryOtp">Código de 6 dígitos</label>
+                <!-- inputmode + autocomplete="one-time-code" faz o iOS oferecer
+                     o código direto da notificação, sem copiar e colar. -->
+                <input class="field-input otp-input" id="recoveryOtp" type="text"
+                       inputmode="numeric" autocomplete="one-time-code"
+                       pattern="[0-9]*" maxlength="6" placeholder="000000"
+                       aria-describedby="recoveryOtpErr" required>
+                <p class="field-error" id="recoveryOtpErr">Código inválido ou expirado.</p>
+              </div>
+              <button class="cta-primary" type="submit">Confirmar</button>
+              <button class="cta-quiet" type="button" data-resend="recovery">Reenviar código</button>
+            </form>
             <button class="cta-quiet" type="button" id="backToLoginBtn2">Voltar para login</button>
           </div>
 
@@ -408,8 +432,22 @@
           <div id="signupSent" style="display:none;text-align:center;padding:6px 0 2px;">
             <div class="success-check"><svg viewBox="0 0 24 24" fill="none"><path d="m6 12 4 4 8-9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
             <h2 class="step-title" style="font-size:20px;">Confirme seu e-mail</h2>
-            <p class="step-sub" style="margin-bottom:8px;">Enviamos um link de confirmação para <strong id="signupSentEmail" style="color:var(--warm)"></strong>.</p>
-            <p class="step-sub" style="margin-bottom:20px;">Clique nele para ativar sua conta. O link vale por 24 horas — confira também a caixa de spam.</p>
+            <p class="step-sub" style="margin-bottom:8px;">Enviamos um código de 6 dígitos para <strong id="signupSentEmail" style="color:var(--warm)"></strong>.</p>
+            <p class="step-sub" style="margin-bottom:20px;">Digite o código abaixo para ativar sua conta. Ele vale por 1 hora — confira também a caixa de spam.</p>
+            <form class="otp-form" data-otp="signup" novalidate>
+              <div class="field-group">
+                <label class="field-label" for="signupOtp">Código de 6 dígitos</label>
+                <!-- inputmode + autocomplete="one-time-code" faz o iOS oferecer
+                     o código direto da notificação, sem copiar e colar. -->
+                <input class="field-input otp-input" id="signupOtp" type="text"
+                       inputmode="numeric" autocomplete="one-time-code"
+                       pattern="[0-9]*" maxlength="6" placeholder="000000"
+                       aria-describedby="signupOtpErr" required>
+                <p class="field-error" id="signupOtpErr">Código inválido ou expirado.</p>
+              </div>
+              <button class="cta-primary" type="submit">Confirmar</button>
+              <button class="cta-quiet" type="button" data-resend="signup">Reenviar código</button>
+            </form>
             <button class="cta-quiet" type="button" id="backToLoginBtn3">Voltar para login</button>
           </div>
 
@@ -587,6 +625,8 @@
     rate_limited: 'Muitas tentativas em pouco tempo. Espere alguns minutos e tente de novo.',
     network: 'Não conseguimos falar com o servidor. Verifique sua conexão.',
     not_authenticated: 'Sua sessão expirou. Entre novamente.',
+    otp_invalid: 'Código inválido ou expirado. Peça um novo pelo botão abaixo.',
+    otp_resent: 'Enviamos um código novo. Confira seu e-mail.',
     unknown: 'Algo deu errado. Tente de novo em instantes.'
   };
 
@@ -754,8 +794,10 @@
     setBusy(forgotForm, false);
 
     if (!res.ok) { showAlert(res.code); return; }
-    document.getElementById('forgotSentEmail').textContent = emailInput.value.trim();
+    pendingEmail.recovery = emailInput.value.trim();
+    document.getElementById('forgotSentEmail').textContent = pendingEmail.recovery;
     setMode('forgot-sent');
+    document.getElementById('recoveryOtp').focus();
   });
 
   /* ── Nova senha, vinda do link de redefinição ── */
@@ -843,6 +885,11 @@
     };
   }
 
+  /* verifyOtp exige o e-mail junto do código. Guardado aqui quando a
+     pessoa pede o envio, porque a tela de confirmação não tem campo de
+     e-mail — só o código. */
+  var pendingEmail = { signup: '', recovery: '' };
+
   var signupPair = bindPasswordPair({
     form: document.getElementById('signupForm'),
     password: 'signupPassword',
@@ -923,8 +970,10 @@
 
     signupPair.reset();
     if (res.needsConfirmation) {
-      document.getElementById('signupSentEmail').textContent = emailEl.value.trim();
+      pendingEmail.signup = emailEl.value.trim();
+      document.getElementById('signupSentEmail').textContent = pendingEmail.signup;
       setMode('signup-sent');
+      document.getElementById('signupOtp').focus();
       return;
     }
     /* Sem confirmação exigida (config do painel mudou): já há sessão. */
@@ -934,6 +983,78 @@
   document.querySelectorAll('#gameChoices .choice').forEach(function (btn) {
     btn.addEventListener('click', function () {
       btn.setAttribute('aria-pressed', btn.getAttribute('aria-pressed') === 'true' ? 'false' : 'true');
+    });
+  });
+
+  /* ── Código de 6 dígitos ──────────────────────────────────────────────
+     Um par de handlers serve as duas telas; o que muda é o `type` do
+     verifyOtp e para onde ir no sucesso.
+
+     Sucesso cria sessão nos dois casos. Em 'signup' isso é o login; em
+     'recovery' é a janela em que a pessoa pode escolher a senha nova —
+     por isso o destino é o painel de nova senha, não a loja. */
+  document.querySelectorAll('.otp-form').forEach(function (form) {
+    var kind = form.dataset.otp;                     // 'signup' | 'recovery'
+    var input = form.querySelector('.otp-input');
+
+    /* Só dígitos, e no máximo 6. Colar "123 456" ou "código: 123456"
+       vindo do e-mail funciona sem a pessoa ter que limpar na mão. */
+    input.addEventListener('input', function () {
+      var clean = input.value.replace(/\D/g, '').slice(0, 6);
+      if (clean !== input.value) input.value = clean;
+      markInvalid(input.closest('.field-group'), false);
+    });
+
+    form.addEventListener('submit', async function (e) {
+      e.preventDefault();
+      clearAlert();
+      var code = input.value.replace(/\D/g, '');
+      if (code.length !== 6) {
+        markInvalid(input.closest('.field-group'), true);
+        input.focus();
+        return;
+      }
+
+      setBusy(form, true, 'Confirmando…');
+      var res = kind === 'signup'
+        ? await RecargaStore.verifySignupCode(pendingEmail.signup, code)
+        : await RecargaStore.verifyRecoveryCode(pendingEmail.recovery, code);
+      setBusy(form, false);
+
+      if (!res.ok) {
+        markInvalid(input.closest('.field-group'), true);
+        showAlert(res.code === 'unknown' ? 'otp_invalid' : res.code);
+        input.select();
+        return;
+      }
+
+      input.value = '';
+      if (kind === 'signup') {
+        await routeAfterLogin();
+      } else {
+        /* Sessão de recuperação aberta: a pessoa escolhe a senha agora. */
+        setMode('recovery');
+      }
+    });
+  });
+
+  document.querySelectorAll('[data-resend]').forEach(function (btn) {
+    btn.addEventListener('click', async function () {
+      var kind = btn.dataset.resend;
+      var email = pendingEmail[kind];
+      if (!email) { setMode(kind === 'signup' ? 'signup' : 'forgot'); return; }
+
+      btn.disabled = true;
+      var idle = btn.textContent;
+      btn.textContent = 'Enviando…';
+      var res = await RecargaStore.resendCode(kind, email);
+      btn.textContent = idle;
+      btn.disabled = false;
+
+      /* Neutro por desenho: o store devolve ok:true também para e-mail
+         inexistente. A única falha que a tela mostra é rate limit, que
+         diz "houve tentativas recentes", não "este e-mail é cliente". */
+      showAlert(res.ok ? 'otp_resent' : res.code, res.ok ? 'ok' : 'erro');
     });
   });
 
@@ -956,11 +1077,15 @@
   }
 
   /* ── Boot ──
-     O cliente consome o código da URL sozinho (detectSessionInUrl). O que
-     falta saber é se a sessão que apareceu veio de um link de REDEFINIÇÃO
-     — aí a tela é a de nova senha, não a loja. O Supabase sinaliza isso
-     com o evento PASSWORD_RECOVERY; não dá para ler da URL, porque no
-     fluxo PKCE o código já foi trocado quando este script roda. */
+     O cliente consome o código da URL sozinho (detectSessionInUrl).
+
+     O tratamento de PASSWORD_RECOVERY continua aqui, mas desde 12/09 ele
+     é caminho MORTO para o fluxo normal: cadastro e reset passaram a usar
+     código de 6 dígitos e os templates não mandam mais link nenhum. Foi
+     mantido de propósito, por dois motivos — links antigos, enviados antes
+     da troca, ainda podem chegar em alguma caixa de entrada; e a troca de
+     e-mail (change-email) segue por link e dispara o mesmo evento.
+     Apagar isto só quando aquele template também virar OTP. */
   var settled = false;
   var authEvent = new Promise(function (resolve) {
     window.sb.auth.onAuthStateChange(function (event) {

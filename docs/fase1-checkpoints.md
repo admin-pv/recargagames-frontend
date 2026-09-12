@@ -36,21 +36,37 @@ Esperado: 16 colunas, `rowsecurity = true`, 2 policies (ambas só para
 
 ## C2 — fluxo completo no Deploy Preview
 
+> **Mudança de 12/09: cadastro e reset usam CÓDIGO DE 6 DÍGITOS, não link.**
+>
+> O primeiro cadastro real deu 504 na confirmação. O scanner de links do
+> Gmail abriu o `/verify` antes do usuário e gastou o token de uso único.
+> Post-mortem completo em
+> `docs/incidents/2026-09-otp-link-scanner.md`.
+>
+> **Pré-requisito deste checkpoint:** os templates "Confirm signup" e
+> "Reset password" já atualizados no painel com as versões de
+> `docs/email-templates/`. Se o template antigo (com link) ainda estiver
+> lá, o e-mail chega sem código e o campo de 6 dígitos não tem o que
+> receber.
+
 Feito pelo Vinicius com e-mail próprio, atrás do gate:
 
 - [ ] Cadastro → e-mail chega via Resend, **DKIM pass** (ver cabeçalho original)
-- [ ] O link do e-mail cai em `/br/account-login.html`, **não** na landing
-      da raiz (é o que o `emailRedirectTo` explícito garante — ver
-      `docs/email-templates/README.md`)
+- [ ] O e-mail traz um **código de 6 dígitos** e **nenhum link**
+- [ ] Digitar o código na tela "Confirme seu e-mail" cria a sessão
+- [ ] Código errado mostra "código inválido ou expirado" e não derruba a tela
+- [ ] "Reenviar código" manda outro, e o novo funciona
 - [ ] Confirma → loga
 - [ ] Onboarding de 3 passos aparece e grava (`onboarding_done` vira true)
 - [ ] Sair e logar de novo **não** repete o onboarding
 - [ ] Edita dados pessoais → recarrega → persistiu
 - [ ] Salva um ID de jogo → aparece pré-preenchido no `product.html`
 - [ ] Troca de senha → desloga → entra com a senha nova
-- [ ] Reset de senha → e-mail chega → senha nova funciona
+- [ ] Reset de senha → e-mail com código → digitar o código abre o painel
+      "Escolha uma nova senha" → senha nova funciona
 - [ ] Resposta do "esqueci minha senha" é a mesma para e-mail existente e
-      inexistente (não revela cadastro)
+      inexistente (não revela cadastro) — **inclusive o reenvio**, que
+      devolve a mesma confirmação nos dois casos
 
 ---
 

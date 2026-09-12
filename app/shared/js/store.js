@@ -229,6 +229,12 @@
        "unknown" — o sintoma seria "salvar não salva, e ninguém sabe por
        quê". */
     if (code === "42501" || msg.indexOf("permission denied for column") > -1) return "permission_denied";
+    /* OTP: token errado, já usado ou fora da validade. O GoTrue não
+       distingue os três, e é melhor assim — dizer "código já usado"
+       confirmaria que o e-mail existe. */
+    if (code.indexOf("otp_expired") > -1) return "otp_invalid";
+    if (msg.indexOf("token has expired or is invalid") > -1) return "otp_invalid";
+    if (msg.indexOf("invalid otp") > -1 || msg.indexOf("token not found") > -1) return "otp_invalid";
     return "unknown";
   }
 
@@ -346,6 +352,77 @@
       return { ok: true, needsConfirmation: true };
     } catch (e) {
       return fail(e);
+    }
+  }
+
+  /* ── Código de 6 dígitos (OTP) ────────────────────────────────────────
+
+     POR QUE OTP E NÃO LINK. Em 12/09 o primeiro cadastro real deu 504 na
+     confirmação. O scanner de links do Gmail abriu o /verify antes do
+     usuário, gastou o token de uso único, e o clique de verdade falhou —
+     a conta ficou confirmada no banco e a tela deu erro. Todo provedor
+     corporativo pré-varre links; o mesmo valia para o reset de senha.
+
+     Com código, um scanner que abre o e-mail não consome nada: o token só
+     é gasto quando alguém digita os dígitos aqui.
+
+     Os templates de "Confirm signup" e "Reset password" tiveram o
+     {{ .ConfirmationURL }} REMOVIDO. Se ele voltar, o Supabase volta a
+     gerar link, o scanner volta a visitá-lo, e este código passa a falhar
+     como "inválido". Ver docs/email-templates/README.md.
+
+     Sucesso nos dois casos cria sessão: 'signup' loga a pessoa; 'recovery'
+     abre a janela em que ela pode trocar a senha. */
+  async function verifyOtp(opts) {
+    opts = opts || {};
+    try {
+      var res = await sb().auth.verifyOtp({
+        email: String(opts.email || "").trim(),
+        token: String(opts.token || "").replace(/\D/g, ""),
+        type: opts.type   // 'signup' | 'recovery'
+      });
+      if (res.error) return fail(res.error);
+      invalidateProfileCache();
+      return { ok: true };
+    } catch (e) {
+      return fail(e);
+    }
+  }
+
+  function verifySignupCode(email, token) {
+    return verifyOtp({ email: email, token: token, type: "signup" });
+  }
+
+  function verifyRecoveryCode(email, token) {
+    return verifyOtp({ email: email, token: token, type: "recovery" });
+  }
+
+  /* Reenvio.
+
+     ATENÇÃO A UMA ASSIMETRIA DO SUPABASE: auth.resend() aceita 'signup',
+     'email_change', 'sms' e 'phone_change' — mas NÃO 'recovery'. Para
+     reenviar um código de redefinição, o caminho é chamar
+     resetPasswordForEmail() de novo. Por isso resendCode() encaminha em
+     vez de ter uma implementação só.
+
+     Resposta neutra, mesma regra do resetPassword: sempre ok:true fora de
+     rate limit. Um reenvio que falha só para e-mail inexistente seria um
+     verificador de cadastro com outro nome. */
+  async function resendCode(type, email) {
+    if (type === "recovery") return resetPassword(email);
+    try {
+      var res = await sb().auth.resend({
+        type: type,
+        email: String(email || "").trim(),
+        options: { emailRedirectTo: market().pagePath("account-login.html") }
+      });
+      if (res.error && errCode(res.error) === "rate_limited") {
+        return { ok: false, code: "rate_limited" };
+      }
+      return { ok: true };
+    } catch (e) {
+      if (errCode(e) === "network") return { ok: false, code: "network" };
+      return { ok: true };
     }
   }
 
@@ -586,6 +663,9 @@
     signOut: signOut,
     resetPassword: resetPassword,
     updatePassword: updatePassword,
+    verifySignupCode: verifySignupCode,
+    verifyRecoveryCode: verifyRecoveryCode,
+    resendCode: resendCode,
     updateEmail: updateEmail,
     getSession: getSession,
     getAuthUser: getAuthUser,
