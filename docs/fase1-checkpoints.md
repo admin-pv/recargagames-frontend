@@ -10,7 +10,7 @@ roteiro de verificação, para o teste ser o mesmo em qualquer sessão.
 | **C1** migration | ✅ passado | 11/09 — 16 colunas, RLS on, 2 policies, 9 colunas com UPDATE, 2 triggers, anon zerado |
 | **C2** fluxo completo | ✅ passado | 12/09 — com OTP de 6 dígitos, depois do incidente do scanner |
 | **C3** RLS por curl | ✅ passado | 12/09 — ver "Resultado" em cada item |
-| **C4** exclusão de conta | 🟡 parcial | 12/09 — lado cliente provado; falta a conferência SQL da linha (só a secret key a enxerga) |
+| **C4** exclusão de conta | ✅ passado | 12/09 — lado cliente por curl, linha anonimizada conferida no SQL Editor |
 
 Contas de teste usadas no C3: `vinicius.esteves+5678@gmail.com` (A) e
 `vinicius.esteves+1234@gmail.com` (B). **Nenhum token entrou neste repo** —
@@ -247,7 +247,28 @@ chamando a Function direto no Deploy Preview com o JWT dela.
       invalid_token`, não erro 500. Um duplo-clique no botão não vira
       incidente
 
-### Só a secret key enxerga — conferir no SQL Editor
+### Conferido no SQL Editor ✅ (12/09)
+
+Todos os valores bateram com o que a Function escreve:
+
+| Coluna | Esperado | Obtido |
+|---|---|---|
+| a linha | existe (1) | **1** ✅ |
+| `user_id` | `NULL` | `NULL` ✅ |
+| `email` | `deleted+27baa35f@invalid.local` | idem ✅ |
+| `full_name` | `[excluído a pedido do titular]` | idem ✅ |
+| `phone` | `NULL` | `NULL` ✅ |
+| `linked_accounts` | `[]` | `[]` ✅ — o ID de Free Fire sumiu |
+| `notifications` | `{}` | `{}` ✅ |
+| `deleted_at` | timestamp de 12/09 | `2026-09-12 22:05:47` ✅ |
+| `created_at` | inalterado | `2026-09-12 21:08:21` ✅ |
+| `auth.users` do B | 0 | **0** ✅ |
+
+A linha **sobreviveu à exclusão do usuário** — é o `ON DELETE SET NULL`
+funcionando, e é o que a Fase 2 vai precisar para o histórico de pedidos
+não sumir junto com a conta.
+
+### As queries usadas
 
 A linha anonimizada é invisível para qualquer token de cliente **por
 desenho**. Isso significa que o item mais importante do C4 não pode ser
@@ -281,15 +302,18 @@ SELECT count(*) FROM auth.users
  WHERE id = '27baa35f-710f-48b3-a243-ffe7262baead';   -- esperado: 0
 ```
 
-### Também fora do meu alcance
+### Pendência que NÃO bloqueia o merge
 
 - [ ] **Log da Function sem PII** — Netlify → Functions → `account-delete`
-      → logs. Esperado: `account-delete: ok ref=27baa35f` e nada mais.
-      Nenhum e-mail, nome, telefone ou corpo de erro do PostgREST
-- [ ] **Pedidos no `localStorage` intactos** — é o navegador em que você
-      testou. Abrir `my-orders.html` logado com a conta A e confirmar que
-      a lista continua lá. (Enquanto os pedidos forem locais, eles nem
-      passam perto da exclusão — ver o cabeçalho FASE 2 do `store.js`)
+      → logs. Esperado: `account-delete: ok ref=27baa35f` e nada mais;
+      nenhum e-mail, nome, telefone ou corpo de erro do PostgREST.
+      Decisão do Vinicius em 12/09: conferência dele, posterior ao merge.
+      O código foi revisado linha a linha para isto — só o SQLSTATE em
+      erro de upstream, e um `ref` opaco truncado em 8 caracteres.
+
+Pedidos no `localStorage` nem entram na conta: enquanto forem locais ao
+navegador, não passam perto da exclusão (ver o cabeçalho FASE 2 do
+`store.js`).
 
 ---
 

@@ -36,9 +36,10 @@ nenhuma. Enquanto isso for verdade, nada acima dele pode ser construído.
   estava logado (§7.2).
 - **Quatro bugs do fornecedor** corrigidos no caminho, um deles capaz de
   fazer o comprador pagar pelo produto errado (§8).
-- **C1, C2 e C3 passados. C4 parcial** — o lado cliente está provado; a
-  linha anonimizada só a secret key enxerga, e essa chave não é minha
-  (§9).
+- **Os quatro checkpoints passados** (§9). O C4 fechou com a conferência
+  no SQL Editor: a linha sobreviveu à exclusão do usuário, anonimizada,
+  com `user_id` NULL — o `ON DELETE SET NULL` do §3 fazendo exatamente o
+  que foi desenhado para fazer.
 - **Gasto: zero.** Nenhum pagamento, nenhuma escrita em tabela existente.
   Duas contas de teste criadas, uma delas destruída no C4.
 
@@ -322,7 +323,7 @@ O repo não tem `package.json` — decisão do projeto — então não há
 | **C1** | ✅ 11/09 | 16 colunas, RLS on, 2 policies só `authenticated`, tabela só com SELECT, 9 colunas com UPDATE, 2 triggers, `anon` zerado |
 | **C2** | ✅ 12/09 | Fluxo completo com OTP, com e-mail real e DKIM pass |
 | **C3** | ✅ 12/09 | RLS por curl, com dois JWTs de cliente reais |
-| **C4** | 🟡 parcial | Lado cliente provado; a linha anonimizada só a secret key enxerga |
+| **C4** | ✅ 12/09 | Exclusão executada e conferida dos dois lados — curl e SQL Editor |
 
 ### C3 — o que foi provado com dois usuários reais
 
@@ -349,8 +350,21 @@ user_not_found` no mesmo JWT, `[]` no `customer_profiles`,
 
 **O item central não pode ser provado por curl**: a linha anonimizada é
 invisível para qualquer token de cliente, por desenho. O estado **antes**
-foi capturado para a comparação ser contra registro, e o SQL de
-conferência está em `docs/fase1-checkpoints.md`.
+foi capturado para a comparação ser contra registro.
+
+Conferido no SQL Editor, todos os valores batendo: a linha **existe**,
+`user_id` NULL, `email` `deleted+27baa35f@invalid.local`, `full_name`
+`[excluído a pedido do titular]`, `phone` NULL, `linked_accounts` `[]` —
+o ID de Free Fire sumiu —, `notifications` `{}`, `deleted_at` `22:05:47`,
+`created_at` intacto em `21:08:21`, e `auth.users` do B em zero.
+
+A linha sobreviver à exclusão do usuário é o `ON DELETE SET NULL` do §3
+funcionando. Era a aposta daquela decisão, e ela se pagou aqui.
+
+**Uma pendência ficou fora do merge, por decisão do Vinicius:** conferir o
+log da Function no Netlify (esperado: `ok ref=27baa35f` e nada mais). Não
+bloqueia — o código foi revisado linha a linha para não logar PII: só o
+SQLSTATE em erro de upstream, e um `ref` opaco truncado em 8 caracteres.
 
 ### Fora dos checkpoints
 
@@ -396,10 +410,14 @@ Não mexe no histórico e vale enquanto o diagnóstico não terminou.
 ## 11. Fechamento
 
 **Contas de teste.** `vinicius.esteves+1234@gmail.com` (B) foi **destruída
-no C4** — é o objeto do teste, não resíduo. `vinicius.esteves+5678@gmail.com`
-(A) **continua ativa**, com um ID de Free Fire salvo em
-`linked_accounts`. Decidir se fica como conta de fumaça ou se é excluída
-pela mesma Function.
+no C4** — é o objeto do teste, não resíduo.
+`vinicius.esteves+5678@gmail.com` (A) **fica ativa como conta de fumaça**,
+por decisão do Vinicius em 12/09: serve para verificar login, perfil e
+pré-preenchimento depois de qualquer deploy, sem criar conta nova. Tem um
+ID de Free Fire salvo em `linked_accounts`.
+
+É o **primeiro registro real em `customer_profiles`** — e por isso o
+rollback do §10 já deixou de ser gratuito a partir daqui.
 
 **Dado pessoal.** Os dois e-mails são do próprio owner, em alias `+`.
 Nenhum dado de terceiro entrou no sistema.
@@ -417,9 +435,6 @@ nenhuma chamada à Lapak.
 
 **🔴 Alta**
 
-- **Fechar o C4:** rodar o SQL de conferência e olhar o log da Function no
-  Netlify (esperado: `account-delete: ok ref=27baa35f` e nada mais). São os
-  dois itens que faltam para o merge.
 - **As 4 policies `admin write *` → `is_admin()`** (§5). No repo do admin.
   É o item mais urgente da dívida #2 e o único que **não depende da dívida
   #1**.
@@ -433,6 +448,8 @@ nenhuma chamada à Lapak.
   porque estão dormentes.
 - **Conferir o "Email OTP Expiration"** no painel. Os templates dizem
   "1 hora", que é o default.
+- **Ler o log da Function no Netlify** (esperado: `ok ref=27baa35f` e nada
+  mais). Pendência assumida pelo Vinicius, fora do bloqueio de merge.
 - **`updateEmail()` existe no store e nenhuma tela o chama.** Ou ganha
   tela (com OTP), ou sai.
 - **Criar um `404.html` na raiz** — pendência da Fase 0; a regra de
