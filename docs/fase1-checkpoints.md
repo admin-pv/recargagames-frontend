@@ -10,7 +10,7 @@ roteiro de verificação, para o teste ser o mesmo em qualquer sessão.
 | **C1** migration | ✅ passado | 11/09 — 16 colunas, RLS on, 2 policies, 9 colunas com UPDATE, 2 triggers, anon zerado |
 | **C2** fluxo completo | ✅ passado | 12/09 — com OTP de 6 dígitos, depois do incidente do scanner |
 | **C3** RLS por curl | ✅ passado | 12/09 — ver "Resultado" em cada item |
-| **C4** exclusão de conta | ⏳ pendente | |
+| **C4** exclusão de conta | 🟡 parcial | 12/09 — lado cliente provado; falta a conferência SQL da linha (só a secret key a enxerga) |
 
 Contas de teste usadas no C3: `vinicius.esteves+5678@gmail.com` (A) e
 `vinicius.esteves+1234@gmail.com` (B). **Nenhum token entrou neste repo** —
@@ -223,17 +223,73 @@ descrito em `docs/divida-tecnica-2-rls.md`. `admin_users`, de onde
 
 ## C4 — exclusão de conta
 
-- [ ] "Excluir minha conta" no perfil chama a Function `account-delete`
-- [ ] A linha em `customer_profiles` **sobrevive**, com `deleted_at`
-      preenchido e `email`/`full_name`/`phone`/`linked_accounts`
-      anonimizados
-- [ ] `user_id` virou `NULL` (é o `ON DELETE SET NULL` — ver o bloco 1 da
-      migration, que explica por que não é CASCADE)
-- [ ] O usuário sumiu de `auth.users`
-- [ ] Login com aquele e-mail falha
-- [ ] Pedidos no `localStorage` continuam intactos (retenção fiscal)
-- [ ] Nenhum PII no log da Function (padrão `safeDetail` do reload: do
-      erro do PostgREST só o SQLSTATE)
+Executado em 12/09 com a conta B (`vinicius.esteves+1234@gmail.com`),
+chamando a Function direto no Deploy Preview com o JWT dela.
+
+**Estado ANTES**, para comparação — `profile.id`
+`9f6dc340-227b-4b22-955b-59a24808f409`, `user_id`
+`27baa35f-710f-48b3-a243-ffe7262baead`, `email`
+`vinicius.esteves+1234@gmail.com`, `full_name` `Vini 1234`,
+`linked_accounts` com um ID de Free Fire salvo no C2, `deleted_at` `null`.
+
+### Provado pelo lado do cliente ✅
+
+- [x] Function devolveu `200 {"ok":true}`
+- [x] **Usuário sumiu de `auth.users`** — `GET /auth/v1/user` com o mesmo
+      JWT passou a devolver `403 user_not_found`
+      ("User from sub claim in JWT does not exist")
+- [x] **A linha ficou invisível para o antigo dono** — `GET
+      customer_profiles` com o JWT de B devolve `[]`. É a consequência
+      direta de `user_id` virar `NULL`: a policy exige
+      `user_id = auth.uid()`, e `auth.uid()` nunca é NULL
+- [x] **Login com aquele e-mail falha** — `400 invalid_credentials`
+- [x] **Idempotente** — chamar a Function de novo devolve `401
+      invalid_token`, não erro 500. Um duplo-clique no botão não vira
+      incidente
+
+### Só a secret key enxerga — conferir no SQL Editor
+
+A linha anonimizada é invisível para qualquer token de cliente **por
+desenho**. Isso significa que o item mais importante do C4 não pode ser
+provado por curl com a publishable key. Rode:
+
+```sql
+SELECT id, user_id, email, full_name, phone,
+       linked_accounts, notifications, deleted_at, created_at, updated_at
+  FROM public.customer_profiles
+ WHERE id = '9f6dc340-227b-4b22-955b-59a24808f409';
+```
+
+Esperado, linha a linha:
+
+| Coluna | Esperado |
+|---|---|
+| (a linha) | **existe** — 1 resultado, não 0. Se vier 0, o `ON DELETE SET NULL` virou CASCADE em algum lugar e o histórico da Fase 2 está em risco |
+| `user_id` | `NULL` |
+| `email` | `deleted+27baa35f@invalid.local` |
+| `full_name` | `[excluído a pedido do titular]` |
+| `phone` | `NULL` |
+| `linked_accounts` | `[]` — **o ID de Free Fire tem que ter sumido** |
+| `notifications` | `{}` |
+| `deleted_at` | timestamp de 12/09 |
+| `created_at` | inalterado |
+
+E que o usuário não existe mais:
+
+```sql
+SELECT count(*) FROM auth.users
+ WHERE id = '27baa35f-710f-48b3-a243-ffe7262baead';   -- esperado: 0
+```
+
+### Também fora do meu alcance
+
+- [ ] **Log da Function sem PII** — Netlify → Functions → `account-delete`
+      → logs. Esperado: `account-delete: ok ref=27baa35f` e nada mais.
+      Nenhum e-mail, nome, telefone ou corpo de erro do PostgREST
+- [ ] **Pedidos no `localStorage` intactos** — é o navegador em que você
+      testou. Abrir `my-orders.html` logado com a conta A e confirmar que
+      a lista continua lá. (Enquanto os pedidos forem locais, eles nem
+      passam perto da exclusão — ver o cabeçalho FASE 2 do `store.js`)
 
 ---
 
