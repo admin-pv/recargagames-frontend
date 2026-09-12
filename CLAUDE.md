@@ -173,7 +173,35 @@ Quando receber um plano:
 **Branches:**
 - `main` é produção (Netlify CD ativo)
 - Mudanças experimentais em branch `feature/xxx` ou `fix/xxx`
-- Merge via PR só quando o usuário pedir; default é commit direto na `main` para o ritmo solo
+- Merge via PR só quando o usuário pedir
+- Commit direto na `main` continua valendo para mudança pequena e avulsa, **quando essa for a escolha deliberada** (ex: o owner pedir "commita direto na main"). O que a regra abaixo proíbe é commitar na `main` **sem querer**, no meio de um trabalho que tem branch
+
+**Nunca commitar na `main` por acidente:**
+- Antes de qualquer `git commit`, conferir em que branch você está (`git branch --show-current`)
+- Se estiver na `main` e o trabalho pertence a uma branch, **criar ou trocar de branch antes de commitar**
+- Atenção redobrada depois de qualquer operação que troca de branch por baixo dos panos: `git checkout` para teste, `git stash`, teste de rollback, `git branch -D`. Sair de uma dessas e commitar sem olhar é exatamente como o erro aconteceu
+- Conserto, se já commitou na `main` local: `git branch <nome>` (cria a branch apontando para os commits), `git checkout <nome>`, `git branch -f main origin/main`. Não precisa de `reset --hard` e nada se perde
+
+**Nunca reportar push com base no exit code:**
+- `git push` retorna 0 também quando não há nada a enviar. Reportar "pushed" a partir disso é reportar sucesso de uma coisa que não aconteceu
+- Antes de dizer "pushed" ou "commitado na branch X", comparar os SHAs:
+
+```bash
+git fetch -q origin
+git rev-parse HEAD
+git rev-parse origin/<branch>
+# iguais = subiu de verdade. Diferentes = não subiu, não reportar sucesso
+```
+
+- Vale também para "está em produção": conferir o comportamento no ar (um `curl` no arquivo ou na rota nova), não o resultado do push
+
+> **Por que estas três regras existem:** nas Fases 0 e 1 o log de sessão foi
+> parar na `main` local em vez da branch, nas duas vezes logo depois de uma
+> operação que trocou de branch. Na Fase 1 o push foi reportado como feito
+> sem estar — o `git push origin feat/customer-auth` saiu com 0 porque a
+> branch já estava em dia, só que sem o commit junto. Pior: a verificação
+> seguinte, um `curl` confirmando que o arquivo não estava público, passou
+> **pelo motivo errado** — ele nunca tinha sido deployado.
 
 **Testes:**
 - Sem framework de testes ainda (decisão consciente — owner solo, MVP)
