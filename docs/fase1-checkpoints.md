@@ -3,6 +3,19 @@
 Modo cuidado: nada é mergeado sem os quatro passados. Este arquivo é o
 roteiro de verificação, para o teste ser o mesmo em qualquer sessão.
 
+## Estado
+
+| | Estado | Quando |
+|---|---|---|
+| **C1** migration | ✅ passado | 11/09 — 16 colunas, RLS on, 2 policies, 9 colunas com UPDATE, 2 triggers, anon zerado |
+| **C2** fluxo completo | ✅ passado | 12/09 — com OTP de 6 dígitos, depois do incidente do scanner |
+| **C3** RLS por curl | ✅ passado | 12/09 — ver "Resultado" em cada item |
+| **C4** exclusão de conta | ⏳ pendente | |
+
+Contas de teste usadas no C3: `vinicius.esteves+5678@gmail.com` (A) e
+`vinicius.esteves+1234@gmail.com` (B). **Nenhum token entrou neste repo** —
+foram passados por chat, usados em variável de ambiente e destruídos.
+
 **Convenção:** `$URL` = URL do projeto Supabase. `$PUB` = publishable key
 `storefront_v1`. `$JWT_A` / `$JWT_B` = access tokens de dois clientes
 diferentes. Nenhum desses valores entra neste repo — pegue do arquivo
@@ -87,6 +100,10 @@ curl -s -o /dev/null -w '%{http_code}\n' \
 `REVOKE ALL ... FROM anon` justamente para o Postgres negar antes da RLS
 — lista vazia seria "existe e está vazia", 401 é "você não tem nada aqui".
 
+**Resultado 12/09 ✅** — GET, POST, PATCH e DELETE todos `401`, com
+`42501 permission denied for table customer_profiles`. O REVOKE está
+fazendo o Postgres negar antes de a RLS ser consultada.
+
 ### 3.2 Com JWT do cliente A → só a linha de A
 
 ```bash
@@ -95,6 +112,10 @@ curl -s "$URL/rest/v1/customer_profiles?select=id,user_id,email" \
 ```
 
 **Esperado:** exatamente 1 linha, a de A.
+
+**Resultado 12/09 ✅** — 1 linha para A, 1 para B, cada um só a própria.
+De quebra confirma o trigger: `full_name` chegou de
+`raw_user_meta_data` ("Vini 5678" / "Vini 1234").
 
 ### 3.3 Com JWT de A, pedindo a linha de B → vazio
 
@@ -105,6 +126,16 @@ curl -s "$URL/rest/v1/customer_profiles?select=*&id=eq.<ID_DE_B>" \
 
 **Esperado: `[]`.** Não 403 — a RLS filtra, não acusa. Repetir com
 `user_id=eq.<USER_ID_DE_B>`.
+
+**Resultado 12/09 ✅** — `[]`. E sem filtro nenhum, A enxerga 1 linha (a
+dele), não 2.
+
+**Cuidado ao ler o PATCH cruzado:** tentar alterar a linha de B com o
+token de A devolve **`200` com corpo `[]`**, não um erro. Isso é a RLS
+filtrando — zero linhas casaram, zero foram alteradas. Um `200` aqui
+pode ser lido como sucesso por engano, então o teste foi fechado lendo a
+linha de B com o token de B: `full_name` continuava `"Vini 1234"`,
+intacta.
 
 ### 3.4 INSERT com JWT válido → falha
 
@@ -118,6 +149,27 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST \
 
 **Esperado: 401 ou 403.** Não há policy de INSERT: perfil nasce só pelo
 trigger.
+
+**Resultado 12/09 ✅** — INSERT `403 42501`, DELETE da própria linha
+`403`.
+
+### 3.4b GRANT por coluna
+
+Acrescentado na revisão de 11/09. Com o token de A, tentar escrever cada
+coluna fora da whitelist:
+
+| Coluna | Resultado 12/09 |
+|---|---|
+| `email` | `403 42501` ✅ |
+| `user_id` | `403 42501` ✅ |
+| `country_code` | `403 42501` ✅ |
+| `deleted_at` | `403 42501` ✅ |
+| `created_at` | `403 42501` ✅ |
+| `updated_at` | `403 42501` ✅ |
+| `full_name` (controle positivo) | `204` ✅ |
+
+O controle positivo importa tanto quanto os negativos: sem ele, um GRANT
+quebrado que negasse tudo passaria como "muito seguro".
 
 Vale também tentar o UPDATE que o `WITH CHECK` fecha — deve falhar:
 
@@ -160,6 +212,12 @@ curl -s "$URL/rest/v1/profiles?select=id,user_type" \
 
 **Esperado:** `[]` (se `profiles` não abre leitura ao próprio dono) ou uma
 linha com `user_type` diferente de `admin`. **Nunca** `"admin"`.
+
+**Resultado 12/09 ✅** — `is_admin()` devolveu `false` para A, para B e
+para anon. `profiles` com JWT de cliente devolveu `[]`: **o cliente não
+tem linha lá**, que é exatamente o que fecha o caminho de auto-promoção
+descrito em `docs/divida-tecnica-2-rls.md`. `admin_users`, de onde
+`is_admin()` lê, também devolveu `[]`.
 
 ---
 
