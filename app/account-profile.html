@@ -173,6 +173,16 @@
     .field-input::placeholder { color: #525062; }
     .field-input:focus, .field-select:focus { border-color: var(--orange); box-shadow: 0 0 0 4px rgba(245,112,10,.12); background: #0E1320; }
     .field-hint { margin: 2px 0 0; color: var(--muted-2); font-size: 12px; font-weight: 600; }
+    /* Fase 1: mostrar/ocultar senha. Mesmo padrão de account-login.html —
+       os campos de senha desta página não tinham, o que obrigava a digitar
+       três senhas às cegas para trocar uma. */
+    .input-wrap { position: relative; }
+    .field-input.has-toggle { padding-right: 46px; }
+    .pw-toggle { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 36px; height: 36px; border-radius: 9px; display: grid; place-items: center; color: var(--muted); cursor: pointer; }
+    .pw-toggle:hover { color: var(--warm); background: rgba(255,255,255,.05); }
+    .pw-toggle svg { width: 18px; height: 18px; }
+    /* Dica que vira confirmação verde quando a regra é atendida. */
+    .field-hint.is-ok { color: var(--lime); }
     .field-error { display: none; margin: 2px 0 0; color: #FF9D91; font-size: 12px; font-weight: 800; }
     .field-group.is-invalid .field-input { border-color: var(--danger); }
     .field-group.is-invalid .field-error { display: block; }
@@ -427,10 +437,13 @@
 
   <script src="shared/data/products.js"></script>
   <script src="shared/data/orders.js"></script>
-  <script src="shared/js/market.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="shared/js/market.js"></script>
+<script src="shared/js/supabase-client.js"></script>
 <script src="shared/js/store.js"></script>
+<script src="shared/js/header-session.js"></script>
   <script>
-  (function () {
+  (async function () {
     'use strict';
 
     /* ── Progressive integration ──────────────────────────────────────────
@@ -440,7 +453,52 @@
        mock so the page still renders fully. Nothing here touches
        localStorage — state lives only in this tab's memory. */
     var hasStore = typeof window.RecargaStore !== 'undefined';
-    var realUser = hasStore && RecargaStore.getUser ? RecargaStore.getUser() : undefined;
+
+    /* Fase 1: o perfil vem de public.customer_profiles, não mais do
+       localStorage. `await` no topo do IIFE — tudo abaixo depende disto. */
+    var profile = hasStore ? await RecargaStore.getUser() : null;
+
+    /* Deslogado (ou conta excluída: a policy de SELECT exige
+       deleted_at IS NULL, então a linha some mesmo com JWT ainda no
+       browser) → manda para o login com volta para cá. */
+    if (hasStore && !profile) {
+      window.location.replace('account-login.html?redirect=' +
+        encodeURIComponent('account-profile.html' + window.location.hash));
+      return;
+    }
+
+    /* Adaptador entre as COLUNAS de customer_profiles e os nomes que esta
+       página já usava. Mantido de propósito: renomear 40 referências de
+       `user.name` para `user.full_name` seria um diff enorme sem ganho.
+       `region` e `birthday` não têm coluna — ficam só na tela, e o
+       toProfilePatch abaixo não os envia. */
+    function toPageUser(p) {
+      return {
+        name: p.full_name || '',
+        nickname: p.nickname || '',
+        email: p.email || '',
+        emailVerified: !!p.emailConfirmed,
+        phone: p.phone || '',
+        phoneVerified: false,
+        language: p.locale || 'pt-BR',
+        region: String(p.country_code || 'br').toUpperCase(),
+        birthday: '',
+        memberSince: p.created_at,
+        notifications: p.notifications || {},
+        twoFactor: false
+      };
+    }
+
+    function toProfilePatch(u) {
+      return {
+        full_name: u.name,
+        nickname: u.nickname,
+        phone: u.phone,
+        locale: u.language
+      };
+    }
+
+    var realUser = profile ? toPageUser(profile) : undefined;
 
     var MOCK_USER = {
       name: 'Rafael Andrade',
@@ -519,7 +577,7 @@
           '</div>' +
           '<h2 id="sidebarName">' + escapeHtml(user.name) + '</h2>' +
           '<p id="sidebarEmail">' + escapeHtml(user.email) + '</p>' +
-          '<p class="member-since">Cliente desde ' + new Date(user.memberSince + 'T00:00:00').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }) + '</p>' +
+          '<p class="member-since">Cliente desde ' + new Date(user.memberSince).toLocaleDateString(RecargaMarket.locale, { month: 'long', year: 'numeric' }) + '</p>' +
           '<div class="completion-wrap">' +
             '<div class="completion-label"><span>Perfil completo</span><b id="completionPct">' + completion(user) + '%</b></div>' +
             '<div class="completion-track"><div class="completion-fill" id="completionFill" style="width:' + completion(user) + '%"></div></div>' +
@@ -643,10 +701,16 @@
             '<p class="panel-hint">Mantenha sua conta protegida.</p>' +
             '<form id="passwordForm" novalidate>' +
               '<div class="field-grid">' +
-                '<div class="field-group" data-field="curpass"><label class="field-label" for="f-curpass">Senha atual</label><input class="field-input" id="f-curpass" type="password" autocomplete="current-password"><p class="field-error">Informe sua senha atual.</p></div>' +
+                '<div class="field-group" data-field="curpass"><label class="field-label" for="f-curpass">Senha atual</label>' +
+                  '<div class="input-wrap"><input class="field-input has-toggle" id="f-curpass" type="password" autocomplete="current-password"><button class="pw-toggle" type="button" data-toggle-for="f-curpass" aria-label="Mostrar senha"><svg viewBox="0 0 20 20" fill="none"><path d="M2 10s3-6 8-6 8 6 8 6-3 6-8 6-8-6-8-6Z" stroke="currentColor" stroke-width="1.5"/><circle cx="10" cy="10" r="2.3" stroke="currentColor" stroke-width="1.5"/></svg></button></div>' +
+                '<p class="field-error">Informe sua senha atual.</p></div>' +
                 '<div class="field-row">' +
-                  '<div class="field-group" data-field="newpass"><label class="field-label" for="f-newpass">Nova senha</label><input class="field-input" id="f-newpass" type="password" autocomplete="new-password"><p class="field-hint">Mínimo de 8 caracteres.</p><p class="field-error">Use ao menos 8 caracteres.</p></div>' +
-                  '<div class="field-group" data-field="confpass"><label class="field-label" for="f-confpass">Confirmar nova senha</label><input class="field-input" id="f-confpass" type="password" autocomplete="new-password"><p class="field-error">As senhas não coincidem.</p></div>' +
+                  '<div class="field-group" data-field="newpass"><label class="field-label" for="f-newpass">Nova senha</label>' +
+                    '<div class="input-wrap"><input class="field-input has-toggle" id="f-newpass" type="password" autocomplete="new-password"><button class="pw-toggle" type="button" data-toggle-for="f-newpass" aria-label="Mostrar senha"><svg viewBox="0 0 20 20" fill="none"><path d="M2 10s3-6 8-6 8 6 8 6-3 6-8 6-8-6-8-6Z" stroke="currentColor" stroke-width="1.5"/><circle cx="10" cy="10" r="2.3" stroke="currentColor" stroke-width="1.5"/></svg></button></div>' +
+                    '<p class="field-hint" id="newpassHint">Mínimo de 8 caracteres.</p><p class="field-error">Use ao menos 8 caracteres.</p></div>' +
+                  '<div class="field-group" data-field="confpass"><label class="field-label" for="f-confpass">Confirmar nova senha</label>' +
+                    '<div class="input-wrap"><input class="field-input has-toggle" id="f-confpass" type="password" autocomplete="new-password"><button class="pw-toggle" type="button" data-toggle-for="f-confpass" aria-label="Mostrar senha"><svg viewBox="0 0 20 20" fill="none"><path d="M2 10s3-6 8-6 8 6 8 6-3 6-8 6-8-6-8-6Z" stroke="currentColor" stroke-width="1.5"/><circle cx="10" cy="10" r="2.3" stroke="currentColor" stroke-width="1.5"/></svg></button></div>' +
+                    '<p class="field-error">As senhas não coincidem.</p></div>' +
                 '</div>' +
               '</div>' +
               '<div class="field-actions"><button class="cta-primary" type="submit">Atualizar senha</button></div>' +
@@ -780,8 +844,8 @@
 
       gameSelect.addEventListener('change', function () { renderLinkFields(gameSelect.value); });
 
-      function renderLinkedList() {
-        var accounts = (hasStore && RecargaStore.getLinkedAccounts) ? RecargaStore.getLinkedAccounts() : [];
+      async function renderLinkedList() {
+        var accounts = hasStore ? await RecargaStore.getLinkedAccounts() : [];
         linkedList.innerHTML = accounts.length ? accounts.map(function (a) {
           var product = directProducts.find(function (p) { return p.id === a.productId; }) || {};
           var fieldSummary = Object.keys(a.fields || {}).map(function (k) { return a.fields[k]; }).filter(Boolean).join(' · ');
@@ -793,15 +857,15 @@
         }).join('') : '<div class="empty-note">Nenhum ID salvo ainda.</div>';
 
         linkedList.querySelectorAll('[data-remove]').forEach(function (btn) {
-          btn.addEventListener('click', function () {
-            if (hasStore && RecargaStore.removeLinkedAccount) RecargaStore.removeLinkedAccount(btn.dataset.remove);
-            renderLinkedList();
+          btn.addEventListener('click', async function () {
+            if (hasStore) await RecargaStore.removeLinkedAccount(btn.dataset.remove);
+            await renderLinkedList();
             showBanner('ID removido', 'A conta foi desvinculada do seu perfil.');
           });
         });
       }
 
-      linkForm.addEventListener('submit', function (e) {
+      linkForm.addEventListener('submit', async function (e) {
         e.preventDefault();
         if (linkBtn.disabled) return;
         var fields = {};
@@ -810,16 +874,16 @@
           if (input) fields[k] = input.value.trim();
         });
         var entry = { productId: gameSelect.value, fields: fields, nickname: linkNickname.value.trim() || null };
-        if (hasStore && RecargaStore.addLinkedAccount) RecargaStore.addLinkedAccount(entry);
+        if (hasStore) await RecargaStore.addLinkedAccount(entry);
         linkForm.reset();
         linkDynamicFields.innerHTML = '';
         linkFieldsValid = {};
         updateLinkBtn();
-        renderLinkedList();
+        await renderLinkedList();
         showBanner('ID salvo', 'Vai aparecer pré-preenchido na próxima compra desse jogo.');
       });
 
-      renderLinkedList();
+      await renderLinkedList();
     }
 
     /* ── tab switching w/ deep-link ── */
@@ -884,7 +948,7 @@
 
     function setInvalid(group, invalid) { if (group) group.classList.toggle('is-invalid', invalid); if (group && !invalid) group.classList.remove('is-invalid'); }
 
-    form.addEventListener('submit', function (e) {
+    form.addEventListener('submit', async function (e) {
       e.preventDefault();
       var valid = true;
       var nameGroup = f.name.closest('.field-group');
@@ -895,7 +959,15 @@
       if (!valid) return;
 
       Object.keys(f).forEach(function (k) { user[k] = f[k].value; snapshot[k] = f[k].value; });
-      if (hasStore && RecargaStore.updateUser) { try { RecargaStore.updateUser(user); } catch (err) {} }
+      /* Erro não é mais engolido: o try/catch vazio da versão anterior
+         mostrava "salvo" mesmo quando nada tinha sido gravado. */
+      if (hasStore) {
+        var saveRes = await RecargaStore.updateUser(toProfilePatch(user));
+        if (!saveRes.ok) {
+          showBanner('Não foi possível salvar', 'Tente de novo em instantes.');
+          return;
+        }
+      }
       document.getElementById('sidebarName').textContent = user.name;
       document.getElementById('sidebarEmail').textContent = user.email;
       document.getElementById('avatarInitials').textContent = initials(user.name);
@@ -907,19 +979,98 @@
       showBanner('Alterações salvas', 'Seus dados foram atualizados.');
     });
 
-    /* ── password form (client-side only demo) ── */
+    /* ── Troca de senha — real desde a Fase 1 ──
+       A senha ATUAL é pedida por UX (e porque a ausência dela assusta),
+       mas não é verificada: o Supabase autoriza a troca pela sessão, não
+       pela senha antiga. Isso NÃO deve ser vendido ao usuário como uma
+       checagem de segurança que não existe. Quem protege aqui é a
+       sessão — e é por isso que ela é curta e renovável. */
     var passForm = document.getElementById('passwordForm');
-    passForm.addEventListener('submit', function (e) {
+    var cur = document.getElementById('f-curpass');
+    var np = document.getElementById('f-newpass');
+    var cp = document.getElementById('f-confpass');
+    var npHint = document.getElementById('newpassHint');
+    var passSubmit = passForm.querySelector('button[type="submit"]');
+
+    /* Mostrar/ocultar nos três campos. */
+    passForm.querySelectorAll('.pw-toggle').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var input = document.getElementById(btn.dataset.toggleFor);
+        var showing = input.type === 'text';
+        input.type = showing ? 'password' : 'text';
+        btn.setAttribute('aria-label', showing ? 'Mostrar senha' : 'Ocultar senha');
+      });
+    });
+
+    /* ── Validação ao digitar ──
+       Antes só rodava no submit: a pessoa digitava as três senhas, clicava,
+       e só então descobria que a confirmação não batia. A regra agora
+       aparece enquanto se digita, e o botão fica desabilitado até valer.
+
+       `touched` evita acusar erro em campo que a pessoa ainda nem terminou
+       de preencher — o aviso só aparece depois do primeiro blur ou quando
+       já há texto suficiente para a comparação fazer sentido. */
+    var touched = { newpass: false, confpass: false };
+
+    function passState() {
+      return {
+        curOk: cur.value.length > 0,
+        lenOk: np.value.length >= 8,
+        matchOk: cp.value.length > 0 && cp.value === np.value
+      };
+    }
+
+    function renderPassValidation() {
+      var st = passState();
+
+      npHint.textContent = st.lenOk ? '✓ Senha com 8 caracteres ou mais' : 'Mínimo de 8 caracteres.';
+      npHint.classList.toggle('is-ok', st.lenOk);
+      np.closest('.field-group').classList.toggle('is-invalid', touched.newpass && np.value.length > 0 && !st.lenOk);
+      np.closest('.field-group').classList.toggle('is-valid', st.lenOk);
+
+      var mismatch = touched.confpass && cp.value.length > 0 && cp.value !== np.value;
+      cp.closest('.field-group').classList.toggle('is-invalid', mismatch);
+      cp.closest('.field-group').classList.toggle('is-valid', st.matchOk);
+
+      passSubmit.disabled = !(st.curOk && st.lenOk && st.matchOk);
+    }
+
+    np.addEventListener('input', function () { touched.newpass = true; renderPassValidation(); });
+    cp.addEventListener('input', function () { touched.confpass = true; renderPassValidation(); });
+    cur.addEventListener('input', renderPassValidation);
+    np.addEventListener('blur', function () { touched.newpass = true; renderPassValidation(); });
+    cp.addEventListener('blur', function () { touched.confpass = true; renderPassValidation(); });
+    renderPassValidation();
+
+    passForm.addEventListener('submit', async function (e) {
       e.preventDefault();
-      var cur = document.getElementById('f-curpass');
-      var np = document.getElementById('f-newpass');
-      var cp = document.getElementById('f-confpass');
-      var ok = true;
-      setInvalid(cur.closest('.field-group'), !cur.value); if (!cur.value) ok = false;
-      setInvalid(np.closest('.field-group'), np.value.length < 8); if (np.value.length < 8) ok = false;
-      setInvalid(cp.closest('.field-group'), cp.value !== np.value || !cp.value); if (cp.value !== np.value || !cp.value) ok = false;
-      if (!ok) return;
+      /* O submit revalida do zero. O botão desabilitado é UX; a checagem
+         aqui é a que vale, porque `disabled` some com um clique no
+         DevTools. */
+      touched.newpass = touched.confpass = true;
+      renderPassValidation();
+      var st = passState();
+      setInvalid(cur.closest('.field-group'), !st.curOk);
+      if (!st.curOk || !st.lenOk || !st.matchOk) return;
+
+      passSubmit.disabled = true;
+      var res = await RecargaStore.updatePassword(np.value);
+      passSubmit.disabled = false;
+
+      if (!res.ok) {
+        var msg = res.code === 'weak_password' ? 'A senha precisa ter pelo menos 8 caracteres.'
+                : res.code === 'same_password' ? 'A nova senha precisa ser diferente da atual.'
+                : res.code === 'not_authenticated' ? 'Sua sessão expirou. Entre novamente.'
+                : 'Tente de novo em instantes.';
+        showBanner('Não foi possível trocar a senha', msg);
+        return;
+      }
       cur.value = np.value = cp.value = '';
+      touched.newpass = touched.confpass = false;
+      [cur, np, cp].forEach(function (el) {
+        el.closest('.field-group').classList.remove('is-invalid', 'is-valid');
+      });
+      renderPassValidation();
       showBanner('Senha atualizada', 'Use a nova senha no seu próximo login.');
     });
 
@@ -929,13 +1080,13 @@
       var key = sw.dataset.toggle;
       sw.classList.toggle('on', !!user.notifications[key]);
       sw.setAttribute('aria-checked', String(!!user.notifications[key]));
-      function toggle() {
+      async function toggle() {
         user.notifications[key] = !user.notifications[key];
         sw.classList.toggle('on', user.notifications[key]);
         sw.setAttribute('aria-checked', String(user.notifications[key]));
         // Bug fix: this used to only mutate the in-memory `user` object and
         // never actually saved it, so the toggle silently reset on reload.
-        if (hasStore && RecargaStore.updateUser) { try { RecargaStore.updateUser({ notifications: user.notifications }); } catch (e) {} }
+        if (hasStore) await RecargaStore.updateUser({ notifications: user.notifications });
         notifConfirm.classList.add('show');
         setTimeout(function () { notifConfirm.classList.remove('show'); }, 2200);
       }
@@ -944,8 +1095,8 @@
     });
 
     /* ── logout ── */
-    document.getElementById('logoutBtn').addEventListener('click', function () {
-      if (hasStore && RecargaStore.logout) RecargaStore.logout();
+    document.getElementById('logoutBtn').addEventListener('click', async function () {
+      if (hasStore) await RecargaStore.signOut();
       window.location.href = 'index.html';
     });
 
@@ -954,12 +1105,15 @@
        order history, both from RecargaStore/localStorage) as a JSON file.
        A real backend should include anything it holds server-side too. */
     var exportBtn = document.getElementById('exportDataBtn');
-    if (exportBtn) exportBtn.addEventListener('click', function () {
-      var exportPayload = {
-        exportedAt: new Date().toISOString(),
-        profile: (hasStore && RecargaStore.getUser) ? RecargaStore.getUser() : user,
-        orders: (hasStore && RecargaStore.getOrders) ? RecargaStore.getOrders() : []
-      };
+    if (exportBtn) exportBtn.addEventListener('click', async function () {
+      /* O pacote é montado pelo store (exportUserData), que junta o perfil
+         do servidor com os pedidos locais E anexa uma nota dizendo que os
+         pedidos são só deste navegador enquanto a Fase 2 não chega. Sem
+         essa nota, quem receber o arquivo lê um histórico incompleto como
+         se fosse completo. */
+      var exportPayload = hasStore
+        ? await RecargaStore.exportUserData()
+        : { exportedAt: new Date().toISOString(), profile: user, orders: [] };
       var blob = new Blob([JSON.stringify(exportPayload, null, 2)], { type: 'application/json' });
       var url = URL.createObjectURL(blob);
       var a = document.createElement('a');
@@ -973,16 +1127,32 @@
     });
 
     /* ── LGPD: excluir minha conta ──
-       Clears the local profile/session (RecargaStore.logout). Order
-       history is intentionally kept — real stores generally can't erase
-       completed transaction records outright (tax/financial retention
-       rules), so a backend implementation should soft-delete/anonymize
-       the profile rather than the orders themselves. */
+       Chama a Netlify Function account-delete, que anonimiza a linha em
+       customer_profiles e só então apaga o usuário de auth.users (a ordem
+       importa — ver o cabeçalho da Function).
+
+       Pedidos NÃO são apagados. Hoje nem estariam ao alcance: vivem no
+       localStorage deste navegador. Quando virarem tabela na Fase 2,
+       continuam preservados — a base legal da retenção fiscal é outra, e
+       o perfil anonimizado é justamente o que os mantém referenciáveis
+       sem apontar para uma pessoa identificada. */
     var deleteBtn = document.getElementById('deleteAccountBtn');
-    if (deleteBtn) deleteBtn.addEventListener('click', function () {
-      var confirmed = window.confirm('Tem certeza que deseja excluir sua conta? Essa ação não pode ser desfeita.');
+    if (deleteBtn) deleteBtn.addEventListener('click', async function () {
+      var confirmed = window.confirm(
+        'Tem certeza que deseja excluir sua conta? Essa ação não pode ser desfeita.\n\n' +
+        'Seu perfil será anonimizado e seu acesso removido. O histórico de pedidos é mantido por obrigação fiscal.'
+      );
       if (!confirmed) return;
-      if (hasStore && RecargaStore.logout) RecargaStore.logout();
+
+      deleteBtn.disabled = true;
+      var res = await RecargaStore.deleteAccount();
+      if (!res.ok) {
+        deleteBtn.disabled = false;
+        showBanner('Não foi possível excluir a conta',
+          res.code === 'not_authenticated' ? 'Sua sessão expirou. Entre novamente.'
+                                           : 'Tente de novo em instantes ou fale com o suporte.');
+        return;
+      }
       window.location.href = 'index.html?accountDeleted=1';
     });
   })();

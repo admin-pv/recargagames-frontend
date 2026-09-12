@@ -1650,8 +1650,11 @@
 <script src="shared/data/products.js"></script>
 <script src="shared/data/orders.js"></script>
 <script src="shared/data/coupons.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script src="shared/js/market.js"></script>
+<script src="shared/js/supabase-client.js"></script>
 <script src="shared/js/store.js"></script>
+<script src="shared/js/header-session.js"></script>
 <script>
 (function () {
   'use strict';
@@ -1761,7 +1764,9 @@
   const applyCouponBtn = $('applyCouponBtn');
   const couponFeedback = $('couponFeedback');
 
-  const fmt = v => v.toLocaleString('pt-BR', {style:'currency',currency:'BRL'});
+  /* Fase 1: formatação sai do market.js. 'pt-BR'/'BRL' escritos à mão aqui
+     eram exatamente o hardcode que impede MX/PH/NG depois. */
+  const fmt = v => RecargaMarket.formatMoney(v);
   const contactLabel = () => state.deliveryMethod === 'whatsapp' ? 'WhatsApp' : 'e-mail';
   const pkg = () => productData.packages.find(p => p.id === state.pkgId);
 
@@ -1844,11 +1849,13 @@
     });
   }
 
-  function renderSavedAccountPicker() {
+  async function renderSavedAccountPicker() {
     const wrap = $('savedAccountPicker');
     if (!wrap || !productData.fields.length) return;
-    const hasFn = typeof RecargaStore.getLinkedAccountsForProduct === 'function';
-    const accounts = hasFn ? RecargaStore.getLinkedAccountsForProduct(activeProduct.id) : [];
+    /* Fase 1: vem de customer_profiles.linked_accounts. Deslogado devolve
+       [] (getUser() é null) e o seletor simplesmente não aparece —
+       comprar sem conta continua funcionando. */
+    const accounts = await RecargaStore.getLinkedAccountsForProduct(activeProduct.id);
     if (!accounts.length) { wrap.innerHTML = ''; return; }
 
     function accountLabel(a) {
@@ -1924,8 +1931,10 @@
     deliveryMethodPicker.querySelectorAll('.delivery-opt').forEach(btn => {
       btn.addEventListener('click', () => setDeliveryMethod(btn.dataset.delivery));
     });
-    const savedUser = (typeof RecargaStore.getUser === 'function') ? RecargaStore.getUser() : null;
-    if (savedUser && savedUser.phone && !phoneEl.value) phoneEl.value = savedUser.phone;
+    /* O pré-preenchimento do telefone saiu: o campo só era usado no modo
+       WhatsApp, que está oculto desde a Fase 0 (PHASE0.emailOnlyDelivery).
+       Buscar o perfil para preencher um campo invisível seria um
+       round-trip por nada. */
     setDeliveryMethod('email');
   }
 
@@ -2399,6 +2408,9 @@
   /* ── Init ── */
   renderProductChrome();
   renderDynamicFields();
+  /* Sem await: o seletor de IDs salvos é um extra, e a página não pode
+     esperar a rede para mostrar preço e pacotes. Ele aparece quando
+     chegar. */
   renderSavedAccountPicker();
   renderDeliveryMethodPicker();
   renderPackages();

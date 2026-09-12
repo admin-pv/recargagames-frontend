@@ -1,29 +1,57 @@
-// Shared prototype logic for Recarga Games (both branding versions).
-// No backend exists — this simulates account/session and order state with
-// localStorage so the flows (checkout -> Order Details -> My Orders -> Profile)
-// stay connected across page loads. Requires shared/data/products.js and
-// shared/data/orders.js to be loaded first.
+/* ──────────────────────────────────────────────────────────────────────────
+   store.js v2 — camada de dados do storefront
+
+   FASE 0: tudo era localStorage, tudo síncrono, e o "login" não checava
+           senha nenhuma.
+   FASE 1: SESSÃO e PERFIL passam a ser Supabase Auth + a tabela
+           public.customer_profiles. PEDIDOS continuam em localStorage.
+
+   >>> A MUDANÇA QUE QUEBRA CHAMADOR: as funções de sessão e perfil agora
+       são ASSÍNCRONAS. getUser(), isLoggedIn(), updateUser() e as de
+       linked accounts devolvem Promise. Toda chamada nas páginas precisa
+       de await. O HANDOVER do fornecedor sugeria "manter as mesmas
+       assinaturas para as páginas não mudarem" — isso não é possível
+       atravessando a rede, e é aqui que esse pressuposto se paga. <<<
+
+   Erros de mutação voltam como { ok:false, code:'...' }, com `code`
+   legível por máquina e NUNCA texto para o usuário. A copy fica na página.
+   Colocar português aqui seria hardcodar pt-BR numa camada compartilhada,
+   que é exatamente o que a restrição do workstream proíbe (i18n é Fase 1b).
+
+   Dependências, nesta ordem: market.js → supabase-client.js → este arquivo.
+   ────────────────────────────────────────────────────────────────────────── */
 (function (global) {
   "use strict";
 
   var LS_ORDERS = "recarga_orders_v1";
-  var LS_USER = "recarga_user_v1";
+
+  /* O cliente Supabase vem de shared/js/supabase-client.js. Guardado numa
+     função (e não numa const no topo) porque a ordem de <script> já
+     quebrou uma vez neste repo: assim, um arquivo carregado fora de ordem
+     falha com uma mensagem clara em vez de `undefined`. */
+  function sb() {
+    if (!global.sb) {
+      throw new Error("store.js: window.sb ausente — carregue shared/js/supabase-client.js antes.");
+    }
+    return global.sb;
+  }
+
+  function market() {
+    return global.RecargaMarket || { key: "br", country: "BR", locale: "pt-BR", currency: "BRL" };
+  }
+
+  /* ---------------- Utilitários ---------------- */
 
   function getParam(name) {
-    return new URLSearchParams(window.location.search).get(name);
+    return new URLSearchParams(global.location.search).get(name);
   }
 
-  function formatBRL(value) {
-    var n = typeof value === "number" ? value : parseFloat(value || 0);
-    return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-  }
+  /* Delegam para market.js, que é quem conhece locale e moeda.
+     `formatBRL` sumiu de propósito: o nome afirmava um mercado. */
+  function formatMoney(value) { return market().formatMoney(value); }
+  function formatDate(iso) { return market().formatDate(iso, { separator: " às " }); }
 
-  function formatDate(iso) {
-    if (!iso) return "";
-    var d = new Date(iso);
-    return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" }) +
-      " às " + d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-  }
+  /* ---------------- Catálogo (estático — vira backend na Fase 2) ---------------- */
 
   function getProducts() {
     return global.RECARGA_PRODUCTS || [];
@@ -46,7 +74,24 @@
     return list.slice(0, max || 5);
   }
 
-  /* ---------------- Orders ---------------- */
+  /* ================================================================
+     PEDIDOS — FASE 2.
+
+     Continuam inteiros em localStorage, síncronos, exatamente como o
+     fornecedor entregou. Não foram tocados nesta fase de propósito:
+     misturar a troca de auth com a troca de pedidos dobraria a
+     superfície de um checkpoint só.
+
+     Consequências que valem saber enquanto isto for verdade:
+       - os pedidos são do BROWSER, não da conta. Trocar de usuário na
+         mesma máquina mostra os pedidos do anterior; logar noutra máquina
+         não mostra nenhum;
+       - createOrder/completeOrder não cobram nada e sempre "dão certo";
+       - a exclusão de conta (Netlify Function account-delete) NÃO apaga
+         pedidos — nem teria como, eles não estão no servidor. A retenção
+         fiscal, que é o motivo de não apagar, só passa a valer de fato
+         quando isto virar tabela.
+     ================================================================ */
 
   function readOrdersRaw() {
     try {
@@ -104,9 +149,6 @@
     if (order) {
       order.status = "completed";
       order.completedAt = new Date().toISOString();
-      // 'code'/'giftcard' products deliver a redeem code by e-mail — no real
-      // fulfillment backend exists yet, so generate a demo-looking one here
-      // (same spot a real code-issuing call would go) if one isn't set already.
       if (!order.code) {
         var product = getProductById(order.productId);
         if (product && (product.type === "code" || product.type === "giftcard")) {
@@ -118,120 +160,477 @@
     return order;
   }
 
-  /* ---------------- User / session ---------------- */
+  /* ================================================================
+     SESSÃO E PERFIL — Supabase Auth + public.customer_profiles
+     ================================================================ */
 
-  function getUser() {
+  /* Colunas que a página pode escrever. Whitelist e não blacklist: uma
+     coluna nova nasce fechada, e um `updateUser({user_id: outro})` vindo
+     de um bug de página nunca chega ao banco.
+
+     ESTA LISTA ESPELHA O `GRANT UPDATE (...)` DA MIGRATION 0002, coluna
+     por coluna, e as duas TÊM que andar juntas: uma coluna que entre aqui
+     e não no GRANT vira 42501 (permission denied for column) em produção;
+     uma que entre no GRANT e não aqui é escrita que o banco aceita e este
+     código descarta em silêncio.
+
+     São três tranças sobre a mesma coisa, de propósito — a policy diz
+     QUAIS LINHAS, o GRANT diz QUAIS COLUNAS, e esta lista faz o bug morrer
+     aqui, com nome, em vez de virar um 403 obscuro na tela.
+
+     `country_code` saiu na revisão de 11/09: o mercado vem do PATH da
+     requisição (market.js), não de uma escolha do usuário.
+     `email` nunca esteve: a troca é do GoTrue, com confirmação por link. */
+  var WRITABLE = [
+    "full_name", "phone", "locale", "nickname", "favorite_games",
+    "marketing_opt_in", "onboarding_done", "linked_accounts", "notifications"
+  ];
+
+  /* Cache do perfil, por carregamento de página. O brief pede isso: sem
+     ele, uma página que chama getUser() em cinco lugares faz cinco
+     round-trips. Invalidado em toda mutação e em toda troca de sessão. */
+  var profileCache = null;
+  var profileCachePromise = null;
+
+  function invalidateProfileCache() {
+    profileCache = null;
+    profileCachePromise = null;
+  }
+
+  /* Normaliza o erro do Supabase num código estável.
+
+     Por que não repassar error.message: é texto em inglês, escrito pelo
+     GoTrue, que muda entre versões. Página nenhuma deve fazer match em
+     string para decidir o que mostrar. */
+  function errCode(error) {
+    if (!error) return null;
+    var code = String(error.code || "").toLowerCase();
+    var msg = String(error.message || "").toLowerCase();
+    var status = error.status || 0;
+
+    if (code) {
+      if (code.indexOf("invalid_credentials") > -1) return "invalid_credentials";
+      if (code.indexOf("email_not_confirmed") > -1) return "email_not_confirmed";
+      if (code.indexOf("user_already_exists") > -1) return "email_taken";
+      if (code.indexOf("weak_password") > -1) return "weak_password";
+      if (code.indexOf("over_email_send_rate_limit") > -1 ||
+          code.indexOf("over_request_rate_limit") > -1) return "rate_limited";
+      if (code.indexOf("same_password") > -1) return "same_password";
+    }
+    if (msg.indexOf("invalid login credentials") > -1) return "invalid_credentials";
+    if (msg.indexOf("email not confirmed") > -1) return "email_not_confirmed";
+    if (msg.indexOf("already registered") > -1) return "email_taken";
+    if (msg.indexOf("password should be") > -1 || msg.indexOf("weak") > -1) return "weak_password";
+    if (status === 429) return "rate_limited";
+    if (status === 0) return "network";
+    /* 42501 = permission denied for column. Na prática só aparece se a
+       WRITABLE acima e o GRANT UPDATE da migration saírem de sincronia.
+       Tem código próprio para ser diagnosticável em vez de virar
+       "unknown" — o sintoma seria "salvar não salva, e ninguém sabe por
+       quê". */
+    if (code === "42501" || msg.indexOf("permission denied for column") > -1) return "permission_denied";
+    /* OTP: token errado, já usado ou fora da validade. O GoTrue não
+       distingue os três, e é melhor assim — dizer "código já usado"
+       confirmaria que o e-mail existe. */
+    if (code.indexOf("otp_expired") > -1) return "otp_invalid";
+    if (msg.indexOf("token has expired or is invalid") > -1) return "otp_invalid";
+    if (msg.indexOf("invalid otp") > -1 || msg.indexOf("token not found") > -1) return "otp_invalid";
+    return "unknown";
+  }
+
+  function fail(error) { return { ok: false, code: errCode(error) }; }
+
+  /* ---- Cadastro ----
+
+     `emailRedirectTo` explícito é OBRIGATÓRIO. O Site URL do projeto é
+     https://recargagames.com, compartilhado com o login do admin; sem
+     redirect, o link de confirmação cai na landing da raiz e o usuário
+     nunca chega à loja. Ver docs/email-templates/README.md.
+
+     NÃO revela se o e-mail já existe. Com "Confirm email" ligado, o
+     Supabase devolve sucesso ofuscado para e-mail já cadastrado — e esta
+     função preserva isso, devolvendo sempre a mesma forma. O custo é que
+     quem já tem conta vê "confirme seu e-mail" e nenhum e-mail novo
+     chega; o ganho é não ter um oráculo de "este e-mail é cliente". */
+  async function signUp(opts) {
+    opts = opts || {};
     try {
-      var raw = localStorage.getItem(LS_USER);
-      return raw ? JSON.parse(raw) : null;
-    } catch (e) { return null; }
+      var res = await sb().auth.signUp({
+        email: String(opts.email || "").trim(),
+        password: opts.password,
+        options: {
+          emailRedirectTo: market().pagePath("account-login.html"),
+          /* Vira raw_user_meta_data em auth.users, de onde o trigger
+             handle_new_customer_profile() lê o nome ao criar a linha. */
+          data: { full_name: String(opts.name || "").trim() }
+        }
+      });
+      if (res.error) return fail(res.error);
+
+      /* session null = precisa confirmar o e-mail. É o caminho normal
+         aqui, não um erro: o cadastro termina na caixa de entrada. */
+      invalidateProfileCache();
+      return { ok: true, needsConfirmation: !res.data.session };
+    } catch (e) {
+      return fail(e);
+    }
   }
 
-  function isLoggedIn() { return !!getUser(); }
-
-  /* NOT REAL AUTH. This never receives, checks, or stores a password — it
-     just writes {name, email, ...} to localStorage. account-login.html's
-     login/signup forms validate a password client-side but never pass it
-     in here. A real backend needs to own credential verification entirely;
-     this function (and the localStorage session it fakes) should be
-     replaced by a real session token from a real /login or /signup call. */
-  function login(user) {
-    var full = Object.assign({
-      name: "Jogador",
-      email: "jogador@email.com",
-      memberSince: new Date().toISOString()
-    }, user);
-    try { localStorage.setItem(LS_USER, JSON.stringify(full)); } catch (e) { /* ignore */ }
-    return full;
+  async function signIn(opts) {
+    opts = opts || {};
+    try {
+      var res = await sb().auth.signInWithPassword({
+        email: String(opts.email || "").trim(),
+        password: opts.password
+      });
+      if (res.error) return fail(res.error);
+      invalidateProfileCache();
+      return { ok: true };
+    } catch (e) {
+      return fail(e);
+    }
   }
 
-  function logout() {
-    try { localStorage.removeItem(LS_USER); } catch (e) { /* ignore */ }
+  async function signOut() {
+    try {
+      await sb().auth.signOut();
+    } catch (e) { /* sessão já morta serve igual */ }
+    invalidateProfileCache();
+    return { ok: true };
   }
 
-  function updateUser(patch) {
-    var current = getUser() || {};
-    var merged = Object.assign({}, current, patch || {});
-    try { localStorage.setItem(LS_USER, JSON.stringify(merged)); } catch (e) { /* ignore */ }
-    return merged;
+  /* ---- Reset de senha ----
+
+     SEMPRE devolve ok:true, inclusive quando o Supabase recusa. É
+     deliberado: qualquer diferença observável entre "e-mail existe" e
+     "não existe" — mensagem, status, ou tempo de resposta — transforma
+     esta tela num verificador de cadastro. A página mostra o mesmo
+     "verifique seu e-mail" nos dois casos.
+
+     A única exceção é rate limit, que a página precisa distinguir para
+     não pedir que a pessoa tente de novo em vão. Isso vaza que houve
+     tentativas recentes, não que o e-mail existe. */
+  async function resetPassword(email) {
+    try {
+      var res = await sb().auth.resetPasswordForEmail(String(email || "").trim(), {
+        redirectTo: market().pagePath("account-login.html")
+      });
+      if (res.error && errCode(res.error) === "rate_limited") {
+        return { ok: false, code: "rate_limited" };
+      }
+      return { ok: true };
+    } catch (e) {
+      if (errCode(e) === "network") return { ok: false, code: "network" };
+      return { ok: true };
+    }
   }
 
-  /* ---------------- Linked game accounts ----------------
-     Lets a buyer save a game's player ID (and zone/Riot ID, whatever that
-     product needs) on their profile so product.html can offer it back as a
-     pre-fill instead of asking them to retype it every purchase. Stored on
-     the user object itself, same localStorage-only caveat as the rest of
-     this file. Supports more than one saved account per game (e.g. two
-     Free Fire IDs), distinguished by an optional nickname. */
-
-  function getLinkedAccounts() {
-    var u = getUser();
-    return (u && u.linkedAccounts) || [];
+  /* Troca de senha do usuário JÁ logado (ou vindo do link de reset, que
+     cria sessão ao carregar a página). O Supabase não pede a senha atual;
+     quem garante é a sessão. A página ainda pede a atual por UX, mas
+     isso não é uma verificação de segurança e não deve ser vendido como
+     tal. */
+  async function updatePassword(newPassword) {
+    try {
+      var res = await sb().auth.updateUser({ password: newPassword });
+      if (res.error) return fail(res.error);
+      return { ok: true };
+    } catch (e) {
+      return fail(e);
+    }
   }
 
-  function getLinkedAccountsForProduct(productId) {
-    return getLinkedAccounts().filter(function (a) { return a.productId === productId; });
+  /* Troca de e-mail. O link de confirmação vai para o endereço NOVO, e a
+     troca só vale depois do clique — até lá o antigo continua logando. */
+  async function updateEmail(newEmail) {
+    try {
+      var res = await sb().auth.updateUser(
+        { email: String(newEmail || "").trim() },
+        { emailRedirectTo: market().pagePath("account-login.html") }
+      );
+      if (res.error) return fail(res.error);
+      return { ok: true, needsConfirmation: true };
+    } catch (e) {
+      return fail(e);
+    }
   }
 
-  function addLinkedAccount(entry) {
-    var list = getLinkedAccounts().slice();
-    var full = Object.assign({
+  /* ── Código de 6 dígitos (OTP) ────────────────────────────────────────
+
+     POR QUE OTP E NÃO LINK. Em 12/09 o primeiro cadastro real deu 504 na
+     confirmação. O scanner de links do Gmail abriu o /verify antes do
+     usuário, gastou o token de uso único, e o clique de verdade falhou —
+     a conta ficou confirmada no banco e a tela deu erro. Todo provedor
+     corporativo pré-varre links; o mesmo valia para o reset de senha.
+
+     Com código, um scanner que abre o e-mail não consome nada: o token só
+     é gasto quando alguém digita os dígitos aqui.
+
+     Os templates de "Confirm signup" e "Reset password" tiveram o
+     {{ .ConfirmationURL }} REMOVIDO. Se ele voltar, o Supabase volta a
+     gerar link, o scanner volta a visitá-lo, e este código passa a falhar
+     como "inválido". Ver docs/email-templates/README.md.
+
+     Sucesso nos dois casos cria sessão: 'signup' loga a pessoa; 'recovery'
+     abre a janela em que ela pode trocar a senha. */
+  async function verifyOtp(opts) {
+    opts = opts || {};
+    try {
+      var res = await sb().auth.verifyOtp({
+        email: String(opts.email || "").trim(),
+        token: String(opts.token || "").replace(/\D/g, ""),
+        type: opts.type   // 'signup' | 'recovery'
+      });
+      if (res.error) return fail(res.error);
+      invalidateProfileCache();
+      return { ok: true };
+    } catch (e) {
+      return fail(e);
+    }
+  }
+
+  function verifySignupCode(email, token) {
+    return verifyOtp({ email: email, token: token, type: "signup" });
+  }
+
+  function verifyRecoveryCode(email, token) {
+    return verifyOtp({ email: email, token: token, type: "recovery" });
+  }
+
+  /* Reenvio.
+
+     ATENÇÃO A UMA ASSIMETRIA DO SUPABASE: auth.resend() aceita 'signup',
+     'email_change', 'sms' e 'phone_change' — mas NÃO 'recovery'. Para
+     reenviar um código de redefinição, o caminho é chamar
+     resetPasswordForEmail() de novo. Por isso resendCode() encaminha em
+     vez de ter uma implementação só.
+
+     Resposta neutra, mesma regra do resetPassword: sempre ok:true fora de
+     rate limit. Um reenvio que falha só para e-mail inexistente seria um
+     verificador de cadastro com outro nome. */
+  async function resendCode(type, email) {
+    if (type === "recovery") return resetPassword(email);
+    try {
+      var res = await sb().auth.resend({
+        type: type,
+        email: String(email || "").trim(),
+        options: { emailRedirectTo: market().pagePath("account-login.html") }
+      });
+      if (res.error && errCode(res.error) === "rate_limited") {
+        return { ok: false, code: "rate_limited" };
+      }
+      return { ok: true };
+    } catch (e) {
+      if (errCode(e) === "network") return { ok: false, code: "network" };
+      return { ok: true };
+    }
+  }
+
+  async function getSession() {
+    try {
+      var res = await sb().auth.getSession();
+      return (res.data && res.data.session) || null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /* O usuário do auth — identidade. Distinto do perfil, que é dado de
+     loja. `getUser()` (abaixo) junta os dois. */
+  async function getAuthUser() {
+    try {
+      var res = await sb().auth.getUser();
+      return (res.data && res.data.user) || null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  async function isLoggedIn() {
+    return !!(await getSession());
+  }
+
+  /* ---- O perfil ----
+
+     Devolve null para deslogado, e também para logado-sem-linha (conta
+     excluída: a policy de SELECT exige deleted_at IS NULL, então a linha
+     some mesmo com JWT ainda válido no browser).
+
+     `email` vem SEMPRE de auth.users, nunca da coluna espelho de
+     customer_profiles: a coluna é editável pelo dono da linha e existe só
+     para a Function de exclusão e relatórios. Autenticar ou mandar e-mail
+     com base nela seria confiar num campo que o usuário escreve. */
+  async function getUser(opts) {
+    if ((opts && opts.fresh) === true) invalidateProfileCache();
+    if (profileCache) return profileCache;
+    if (profileCachePromise) return profileCachePromise;
+
+    profileCachePromise = (async function () {
+      var authUser = await getAuthUser();
+      if (!authUser) return null;
+
+      var res = await sb()
+        .from("customer_profiles")
+        .select("*")
+        .eq("user_id", authUser.id)
+        .maybeSingle();
+
+      if (res.error || !res.data) return null;
+
+      var profile = Object.assign({}, res.data, {
+        email: authUser.email,
+        authId: authUser.id,
+        emailConfirmed: !!authUser.email_confirmed_at,
+        memberSince: res.data.created_at
+      });
+
+      /* NÃO sincronizamos o espelho `email` daqui. Desde a revisão de
+         11/09 o browser não tem privilégio de UPDATE nessa coluna (GRANT
+         por coluna na migration 0002), e é o desenho certo: a troca de
+         e-mail pertence ao GoTrue, com confirmação por link.
+
+         Consequência a saber: `customer_profiles.email` é um RETRATO DO
+         CADASTRO, gravado uma vez pelo trigger. Depois de uma troca de
+         e-mail confirmada, ele fica defasado. Isso não afeta nada hoje —
+         `email` acima já vem de auth.users, que é a fonte da verdade, e a
+         Function de exclusão sobrescreve a coluna com a secret key. Se um
+         dia a coluna precisar ser confiável (relatório, busca por e-mail),
+         a saída é um trigger em auth.users AFTER UPDATE OF email, não
+         devolver a escrita ao browser. */
+
+      profileCache = profile;
+      return profile;
+    })();
+
+    return profileCachePromise;
+  }
+
+  /* UPDATE no perfil. Só as colunas da whitelist atravessam. */
+  async function updateUser(patch) {
+    patch = patch || {};
+    var clean = {};
+    Object.keys(patch).forEach(function (k) {
+      if (WRITABLE.indexOf(k) > -1) clean[k] = patch[k];
+    });
+    if (!Object.keys(clean).length) return { ok: true, ignored: Object.keys(patch) };
+
+    try {
+      var authUser = await getAuthUser();
+      if (!authUser) return { ok: false, code: "not_authenticated" };
+
+      var res = await sb()
+        .from("customer_profiles")
+        .update(clean)
+        .eq("user_id", authUser.id)
+        .select()
+        .maybeSingle();
+
+      if (res.error) return fail(res.error);
+      invalidateProfileCache();
+      return { ok: true, profile: res.data };
+    } catch (e) {
+      return fail(e);
+    }
+  }
+
+  /* ---- IDs de jogo salvos (coluna linked_accounts, jsonb) ----
+
+     Leitura-modificação-escrita do array inteiro. Duas abas editando ao
+     mesmo tempo fazem a última ganhar; é aceitável para o volume disto
+     (um usuário mexendo no próprio perfil) e o custo de resolver seria
+     uma tabela filha, que a migration explica por que não existe. */
+
+  async function getLinkedAccounts() {
+    var u = await getUser();
+    return (u && u.linked_accounts) || [];
+  }
+
+  async function getLinkedAccountsForProduct(productId) {
+    var list = await getLinkedAccounts();
+    return list.filter(function (a) { return a.productId === productId; });
+  }
+
+  async function addLinkedAccount(entry) {
+    var list = (await getLinkedAccounts()).slice();
+    list.push(Object.assign({
       id: "acc-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
       createdAt: new Date().toISOString()
-    }, entry);
-    list.push(full);
-    return updateUser({ linkedAccounts: list });
+    }, entry));
+    return updateUser({ linked_accounts: list });
   }
 
-  function removeLinkedAccount(id) {
-    var list = getLinkedAccounts().filter(function (a) { return a.id !== id; });
-    return updateUser({ linkedAccounts: list });
+  async function removeLinkedAccount(id) {
+    var list = (await getLinkedAccounts()).filter(function (a) { return a.id !== id; });
+    return updateUser({ linked_accounts: list });
+  }
+
+  /* ---- Exclusão de conta (LGPD) ----
+
+     O browser não consegue fazer isto sozinho: apagar de auth.users exige
+     a secret key, que nunca pode chegar ao front. Vai para a Netlify
+     Function, que valida o JWT e opera server-side.
+     Ver netlify/functions/account-delete.mjs. */
+  async function deleteAccount() {
+    try {
+      var session = await getSession();
+      if (!session) return { ok: false, code: "not_authenticated" };
+
+      var res = await fetch("/.netlify/functions/account-delete", {
+        method: "POST",
+        headers: {
+          "Authorization": "Bearer " + session.access_token,
+          "Content-Type": "application/json"
+        }
+      });
+
+      if (!res.ok) {
+        var body = null;
+        try { body = await res.json(); } catch (e) { /* corpo vazio serve */ }
+        return { ok: false, code: (body && body.code) || "delete_failed" };
+      }
+
+      await signOut();
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, code: "network" };
+    }
+  }
+
+  /* Pacote de dados do titular (LGPD, "baixar meus dados"). Perfil vem do
+     servidor; pedidos vêm do localStorage enquanto a Fase 2 não chega —
+     e o JSON diz isso, para quem receber o arquivo não achar que o
+     histórico é completo. */
+  async function exportUserData() {
+    var profile = await getUser({ fresh: true });
+    return {
+      exportedAt: new Date().toISOString(),
+      market: market().key,
+      profile: profile,
+      orders: getOrders(),
+      notes: {
+        orders: "Pedidos ainda são locais a este navegador (Fase 2 os move para o servidor). Este arquivo reflete apenas este dispositivo.",
+        profile: "Perfil vem de public.customer_profiles. O e-mail é o de auth.users."
+      }
+    };
   }
 
   function statusLabel(status) {
     return { completed: "Concluído", processing: "Processando", failed: "Falhou" }[status] || status;
   }
 
-  /* ---------------- Offerwall (rewarded offers / "página de campanha") ----------------
-     Prototype only — there's no real TyrAds (or other rewarded-traffic partner)
-     integration yet. Offers come from shared/data/offers.js
-     (window.RECARGA_SEED_OFFERS), same seed pattern as orders. Completed offer
-     IDs are stored on the user object (same spot linkedAccounts lives) so they
-     survive across pages. completeOffer() does NOT verify anything with a real
-     partner — that's the seam for the TyrAds postback/callback once that
-     integration exists (see campaign.html and
-     claude/campaign-offerwall-context.md in the project for background). */
+  /* ---------------- Offerwall e cupons ----------------
+     Sem mudança. Ambos estão OCULTOS desde a Fase 0 (campaign.html virou
+     redirect; o campo de cupom tem display:none e o desconto está
+     neutralizado). Ficam aqui porque nada os chama — apagar seria mexer
+     em código morto sem necessidade.
 
-  function getOffers() {
-    return global.RECARGA_SEED_OFFERS || [];
-  }
+     completeOffer continua sem verificação nenhuma. Se um dia o offerwall
+     voltar para dentro do site, ele precisa de postback server-side
+     ANTES de creditar qualquer coisa. */
 
-  function getOfferById(id) {
-    return getOffers().find(function (o) { return o.id === id; });
-  }
-
-  function getCompletedOfferIds() {
-    var u = getUser();
-    return (u && u.completedOfferIds) || [];
-  }
-
-  function completeOffer(id) {
-    // TODO: this should only run after a real verification step (TyrAds
-    // postback/callback confirming the offer was actually completed) —
-    // today it just marks it done locally so the page has something to show.
-    var ids = getCompletedOfferIds().slice();
-    if (ids.indexOf(id) === -1) {
-      ids.push(id);
-      updateUser({ completedOfferIds: ids });
-    }
-    return ids;
-  }
-
-  /* ---------------- Coupons (demo only — see shared/data/coupons.js) ---------------- */
-
-  function getCoupons() {
-    return global.RECARGA_SEED_COUPONS || [];
-  }
+  function getOffers() { return global.RECARGA_SEED_OFFERS || []; }
+  function getOfferById(id) { return getOffers().find(function (o) { return o.id === id; }); }
+  function getCoupons() { return global.RECARGA_SEED_COUPONS || []; }
 
   function getCouponByCode(code) {
     if (!code) return null;
@@ -241,32 +640,48 @@
   }
 
   global.RecargaStore = {
+    /* síncronos */
     getParam: getParam,
-    formatBRL: formatBRL,
+    formatMoney: formatMoney,
     formatDate: formatDate,
     getProducts: getProducts,
     getProductById: getProductById,
     relatedProducts: relatedProducts,
+    statusLabel: statusLabel,
+
+    /* pedidos — localStorage, síncronos, FASE 2 */
     getOrders: getOrders,
     getOrderById: getOrderById,
     createOrder: createOrder,
     completeOrder: completeOrder,
     generateOrderId: generateOrderId,
     generateRedeemCode: generateRedeemCode,
-    getUser: getUser,
+
+    /* sessão e perfil — ASSÍNCRONOS */
+    signUp: signUp,
+    signIn: signIn,
+    signOut: signOut,
+    resetPassword: resetPassword,
+    updatePassword: updatePassword,
+    verifySignupCode: verifySignupCode,
+    verifyRecoveryCode: verifyRecoveryCode,
+    resendCode: resendCode,
+    updateEmail: updateEmail,
+    getSession: getSession,
+    getAuthUser: getAuthUser,
     isLoggedIn: isLoggedIn,
-    login: login,
-    logout: logout,
+    getUser: getUser,
     updateUser: updateUser,
     getLinkedAccounts: getLinkedAccounts,
     getLinkedAccountsForProduct: getLinkedAccountsForProduct,
     addLinkedAccount: addLinkedAccount,
     removeLinkedAccount: removeLinkedAccount,
-    statusLabel: statusLabel,
+    deleteAccount: deleteAccount,
+    exportUserData: exportUserData,
+
+    /* ocultos desde a Fase 0 */
     getOffers: getOffers,
     getOfferById: getOfferById,
-    getCompletedOfferIds: getCompletedOfferIds,
-    completeOffer: completeOffer,
     getCoupons: getCoupons,
     getCouponByCode: getCouponByCode
   };

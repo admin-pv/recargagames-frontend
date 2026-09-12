@@ -241,6 +241,28 @@
     html { scroll-behavior: auto; }
     *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
   }
+
+  /* ── Fase 1: SSO oculto — não removido ──
+     Nenhum provider OAuth está configurado no Supabase (Authentication →
+     Providers só tem Email ligado). Os botões chamavam RecargaStore.login()
+     falso, que deixou de existir. Reaparecem quando houver provider real:
+     apagar esta regra e ligar o signInWithOAuth no script. */
+  .divider, .sso-row { display: none !important; }
+
+  /* Fase 1: a dica "mínimo 8 caracteres" deixa de ser aviso permanente e vira
+     confirmação assim que a regra é atendida. Antes ficava lá, idêntica, com
+     8 ou com 40 caracteres — o usuário não tinha como saber se já servia. */
+  .field-label .opt.is-ok { color: var(--lime); font-weight: 800; }
+
+  /* Fase 1: campo de código de 6 dígitos. Monoespaçado e espaçado porque
+     conferir dígito a dígito contra o e-mail é o que a pessoa faz aqui. */
+  .otp-form { text-align: left; margin: 0 0 14px; }
+  .otp-input {
+    font-family: 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 26px; font-weight: 700; letter-spacing: .38em;
+    text-align: center; padding-left: .38em;
+  }
+  .otp-input::placeholder { letter-spacing: .38em; color: #3B3A4A; }
 </style>
 </head>
 <body data-page="onboarding">
@@ -289,6 +311,10 @@
 
         <!-- STEP 0 — ACCOUNT -->
         <div class="onboarding-step is-active" data-step="0">
+          <!-- Fase 1: erros reais do Supabase aparecem aqui. Preenchido por
+               authMessage() no script; o texto vive na página (e não no
+               store.js) porque copy é i18n, e i18n é a Fase 1b. -->
+          <div id="authAlert" role="alert" style="display:none;margin:0 0 16px;padding:12px 14px;border-radius:12px;font-size:13.5px;font-weight:700;line-height:1.5;"></div>
           <div class="auth-tabs" role="tablist" aria-label="Entrar ou criar conta">
             <button class="auth-tab" type="button" data-tab="login" role="tab" aria-selected="true">Entrar</button>
             <button class="auth-tab" type="button" data-tab="signup" role="tab" aria-selected="false">Criar conta</button>
@@ -329,7 +355,7 @@
                 <p class="field-error">Digite um e-mail válido.</p>
               </div>
               <div class="field-group">
-                <label class="field-label" for="signupPassword">Senha <span class="field-required">*</span> <span class="opt">mínimo 8 caracteres</span></label>
+                <label class="field-label" for="signupPassword">Senha <span class="field-required">*</span> <span class="opt" id="signupPwHint">mínimo 8 caracteres</span></label>
                 <div class="input-wrap">
                   <input class="field-input has-toggle" id="signupPassword" type="password" placeholder="Crie uma senha" autocomplete="new-password" minlength="8" required>
                   <button class="pw-toggle" type="button" data-toggle-for="signupPassword" aria-label="Mostrar senha">
@@ -338,6 +364,19 @@
                 </div>
                 <div class="pw-strength"><span id="pwStrengthBar"></span></div>
                 <p class="field-error">A senha precisa ter pelo menos 8 caracteres.</p>
+              </div>
+              <!-- Fase 1: confirmação no cadastro. A senha vai mascarada e o
+                   erro de digitação só apareceria no primeiro login, depois de
+                   o e-mail já ter sido confirmado — caro de descobrir tarde. -->
+              <div class="field-group">
+                <label class="field-label" for="signupPasswordConfirm">Confirmar senha <span class="field-required">*</span></label>
+                <div class="input-wrap">
+                  <input class="field-input has-toggle" id="signupPasswordConfirm" type="password" placeholder="Repita a senha" autocomplete="new-password" required>
+                  <button class="pw-toggle" type="button" data-toggle-for="signupPasswordConfirm" aria-label="Mostrar senha">
+                    <svg viewBox="0 0 20 20" fill="none"><path d="M2 10s3-6 8-6 8 6 8 6-3 6-8 6-8-6-8-6Z" stroke="currentColor" stroke-width="1.5"/><circle cx="10" cy="10" r="2.3" stroke="currentColor" stroke-width="1.5"/></svg>
+                  </button>
+                </div>
+                <p class="field-error">As senhas não coincidem.</p>
               </div>
               <label class="check-row">
                 <input type="checkbox" id="termsAccept" required>
@@ -365,9 +404,85 @@
           <div id="forgotSent" style="display:none;text-align:center;padding:6px 0 2px;">
             <div class="success-check"><svg viewBox="0 0 24 24" fill="none"><path d="m6 12 4 4 8-9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
             <h2 class="step-title" style="font-size:20px;">Verifique seu e-mail</h2>
-            <p class="step-sub" style="margin-bottom:20px;">Se existir uma conta com <strong id="forgotSentEmail" style="color:var(--warm)"></strong>, enviamos um link para redefinir a senha em alguns minutos.</p>
+            <p class="step-sub" style="margin-bottom:20px;">Se existir uma conta com <strong id="forgotSentEmail" style="color:var(--warm)"></strong>, enviamos um código de 6 dígitos em alguns minutos. Ele vale por 1 hora.</p>
+            <form class="otp-form" data-otp="recovery" novalidate>
+              <div class="field-group">
+                <label class="field-label" for="recoveryOtp">Código de 6 dígitos</label>
+                <!-- inputmode + autocomplete="one-time-code" faz o iOS oferecer
+                     o código direto da notificação, sem copiar e colar. -->
+                <input class="field-input otp-input" id="recoveryOtp" type="text"
+                       inputmode="numeric" autocomplete="one-time-code"
+                       pattern="[0-9]*" maxlength="6" placeholder="000000"
+                       aria-describedby="recoveryOtpErr" required>
+                <p class="field-error" id="recoveryOtpErr">Código inválido ou expirado.</p>
+              </div>
+              <button class="cta-primary" type="submit">Confirmar</button>
+              <button class="cta-quiet" type="button" data-resend="recovery">Reenviar código</button>
+            </form>
             <button class="cta-quiet" type="button" id="backToLoginBtn2">Voltar para login</button>
           </div>
+
+          <!-- Fase 1: o cadastro termina na caixa de entrada, não na sessão.
+               "Confirm email" está ligado no Supabase, então signUp() não
+               devolve sessão — sem esta tela, a pessoa clicaria em "Criar
+               conta" e nada aconteceria visivelmente.
+               O texto é o mesmo para e-mail novo e para e-mail já
+               cadastrado, de propósito: qualquer diferença aqui vira um
+               verificador de "esta pessoa é cliente". -->
+          <div id="signupSent" style="display:none;text-align:center;padding:6px 0 2px;">
+            <div class="success-check"><svg viewBox="0 0 24 24" fill="none"><path d="m6 12 4 4 8-9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+            <h2 class="step-title" style="font-size:20px;">Confirme seu e-mail</h2>
+            <p class="step-sub" style="margin-bottom:8px;">Enviamos um código de 6 dígitos para <strong id="signupSentEmail" style="color:var(--warm)"></strong>.</p>
+            <p class="step-sub" style="margin-bottom:20px;">Digite o código abaixo para ativar sua conta. Ele vale por 1 hora — confira também a caixa de spam.</p>
+            <form class="otp-form" data-otp="signup" novalidate>
+              <div class="field-group">
+                <label class="field-label" for="signupOtp">Código de 6 dígitos</label>
+                <!-- inputmode + autocomplete="one-time-code" faz o iOS oferecer
+                     o código direto da notificação, sem copiar e colar. -->
+                <input class="field-input otp-input" id="signupOtp" type="text"
+                       inputmode="numeric" autocomplete="one-time-code"
+                       pattern="[0-9]*" maxlength="6" placeholder="000000"
+                       aria-describedby="signupOtpErr" required>
+                <p class="field-error" id="signupOtpErr">Código inválido ou expirado.</p>
+              </div>
+              <button class="cta-primary" type="submit">Confirmar</button>
+              <button class="cta-quiet" type="button" data-resend="signup">Reenviar código</button>
+            </form>
+            <button class="cta-quiet" type="button" id="backToLoginBtn3">Voltar para login</button>
+          </div>
+
+          <!-- Fase 1: onde o link de "esqueci minha senha" termina.
+               O link do e-mail cria uma sessão e dispara o evento
+               PASSWORD_RECOVERY; sem esta tela o usuário cairia logado na
+               página de login, sem nenhum caminho óbvio para trocar a
+               senha — que era o motivo de ter clicado. -->
+          <form id="recoveryForm" data-panel="recovery" style="display:none" novalidate>
+            <h2 class="step-title" style="font-size:22px;">Escolha uma nova senha</h2>
+            <p class="step-sub">Você chegou pelo link de redefinição. Defina a nova senha abaixo.</p>
+            <div class="field-grid">
+              <div class="field-group">
+                <label class="field-label" for="recoveryPassword">Nova senha <span class="opt" id="recoveryPwHint">mínimo 8 caracteres</span></label>
+                <div class="input-wrap">
+                  <input class="field-input has-toggle" id="recoveryPassword" type="password" placeholder="Crie uma senha" autocomplete="new-password" minlength="8" required>
+                  <button class="pw-toggle" type="button" data-toggle-for="recoveryPassword" aria-label="Mostrar senha">
+                    <svg viewBox="0 0 20 20" fill="none"><path d="M2 10s3-6 8-6 8 6 8 6-3 6-8 6-8-6-8-6Z" stroke="currentColor" stroke-width="1.5"/><circle cx="10" cy="10" r="2.3" stroke="currentColor" stroke-width="1.5"/></svg>
+                  </button>
+                </div>
+                <p class="field-error">A senha precisa ter pelo menos 8 caracteres.</p>
+              </div>
+              <div class="field-group">
+                <label class="field-label" for="recoveryPasswordConfirm">Confirmar nova senha</label>
+                <div class="input-wrap">
+                  <input class="field-input has-toggle" id="recoveryPasswordConfirm" type="password" placeholder="Repita a senha" autocomplete="new-password" required>
+                  <button class="pw-toggle" type="button" data-toggle-for="recoveryPasswordConfirm" aria-label="Mostrar senha">
+                    <svg viewBox="0 0 20 20" fill="none"><path d="M2 10s3-6 8-6 8 6 8 6-3 6-8 6-8-6-8-6Z" stroke="currentColor" stroke-width="1.5"/><circle cx="10" cy="10" r="2.3" stroke="currentColor" stroke-width="1.5"/></svg>
+                  </button>
+                </div>
+                <p class="field-error">As senhas não coincidem.</p>
+              </div>
+            </div>
+            <button class="cta-primary" type="submit">Salvar nova senha</button>
+          </form>
 
           <div class="divider">ou continue com</div>
           <div class="sso-row">
@@ -469,11 +584,24 @@
 
 <script src="shared/data/products.js"></script>
 <script src="shared/data/orders.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script src="shared/js/market.js"></script>
+<script src="shared/js/supabase-client.js"></script>
 <script src="shared/js/store.js"></script>
 <script>
 (function () {
   'use strict';
+
+  /* ── Fase 1: esta página faz auth de verdade ──
+
+     Além de login e cadastro, ela é o CALLBACK de todos os e-mails do
+     Supabase: confirmação de cadastro, redefinição de senha e troca de
+     e-mail voltam todos para cá (ver docs/email-templates/README.md).
+     Por isso o `detectSessionInUrl` do cliente está ligado — ele consome
+     o código da URL sozinho ao carregar.
+
+     Os textos de erro moram aqui, e não no store.js: copy é i18n, e i18n
+     é a Fase 1b. O store devolve códigos; a página traduz. */
 
   var steps = Array.prototype.slice.call(document.querySelectorAll('.onboarding-step'));
   var stepItems = Array.prototype.slice.call(document.querySelectorAll('#stepList li'));
@@ -482,7 +610,65 @@
   var backBtn = document.getElementById('onboardingBack');
   var nextBtn = document.getElementById('onboardingNext');
   var progressBar = document.getElementById('progressBar');
+  var alertBox = document.getElementById('authAlert');
   var current = 0;
+
+  /* ── Mensagens ───────────────────────────────────────────────────────
+     Um código sem tradução cai no texto genérico em vez de vazar o termo
+     em inglês do GoTrue na cara do usuário. */
+  var MESSAGES = {
+    invalid_credentials: 'E-mail ou senha incorretos.',
+    email_not_confirmed: 'Confirme seu e-mail antes de entrar. Procure o link que enviamos — veja também o spam.',
+    email_taken: 'Não foi possível criar a conta com este e-mail.',
+    weak_password: 'A senha precisa ter pelo menos 8 caracteres.',
+    same_password: 'A nova senha precisa ser diferente da atual.',
+    rate_limited: 'Muitas tentativas em pouco tempo. Espere alguns minutos e tente de novo.',
+    network: 'Não conseguimos falar com o servidor. Verifique sua conexão.',
+    not_authenticated: 'Sua sessão expirou. Entre novamente.',
+    otp_invalid: 'Código inválido ou expirado. Peça um novo pelo botão abaixo.',
+    otp_resent: 'Enviamos um código novo. Confira seu e-mail.',
+    unknown: 'Algo deu errado. Tente de novo em instantes.'
+  };
+
+  function showAlert(code, tone) {
+    var ok = tone === 'ok';
+    alertBox.textContent = MESSAGES[code] || MESSAGES.unknown;
+    alertBox.style.display = 'block';
+    alertBox.style.background = ok ? 'rgba(46,204,138,.10)' : 'rgba(255,92,71,.10)';
+    alertBox.style.border = '1px solid ' + (ok ? 'rgba(46,204,138,.34)' : 'rgba(255,92,71,.34)');
+    alertBox.style.color = ok ? '#8FE6C0' : '#FFC1B7';
+  }
+  function clearAlert() { alertBox.style.display = 'none'; alertBox.textContent = ''; }
+
+  function setBusy(form, busy, label) {
+    var btn = form.querySelector('button[type="submit"]');
+    if (!btn) return;
+    if (busy) {
+      btn.dataset.idleLabel = btn.dataset.idleLabel || btn.textContent;
+      btn.textContent = label || 'Aguarde…';
+      btn.disabled = true;
+    } else {
+      btn.textContent = btn.dataset.idleLabel || btn.textContent;
+      btn.disabled = false;
+    }
+  }
+
+  /* ── ?redirect= ───────────────────────────────────────────────────────
+     Só caminho relativo do próprio site. Sem esta checagem,
+     ?redirect=https://site-falso/ transformaria a página de login numa
+     ponte de phishing com o domínio real na barra de endereço —
+     open redirect clássico, e numa tela de credencial é o pior lugar
+     para ter um. Protocolo, barra dupla e host explícito são recusados. */
+  function safeRedirect() {
+    var raw = new URLSearchParams(window.location.search).get('redirect') || '';
+    if (!raw) return 'index.html';
+    if (/^[a-z][a-z0-9+.-]*:/i.test(raw)) return 'index.html';
+    if (raw.indexOf('//') === 0 || raw.indexOf('\\') > -1) return 'index.html';
+    return raw;
+  }
+  function goToDestination() { window.location.href = safeRedirect(); }
+
+  /* ── Wizard de onboarding ── */
 
   function showStep(i) {
     steps.forEach(function (s, idx) { s.classList.toggle('is-active', idx === i); });
@@ -495,9 +681,6 @@
       sp.classList.toggle('active', idx === i);
     });
     progressBar.setAttribute('aria-valuenow', i);
-
-    // Step 0 is the account gate: its own forms carry the primary CTA,
-    // so the shared Back/Continue bar only appears from step 1 onward.
     actions.style.display = i === 0 ? 'none' : 'flex';
     backBtn.style.visibility = i <= 1 ? 'hidden' : 'visible';
     nextBtn.textContent = i === steps.length - 1 ? 'Concluir e ir à loja' : 'Continuar';
@@ -519,43 +702,60 @@
   nextBtn.addEventListener('click', goNext);
   document.getElementById('skipGames').addEventListener('click', goNext);
 
-  function finishOnboarding() {
-    // Field names match account-profile.html's form (name/email/phone/nickname/
-    // language) so RecargaStore.updateUser merges cleanly into the same
-    // localStorage user object that page edits later. "games" is a new
-    // field, not yet read anywhere else, until favorites are wired into
-    // the catalog.
+  /* Grava em public.customer_profiles. Os nomes de campo agora são os das
+     COLUNAS (full_name, marketing_opt_in, favorite_games…), não mais os
+     do objeto solto de localStorage — o store.js tem uma whitelist e
+     descarta silenciosamente o que não for coluna.
+
+     `onboarding_done: true` é o que impede o wizard de reaparecer a cada
+     login. Não há "pular" para esta marcação: quem chega ao fim marcou. */
+  async function finishOnboarding() {
+    nextBtn.disabled = true;
+    nextBtn.textContent = 'Salvando…';
+
     var payload = {
-      name: document.getElementById('onboardingName').value.trim(),
-      email: document.getElementById('onboardingEmail').value.trim(),
+      full_name: document.getElementById('onboardingName').value.trim(),
       phone: document.getElementById('onboardingPhone').value.trim(),
       nickname: document.getElementById('onboardingNickname').value.trim(),
-      language: document.getElementById('onboardingLang').value,
-      marketingOptIn: document.getElementById('marketingOptIn').checked,
-      games: Array.prototype.slice.call(document.querySelectorAll('.choice[aria-pressed="true"]')).map(function (b) {
-        return b.querySelector('strong').textContent;
-      })
+      locale: document.getElementById('onboardingLang').value,
+      marketing_opt_in: document.getElementById('marketingOptIn').checked,
+      favorite_games: Array.prototype.slice.call(
+        document.querySelectorAll('.choice[aria-pressed="true"]')
+      ).map(function (b) { return b.querySelector('strong').textContent; }),
+      onboarding_done: true
     };
-    var hasStore = !!window.RecargaStore;
-    if (hasStore && RecargaStore.updateUser) { try { RecargaStore.updateUser(payload); } catch (err) {} }
-    window.location.href = new URLSearchParams(window.location.search).get('redirect') || 'index.html';
+
+    var res = await RecargaStore.updateUser(payload);
+    if (!res.ok) {
+      /* Não engole o erro. A versão anterior fazia try/catch vazio, o que
+         deixava a pessoa achar que salvou. */
+      nextBtn.disabled = false;
+      nextBtn.textContent = 'Concluir e ir à loja';
+      showStep(0);
+      showAlert(res.code);
+      return;
+    }
+    goToDestination();
   }
 
-  // ── Auth tabs + forgot-password mode ──
-  // 'forgot' and 'forgot-sent' aren't real tabs (no pill for them) — they
-  // replace the tab content in place, same card, so the person never leaves
-  // this page just to reset a password.
+  /* ── Abas e modos ── */
+
   var tabs = Array.prototype.slice.call(document.querySelectorAll('.auth-tab'));
   var panels = { login: document.getElementById('loginForm'), signup: document.getElementById('signupForm') };
   var forgotForm = document.getElementById('forgotForm');
   var forgotSent = document.getElementById('forgotSent');
-  var authChrome = Array.prototype.slice.call(document.querySelectorAll('.auth-tabs, .divider, .sso-row, .guest-note'));
+  var signupSent = document.getElementById('signupSent');
+  var recoveryForm = document.getElementById('recoveryForm');
+  var authChrome = Array.prototype.slice.call(document.querySelectorAll('.auth-tabs, .guest-note'));
 
   function setMode(mode) {
+    clearAlert();
     panels.login.style.display = mode === 'login' ? '' : 'none';
     panels.signup.style.display = mode === 'signup' ? '' : 'none';
     forgotForm.style.display = mode === 'forgot' ? '' : 'none';
     forgotSent.style.display = mode === 'forgot-sent' ? '' : 'none';
+    signupSent.style.display = mode === 'signup-sent' ? '' : 'none';
+    recoveryForm.style.display = mode === 'recovery' ? '' : 'none';
     var isTabMode = mode === 'login' || mode === 'signup';
     authChrome.forEach(function (el) { el.style.display = isTabMode ? '' : 'none'; });
     if (isTabMode) tabs.forEach(function (t) { t.setAttribute('aria-selected', t.dataset.tab === mode ? 'true' : 'false'); });
@@ -566,24 +766,56 @@
   document.getElementById('forgotLink').addEventListener('click', function () { setMode('forgot'); });
   document.getElementById('backToLoginBtn').addEventListener('click', function () { setMode('login'); });
   document.getElementById('backToLoginBtn2').addEventListener('click', function () { setMode('login'); });
+  document.getElementById('backToLoginBtn3').addEventListener('click', function () { setMode('login'); });
 
-  /* No email service exists in this prototype: submitting just shows the
-     confirmation state. A real implementation calls a password-reset API
-     here — and, deliberately, the confirmation message never reveals
-     whether the e-mail actually has an account (avoids leaking which
-     e-mails are registered). */
-  forgotForm.addEventListener('submit', function (e) {
+  function markInvalid(field, invalid) {
+    field.classList.toggle('is-invalid', invalid);
+    var input = field.querySelector('.field-input');
+    if (input) input.setAttribute('aria-invalid', invalid ? 'true' : 'false');
+  }
+
+  /* ── Esqueci minha senha ──
+     A tela de confirmação é IDÊNTICA para e-mail cadastrado e não
+     cadastrado, e o store.js devolve ok:true nos dois casos. Qualquer
+     diferença observável aqui — texto, demora, erro — transformaria esta
+     caixa num verificador de "esta pessoa tem conta na Recarga Games".
+     A única exceção é rate limit, que a pessoa precisa saber para não
+     ficar tentando à toa. */
+  forgotForm.addEventListener('submit', async function (e) {
     e.preventDefault();
+    clearAlert();
     var emailInput = document.getElementById('forgotEmail');
-    var emailField = emailInput.closest('.field-group');
     var emailOk = /\S+@\S+\.\S+/.test(emailInput.value);
-    markInvalid(emailField, !emailOk);
+    markInvalid(emailInput.closest('.field-group'), !emailOk);
     if (!emailOk) return;
-    document.getElementById('forgotSentEmail').textContent = emailInput.value.trim();
+
+    setBusy(forgotForm, true, 'Enviando…');
+    var res = await RecargaStore.resetPassword(emailInput.value.trim());
+    setBusy(forgotForm, false);
+
+    if (!res.ok) { showAlert(res.code); return; }
+    pendingEmail.recovery = emailInput.value.trim();
+    document.getElementById('forgotSentEmail').textContent = pendingEmail.recovery;
     setMode('forgot-sent');
+    document.getElementById('recoveryOtp').focus();
   });
 
-  // ── Password show/hide ──
+  /* ── Nova senha, vinda do link de redefinição ── */
+  recoveryForm.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    clearAlert();
+    var input = document.getElementById('recoveryPassword');
+    if (!recoveryPair.validate()) return;
+
+    setBusy(recoveryForm, true, 'Salvando…');
+    var res = await RecargaStore.updatePassword(input.value);
+    setBusy(recoveryForm, false);
+
+    if (!res.ok) { showAlert(res.code); return; }
+    recoveryPair.reset();
+    goToDestination();
+  });
+
   document.querySelectorAll('.pw-toggle').forEach(function (btn) {
     btn.addEventListener('click', function () {
       var input = document.getElementById(btn.dataset.toggleFor);
@@ -591,8 +823,89 @@
     });
   });
 
-  // ── Password strength (rough heuristic, cosmetic only — real
-  //    strength checks belong server-side) ──
+  /* ── Par senha + confirmação, validado ao digitar ──────────────────────
+
+     Usado no cadastro e no painel de nova senha do reset. Antes a regra só
+     rodava no submit, o que produzia dois problemas relatados no C2: a dica
+     "mínimo 8 caracteres" ficava idêntica com 8 ou com 40 caracteres, e uma
+     confirmação diferente não dizia nada até a pessoa clicar.
+
+     `touched` existe para não acusar erro em campo que a pessoa ainda está
+     preenchendo — o aviso aparece depois do primeiro blur, ou assim que há
+     texto suficiente para a comparação significar alguma coisa.
+
+     Devolve um objeto com validate(), para o submit poder revalidar do
+     zero: botão desabilitado é UX, não checagem — ele some com um clique
+     no DevTools. */
+  function bindPasswordPair(opts) {
+    var pw = document.getElementById(opts.password);
+    var confirm = document.getElementById(opts.confirm);
+    var hint = opts.hint ? document.getElementById(opts.hint) : null;
+    var submit = opts.form.querySelector('button[type="submit"]');
+    var touched = { pw: false, confirm: false };
+    var hintIdle = hint ? hint.textContent : '';
+
+    function state() {
+      return {
+        lenOk: pw.value.length >= 8,
+        matchOk: confirm.value.length > 0 && confirm.value === pw.value
+      };
+    }
+
+    function render() {
+      var st = state();
+      if (hint) {
+        hint.textContent = st.lenOk ? '✓ 8 caracteres ou mais' : hintIdle;
+        hint.classList.toggle('is-ok', st.lenOk);
+      }
+      markInvalid(pw.closest('.field-group'), touched.pw && pw.value.length > 0 && !st.lenOk);
+      markInvalid(confirm.closest('.field-group'), touched.confirm && confirm.value.length > 0 && !st.matchOk);
+      if (submit) submit.disabled = !(st.lenOk && st.matchOk);
+    }
+
+    pw.addEventListener('input', function () { touched.pw = true; render(); });
+    confirm.addEventListener('input', function () { touched.confirm = true; render(); });
+    pw.addEventListener('blur', function () { touched.pw = true; render(); });
+    confirm.addEventListener('blur', function () { touched.confirm = true; render(); });
+    render();
+
+    return {
+      validate: function () {
+        touched.pw = touched.confirm = true;
+        render();
+        var st = state();
+        return st.lenOk && st.matchOk;
+      },
+      reset: function () {
+        pw.value = confirm.value = '';
+        touched.pw = touched.confirm = false;
+        [pw, confirm].forEach(function (el) { markInvalid(el.closest('.field-group'), false); });
+        render();
+      }
+    };
+  }
+
+  /* verifyOtp exige o e-mail junto do código. Guardado aqui quando a
+     pessoa pede o envio, porque a tela de confirmação não tem campo de
+     e-mail — só o código. */
+  var pendingEmail = { signup: '', recovery: '' };
+
+  var signupPair = bindPasswordPair({
+    form: document.getElementById('signupForm'),
+    password: 'signupPassword',
+    confirm: 'signupPasswordConfirm',
+    hint: 'signupPwHint'
+  });
+
+  var recoveryPair = bindPasswordPair({
+    form: document.getElementById('recoveryForm'),
+    password: 'recoveryPassword',
+    confirm: 'recoveryPasswordConfirm',
+    hint: 'recoveryPwHint'
+  });
+
+  /* Medidor de força — cosmético. A regra que vale é a do Supabase
+     (mínimo 8, configurado no painel) e ela roda no servidor. */
   var pwInput = document.getElementById('signupPassword');
   var pwBar = document.getElementById('pwStrengthBar');
   pwInput.addEventListener('input', function () {
@@ -604,88 +917,200 @@
     pwBar.style.background = color;
   });
 
-  // ── Field validation helpers ──
-  function markInvalid(field, invalid) {
-    field.classList.toggle('is-invalid', invalid);
-    var input = field.querySelector('.field-input');
-    if (input) input.setAttribute('aria-invalid', invalid ? 'true' : 'false');
-  }
-
-  document.getElementById('loginForm').addEventListener('submit', function (e) {
+  /* ── Login ── */
+  document.getElementById('loginForm').addEventListener('submit', async function (e) {
     e.preventDefault();
-    var emailField = document.getElementById('loginEmail').closest('.field-group');
-    var pwField = document.getElementById('loginPassword').closest('.field-group');
-    var emailOk = /\S+@\S+\.\S+/.test(document.getElementById('loginEmail').value);
-    var pwOk = document.getElementById('loginPassword').value.length > 0;
-    markInvalid(emailField, !emailOk);
-    markInvalid(pwField, !pwOk);
+    clearAlert();
+    var emailEl = document.getElementById('loginEmail');
+    var pwEl = document.getElementById('loginPassword');
+    var emailOk = /\S+@\S+\.\S+/.test(emailEl.value);
+    var pwOk = pwEl.value.length > 0;
+    markInvalid(emailEl.closest('.field-group'), !emailOk);
+    markInvalid(pwEl.closest('.field-group'), !pwOk);
     if (!emailOk || !pwOk) return;
-    var email = document.getElementById('loginEmail').value.trim();
-    /* NOT REAL AUTH — prototype gap, needs a real backend before launch.
-       The password above is only checked for "not empty" and is never read
-       into this call, never sent anywhere, never compared against anything.
-       Any email + any non-empty password succeeds. There is no signed-in
-       user record beyond {name, email} in localStorage (see
-       RecargaStore.login in shared/js/store.js). Replace this whole block
-       with a real POST /login call; only call RecargaStore.login()
-       (or an equivalent) once that call actually succeeds. */
-    if (window.RecargaStore && typeof window.RecargaStore.login === 'function') {
-      window.RecargaStore.login({ name: email.split('@')[0], email: email });
-    }
-    // Returning users skip straight to the store — the profile wizard
-    // (steps 1-3) is for first-time signups, not every login.
-    window.location.href = new URLSearchParams(window.location.search).get('redirect') || 'index.html';
+
+    setBusy(this, true, 'Entrando…');
+    var res = await RecargaStore.signIn({ email: emailEl.value.trim(), password: pwEl.value });
+    setBusy(this, false);
+
+    if (!res.ok) { showAlert(res.code); pwEl.value = ''; return; }
+    await routeAfterLogin();
   });
 
-  document.getElementById('signupForm').addEventListener('submit', function (e) {
+  /* ── Cadastro ──
+     Termina na caixa de entrada, não na sessão: "Confirm email" está
+     ligado, então não há sessão para abrir o wizard agora. O onboarding
+     acontece no PRIMEIRO LOGIN depois da confirmação (ver
+     routeAfterLogin), que é o que o brief pede. */
+  document.getElementById('signupForm').addEventListener('submit', async function (e) {
     e.preventDefault();
-    var nameField = document.getElementById('signupName').closest('.field-group');
-    var emailField = document.getElementById('signupEmail').closest('.field-group');
-    var pwField = document.getElementById('signupPassword').closest('.field-group');
+    clearAlert();
+    var nameEl = document.getElementById('signupName');
+    var emailEl = document.getElementById('signupEmail');
+    var pwEl = document.getElementById('signupPassword');
     var termsError = document.getElementById('termsError');
-    var nameOk = document.getElementById('signupName').value.trim().length > 0;
-    var emailOk = /\S+@\S+\.\S+/.test(document.getElementById('signupEmail').value);
-    var pwOk = document.getElementById('signupPassword').value.length >= 8;
+    var nameOk = nameEl.value.trim().length > 0;
+    var emailOk = /\S+@\S+\.\S+/.test(emailEl.value);
+    var pwOk = signupPair.validate();   // comprimento E confirmação
     var termsOk = document.getElementById('termsAccept').checked;
-    markInvalid(nameField, !nameOk);
-    markInvalid(emailField, !emailOk);
-    markInvalid(pwField, !pwOk);
+    markInvalid(nameEl.closest('.field-group'), !nameOk);
+    markInvalid(emailEl.closest('.field-group'), !emailOk);
     termsError.style.display = termsOk ? 'none' : 'block';
     if (!nameOk || !emailOk || !pwOk || !termsOk) return;
 
-    var name = document.getElementById('signupName').value.trim();
-    var email = document.getElementById('signupEmail').value.trim();
-    /* NOT REAL AUTH — same gap as loginForm above. Password is validated
-       for length only (>= 8 chars) and is never read into this call or
-       stored anywhere — no account/credential record is created beyond
-       {name, email}. Replace with a real POST /signup call before launch. */
-    if (window.RecargaStore && typeof window.RecargaStore.login === 'function') {
-      window.RecargaStore.login({ name: name, email: email });
+    setBusy(this, true, 'Criando conta…');
+    var res = await RecargaStore.signUp({
+      name: nameEl.value.trim(),
+      email: emailEl.value.trim(),
+      password: pwEl.value
+    });
+    setBusy(this, false);
+
+    if (!res.ok) { showAlert(res.code); return; }
+
+    signupPair.reset();
+    if (res.needsConfirmation) {
+      pendingEmail.signup = emailEl.value.trim();
+      document.getElementById('signupSentEmail').textContent = pendingEmail.signup;
+      setMode('signup-sent');
+      document.getElementById('signupOtp').focus();
+      return;
     }
-    // Prefill the wizard with what we already collected so step 1
-    // never asks the person to retype their own name and email.
-    document.getElementById('onboardingName').value = name;
-    document.getElementById('onboardingEmail').value = email;
-    showStep(1);
+    /* Sem confirmação exigida (config do painel mudou): já há sessão. */
+    await routeAfterLogin();
   });
 
-  // ── Game chip selection ──
   document.querySelectorAll('#gameChoices .choice').forEach(function (btn) {
     btn.addEventListener('click', function () {
       btn.setAttribute('aria-pressed', btn.getAttribute('aria-pressed') === 'true' ? 'false' : 'true');
     });
   });
 
-  // ── SSO buttons (visual only in this prototype) ──
-  document.querySelectorAll('.sso-btn').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      var email = 'jogador@' + btn.dataset.provider + '.com';
-      if (window.RecargaStore && typeof window.RecargaStore.login === 'function') {
-        window.RecargaStore.login({ name: 'Jogador', email: email });
+  /* ── Código de 6 dígitos ──────────────────────────────────────────────
+     Um par de handlers serve as duas telas; o que muda é o `type` do
+     verifyOtp e para onde ir no sucesso.
+
+     Sucesso cria sessão nos dois casos. Em 'signup' isso é o login; em
+     'recovery' é a janela em que a pessoa pode escolher a senha nova —
+     por isso o destino é o painel de nova senha, não a loja. */
+  document.querySelectorAll('.otp-form').forEach(function (form) {
+    var kind = form.dataset.otp;                     // 'signup' | 'recovery'
+    var input = form.querySelector('.otp-input');
+
+    /* Só dígitos, e no máximo 6. Colar "123 456" ou "código: 123456"
+       vindo do e-mail funciona sem a pessoa ter que limpar na mão. */
+    input.addEventListener('input', function () {
+      var clean = input.value.replace(/\D/g, '').slice(0, 6);
+      if (clean !== input.value) input.value = clean;
+      markInvalid(input.closest('.field-group'), false);
+    });
+
+    form.addEventListener('submit', async function (e) {
+      e.preventDefault();
+      clearAlert();
+      var code = input.value.replace(/\D/g, '');
+      if (code.length !== 6) {
+        markInvalid(input.closest('.field-group'), true);
+        input.focus();
+        return;
       }
-      showStep(1);
+
+      setBusy(form, true, 'Confirmando…');
+      var res = kind === 'signup'
+        ? await RecargaStore.verifySignupCode(pendingEmail.signup, code)
+        : await RecargaStore.verifyRecoveryCode(pendingEmail.recovery, code);
+      setBusy(form, false);
+
+      if (!res.ok) {
+        markInvalid(input.closest('.field-group'), true);
+        showAlert(res.code === 'unknown' ? 'otp_invalid' : res.code);
+        input.select();
+        return;
+      }
+
+      input.value = '';
+      if (kind === 'signup') {
+        await routeAfterLogin();
+      } else {
+        /* Sessão de recuperação aberta: a pessoa escolhe a senha agora. */
+        setMode('recovery');
+      }
     });
   });
+
+  document.querySelectorAll('[data-resend]').forEach(function (btn) {
+    btn.addEventListener('click', async function () {
+      var kind = btn.dataset.resend;
+      var email = pendingEmail[kind];
+      if (!email) { setMode(kind === 'signup' ? 'signup' : 'forgot'); return; }
+
+      btn.disabled = true;
+      var idle = btn.textContent;
+      btn.textContent = 'Enviando…';
+      var res = await RecargaStore.resendCode(kind, email);
+      btn.textContent = idle;
+      btn.disabled = false;
+
+      /* Neutro por desenho: o store devolve ok:true também para e-mail
+         inexistente. A única falha que a tela mostra é rate limit, que
+         diz "houve tentativas recentes", não "este e-mail é cliente". */
+      showAlert(res.ok ? 'otp_resent' : res.code, res.ok ? 'ok' : 'erro');
+    });
+  });
+
+  /* ── Para onde ir depois de autenticar ──
+     O wizard aparece a quem ainda não o completou, independente de ser
+     cadastro ou login. É o que o brief pede, e é a consequência direta de
+     o cadastro terminar na confirmação de e-mail: não existe mais um
+     momento "logo após criar a conta" em que a sessão esteja aberta. */
+  async function routeAfterLogin() {
+    var profile = await RecargaStore.getUser({ fresh: true });
+
+    if (profile && profile.onboarding_done === false) {
+      document.getElementById('onboardingName').value = profile.full_name || '';
+      document.getElementById('onboardingEmail').value = profile.email || '';
+      document.getElementById('onboardingPhone').value = profile.phone || '';
+      showStep(1);
+      return;
+    }
+    goToDestination();
+  }
+
+  /* ── Boot ──
+     O cliente consome o código da URL sozinho (detectSessionInUrl).
+
+     O tratamento de PASSWORD_RECOVERY continua aqui, mas desde 12/09 ele
+     é caminho MORTO para o fluxo normal: cadastro e reset passaram a usar
+     código de 6 dígitos e os templates não mandam mais link nenhum. Foi
+     mantido de propósito, por dois motivos — links antigos, enviados antes
+     da troca, ainda podem chegar em alguma caixa de entrada; e a troca de
+     e-mail (change-email) segue por link e dispara o mesmo evento.
+     Apagar isto só quando aquele template também virar OTP. */
+  var settled = false;
+  var authEvent = new Promise(function (resolve) {
+    window.sb.auth.onAuthStateChange(function (event) {
+      if (settled) return;
+      if (event === 'PASSWORD_RECOVERY') { settled = true; resolve('recovery'); }
+      else if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') { settled = true; resolve(event); }
+    });
+    /* Rede lenta ou evento que não vem: a página não pode ficar em
+       branco. Segue como visita normal. */
+    setTimeout(function () { if (!settled) { settled = true; resolve('timeout'); } }, 2500);
+  });
+
+  (async function boot() {
+    var event = await authEvent;
+
+    if (event === 'recovery') { setMode('recovery'); return; }
+
+    var session = await RecargaStore.getSession();
+    if (!session) { setMode('login'); return; }
+
+    /* Já logado ao abrir a página. Dois casos: acabou de confirmar o
+       e-mail pelo link (e precisa do onboarding), ou já era cliente e
+       digitou o endereço à toa. routeAfterLogin decide. */
+    await routeAfterLogin();
+  })();
 })();
 </script>
 </body>
