@@ -218,7 +218,25 @@ falhas. Evolução futura, não mapear agora.
 
 ---
 
-## 6. Chaves e ambiente
+## 6. Taxa do meio de pagamento (D2)
+
+Fonte: `payment_methods` do país, linha ativa do método. As colunas
+reais (bloco 0, 13/09) são `transaction_cost_percent` (numeric, em %) e
+`fixed_cost` (numeric, **em reais**), e não `pct`/`fixed_cost_cents` como
+dizia o brief.
+
+```
+fee_cents = round(amount_cents * transaction_cost_percent / 100)
+          + round(fixed_cost * 100)
+```
+
+A conversão de `fixed_cost` para centavos acontece na Function, uma vez;
+nada de float sai dela. No lançamento a taxa é **absorvida**: vai para
+`orders.fee_cents` como custo e não é somada a `amount_cents`.
+
+---
+
+## 7. Chaves e ambiente
 
 | Function | `PROXY_URL` | `PROXY_ADMIN_KEY` | `LAPAK_ENV` |
 |---|---|---|---|

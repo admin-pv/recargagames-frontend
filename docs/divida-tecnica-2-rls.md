@@ -125,9 +125,39 @@ positiva) para `authenticated`, policy `orders_select_own`
 (`user_id = auth.uid() AND channel = 'storefront'`) e nenhuma policy de
 escrita. Escrita só pelas Netlify Functions, com a secret key.
 
-**O que o bloco 0 encontrou:** _pendente, preencher com a saída de
-`docs/fase2-bloco0.sql` (queries 0a–0d: RLS, policies, grants de tabela e
-de coluna)._
+### 🔴 Achado do bloco 0 (13/09): `orders` com privilégio total para anon/authenticated
+
+Saída de `docs/fase2-bloco0.sql`:
+
+- **0c:** `anon` e `authenticated` tinham **todos** os privilégios de
+  tabela em `orders`: `SELECT`, `INSERT`, `UPDATE`, `DELETE`, `TRUNCATE`,
+  `REFERENCES`, `TRIGGER`.
+- **0d:** os dois papéis tinham também `INSERT`/`SELECT`/`UPDATE`/`REFERENCES`
+  nas 19 colunas.
+- **0a/0b:** RLS ligada, com 3 policies, todas para `authenticated` e
+  nenhuma com `true`: `orders_admin_read_all` (SELECT `is_admin()`),
+  `orders_admin_write` (ALL `is_admin()`) e `orders_read_own` (SELECT
+  `auth.uid() = user_id`).
+
+**Leitura:** o que impedia um visitante com a publishable key de
+escrever ou apagar pedidos era **só a RLS**. Não houve exposição, porque
+nenhuma policy abria para anon e as de escrita exigem `is_admin()`. Mas
+era uma tranca só: uma policy permissiva criada por engano, em qualquer
+repo, abriria `orders` na hora. É a mesma classe de problema do achado de
+11/09 em `profiles`.
+
+**Remediação:** a própria 0003 (decisão do Vinicius). `REVOKE ALL` de
+`anon` e `authenticated`, `SELECT` por coluna em lista positiva e troca
+de `orders_read_own` por `orders_select_own` com filtro de canal.
+
+**Achado junto (P4):** `orders.user_id` tinha FK para `profiles(id)` (a
+identidade do admin) com `ON DELETE CASCADE`. A 0003 troca para
+`auth.users(id) ON DELETE SET NULL`; o porquê está na migration.
+
+**Vale conferir nas outras tabelas:** se `orders` herdou o GRANT amplo
+padrão do Supabase, as outras tabelas de `public` criadas fora das
+migrations deste repo provavelmente também têm. Rodar o 0c por tabela
+faz parte da revisão tabela a tabela do checklist abaixo.
 
 ### Efeito colateral aceito: aba Pedidos do admin passa a dar 401
 
