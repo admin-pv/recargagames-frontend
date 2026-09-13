@@ -15,6 +15,15 @@
 # ══════════════════════════════════════════════════════════════════════════
 
 
+# ── 0. API do storefront → Netlify Functions ──────────────────────────────
+# Fase 2. Uma linha por Function, e não /api/*: arquivo novo em
+# netlify/functions/ não vira endpoint público sem alguém escrever a rota.
+# Fica fora do gate: o gate só casa com /br, /br/* e /_gate/auth. O
+# catálogo é o que a vitrine já mostra; rota que mexe em dado de cliente
+# exige JWT dentro da própria Function.
+/api/catalog  /.netlify/functions/catalog  200!
+
+
 # ── 1. /app/ não é endereço público ───────────────────────────────────────
 # O frontend mora em /app/, mas quem gateia é a Edge Function e ela só casa
 # com /br, /br/* e /_gate/auth (netlify/edge-functions/gate.ts). Sem esta

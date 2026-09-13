@@ -5,6 +5,8 @@
            senha nenhuma.
    FASE 1: SESSÃO e PERFIL passam a ser Supabase Auth + a tabela
            public.customer_profiles. PEDIDOS continuam em localStorage.
+   FASE 2: CATÁLOGO vem de /api/catalog e é ASSÍNCRONO; dinheiro em
+           CENTAVOS inteiros. PEDIDOS saem do localStorage no C3.
 
    >>> A MUDANÇA QUE QUEBRA CHAMADOR: as funções de sessão e perfil agora
        são ASSÍNCRONAS. getUser(), isLoggedIn(), updateUser() e as de
@@ -47,40 +49,99 @@
   }
 
   /* Delegam para market.js, que é quem conhece locale e moeda.
-     `formatBRL` sumiu de propósito: o nome afirmava um mercado. */
-  function formatMoney(value) { return market().formatMoney(value); }
+     `formatBRL` sumiu de propósito: o nome afirmava um mercado.
+
+     FASE 2: `formatMoney` recebe CENTAVOS INTEIROS (4990 → R$ 49,90).
+     Ver o comentário em caixa alta no market.js. */
+  function formatMoney(cents) { return market().formatMoney(cents); }
   function formatDate(iso) { return market().formatDate(iso, { separator: " às " }); }
 
-  /* ---------------- Catálogo (estático — vira backend na Fase 2) ---------------- */
+  /* ================================================================
+     CATÁLOGO — FASE 2: /api/catalog, ASSÍNCRONO
+
+     >>> QUEBRA CHAMADOR: getProducts(), getProductById() e
+         relatedProducts() devolvem Promise. <<<
+
+     Fonte: netlify/functions/catalog.mjs, que cruza o que o admin
+     publicou (price_benchmarks) com a disponibilidade na Lapak. Preço em
+     `priceCents`, inteiro.
+
+     Falha (503, rede, JSON inesperado) REJEITA a Promise com
+     `err.code === 'catalog_unavailable'`. A página mostra "catálogo
+     indisponível, tente de novo". Não há fallback para products.js, e não
+     pode haver: seria vender com preço velho.
+
+     Cache: uma Promise por carregamento de página. Uma falha limpa a
+     cache, para a próxima chamada tentar de novo.
+     ================================================================ */
+
+  var catalogPromise = null;
+
+  function catalogError(detail) {
+    var e = new Error("catalog_unavailable");
+    e.code = "catalog_unavailable";
+    e.detail = detail;
+    return e;
+  }
+
+  /* O catálogo não tem cor de marca nem sigla curta; as páginas do
+     fornecedor usam as duas para o "logo" de texto. Defaults aqui, num
+     lugar só, em vez de `|| '#F5700A'` espalhado. */
+  function normalizeProduct(p) {
+    return Object.assign({ color: null }, p, {
+      short: p.short || String(p.name || "?").slice(0, 3).toUpperCase()
+    });
+  }
+
+  function loadCatalog() {
+    if (catalogPromise) return catalogPromise;
+    var url = "/api/catalog?country=" + encodeURIComponent(market().key);
+    catalogPromise = fetch(url, { headers: { Accept: "application/json" } })
+      .then(function (res) {
+        if (!res.ok) throw catalogError("http_" + res.status);
+        return res.json();
+      })
+      .then(function (body) {
+        if (!body || !Array.isArray(body.products)) throw catalogError("shape");
+        return body.products.map(normalizeProduct);
+      })
+      .catch(function (e) {
+        catalogPromise = null;
+        throw e && e.code === "catalog_unavailable" ? e : catalogError("network");
+      });
+    return catalogPromise;
+  }
 
   function getProducts() {
-    return global.RECARGA_PRODUCTS || [];
+    return loadCatalog();
   }
 
-  function getProductById(id) {
-    return getProducts().find(function (p) { return p.id === id; });
+  async function getProductById(id) {
+    var list = await loadCatalog();
+    return list.find(function (p) { return p.id === id; }) || null;
   }
 
-  function relatedProducts(product, max) {
+  /* Sem `related` no catálogo: destaque e popular primeiro, depois a
+     ordem do admin (display_order, que a Function já respeita). */
+  async function relatedProducts(product, max) {
     if (!product) return [];
-    var ids = product.related || [];
-    var list = ids.map(getProductById).filter(Boolean);
-    if (list.length < (max || 5)) {
-      getProducts().forEach(function (p) {
-        if (list.length >= (max || 5)) return;
-        if (p.id !== product.id && ids.indexOf(p.id) === -1) list.push(p);
-      });
-    }
-    return list.slice(0, max || 5);
+    var list = await loadCatalog();
+    var limit = max || 5;
+    return list
+      .filter(function (p) { return p.id !== product.id; })
+      .map(function (p, i) { return { p: p, i: i, w: (p.featured ? 2 : 0) + (p.popular ? 1 : 0) }; })
+      .sort(function (a, b) { return b.w - a.w || a.i - b.i; })
+      .slice(0, limit)
+      .map(function (x) { return x.p; });
   }
 
   /* ================================================================
-     PEDIDOS — FASE 2.
+     PEDIDOS — AINDA localStorage ATÉ O C3 DA FASE 2.
 
-     Continuam inteiros em localStorage, síncronos, exatamente como o
-     fornecedor entregou. Não foram tocados nesta fase de propósito:
-     misturar a troca de auth com a troca de pedidos dobraria a
-     superfície de um checkpoint só.
+     Continuam em localStorage, síncronos, exatamente como o fornecedor
+     entregou. Saem no C3, quando orders-create e a leitura por RLS
+     entrarem. Até lá, um ajuste de transição: `amount` passa a sair
+     em CENTAVOS (ver inCents).
 
      Consequências que valem saber enquanto isto for verdade:
        - os pedidos são do BROWSER, não da conta. Trocar de usuário na
@@ -107,14 +168,23 @@
     try { localStorage.setItem(LS_ORDERS, JSON.stringify(list)); } catch (e) { /* storage unavailable */ }
   }
 
+  /* Transição do C2: pedidos antigos (seed e os criados antes da Fase 2)
+     guardam `amount` em reais, float. As páginas agora formatam centavos,
+     então a leitura converte. Pedido novo já nasce com amountUnit:'cents'.
+     Some junto com o localStorage no C3. */
+  function inCents(o) {
+    if (!o || o.amountUnit === "cents") return o;
+    return Object.assign({}, o, { amount: Math.round(Number(o.amount || 0) * 100), amountUnit: "cents" });
+  }
+
   function getOrders() {
-    return readOrdersRaw().slice().sort(function (a, b) {
+    return readOrdersRaw().map(inCents).sort(function (a, b) {
       return new Date(b.createdAt) - new Date(a.createdAt);
     });
   }
 
   function getOrderById(id) {
-    return readOrdersRaw().find(function (o) { return o.id === id; });
+    return inCents(readOrdersRaw().find(function (o) { return o.id === id; }));
   }
 
   function generateOrderId() {
@@ -149,11 +219,10 @@
     if (order) {
       order.status = "completed";
       order.completedAt = new Date().toISOString();
-      if (!order.code) {
-        var product = getProductById(order.productId);
-        if (product && (product.type === "code" || product.type === "giftcard")) {
-          order.code = generateRedeemCode();
-        }
+      /* `productType` gravado na criação: o catálogo agora é assíncrono e
+         esta função continua síncrona até sair, no C3. */
+      if (!order.code && (order.productType === "code" || order.productType === "giftcard")) {
+        order.code = generateRedeemCode();
       }
       writeOrdersRaw(list);
     }
@@ -642,14 +711,16 @@
   global.RecargaStore = {
     /* síncronos */
     getParam: getParam,
-    formatMoney: formatMoney,
+    formatMoney: formatMoney,      // CENTAVOS
     formatDate: formatDate,
+    statusLabel: statusLabel,
+
+    /* catálogo — /api/catalog, ASSÍNCRONOS (Fase 2) */
     getProducts: getProducts,
     getProductById: getProductById,
     relatedProducts: relatedProducts,
-    statusLabel: statusLabel,
 
-    /* pedidos — localStorage, síncronos, FASE 2 */
+    /* pedidos — localStorage, síncronos, saem no C3 da Fase 2 */
     getOrders: getOrders,
     getOrderById: getOrderById,
     createOrder: createOrder,

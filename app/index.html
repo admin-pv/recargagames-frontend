@@ -21,7 +21,7 @@
   <!--
     TODO(Alex): once the catalog is finalized, generate a matching JSON-LD ItemList/Product block
     (product name, price, availability) here for rich results in Google Search. Skipped for now
-    since the on-page catalog is populated client-side from shared/data/products.js.
+    since the on-page catalog is populated client-side from /api/catalog.
   -->
   <style>
     :root {
@@ -4041,23 +4041,36 @@
     <div class="drawer-body" id="drawerBody"></div>
   </aside>
 
-  <script src="shared/data/products.js"></script>
-  <script src="shared/data/orders.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script src="shared/js/market.js"></script>
 <script src="shared/js/supabase-client.js"></script>
 <script src="shared/js/store.js"></script>
 <script src="shared/js/header-session.js"></script>
   <script>
-    // Catalog is shared across both branding versions (shared/data/products.js)
-    // so every product card here links to a real, working Product Page.
-    const products = window.RECARGA_PRODUCTS
-      .filter(p => !['free-fire-weekly', 'free-fire-monthly'].includes(p.id))
-      .map(p => ({
-        id: p.id, name: p.name, short: p.short, type: p.type, platform: p.platform,
-        price: p.teaserPrice || null, color: p.color, popular: p.popular,
-        search: p.search, status: p.status, priority: 0
-      }));
+    /* Fase 2: o catálogo vem de /api/catalog (RecargaStore.getProducts,
+       ASSÍNCRONO), com o que o admin publicou e a Lapak tem disponível.
+       `products` começa vazio e é preenchido em init(); nada renderiza
+       produto antes disso. Se o catálogo falhar, a página diz que está
+       indisponível. Não existe fallback para products.js (preço velho). */
+    let products = [];
+    let catalogReady = false;
+
+    /* Nome e slug agora vêm do banco, não de um arquivo do repo: tudo que
+       entra em HTML passa por aqui. */
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    function toCard(p) {
+      return {
+        id: p.id, name: p.name, short: p.short, type: p.type, image: p.image,
+        price: RecargaMarket.formatMoney(p.minPriceCents),
+        color: p.color, featured: p.featured, popular: p.popular, search: '',
+        // Badge: Destaque (is_featured) vence Popular (is_popular)
+        status: p.featured ? 'featured' : (p.popular ? 'popular' : null),
+        priority: 0
+      };
+    }
 
     const searchAliases = {
       'mobile-legends': ['mlbb','ml','mobile legend','mobile legends bang bang','bang bang','diamante','diamantes','diamantes ml','diamantes mlbb','recarga ml','recarga mlbb'],
@@ -4092,11 +4105,13 @@
       app: ['app','apps','aplicativo']
     };
 
-    const sections = {
-      popular: ['mobile-legends','league-of-legends','free-fire','pubg-mobile','roblox','honkai-star-rail','valorant','genshin-impact','steam','playstation'],
-      digital: ['league-of-legends','roblox','steam','playstation','google-play','nintendo-eshop','xbox-gift-card','apple-gift-card','candy-crush','razer-gold'],
-      direct: ['zzz','free-fire','arena-breakout','mobile-legends','pubg-mobile','valorant','genshin-impact','honkai-star-rail','blood-strike','marvel-rivals']
-    };
+    /* Trilhos derivados do catálogo (antes eram listas fixas de ids). A
+       ordem é a do admin (display_order), que a Function já respeita. */
+    function sectionIds(kind) {
+      if (kind === 'popular') return products.filter(p => p.featured || p.popular).map(p => p.id);
+      if (kind === 'digital') return products.filter(p => p.type === 'code').map(p => p.id);
+      return products.filter(p => p.type === 'direct').map(p => p.id);
+    }
 
     // Add an ISO `expires` field (e.g. '2026-09-30T23:59:59-03:00') to any offer below to show
     // a live countdown on its card — see renderOffers(). Left unset here since these four are
@@ -4111,8 +4126,8 @@
     const platformLabels = { mobile:'Mobile', pc:'PC', console:'Console', app:'App' };
     const typeLabels = { direct:'Recarga direta', giftcard:'Gift Card', code:'Código de resgate' };
     const deliveryLabels = { direct:'Entrega na conta do jogo', giftcard:'Código digital', code:'Código digital' };
-    const statusLabels = { bonus:'Bônus', new:'Novo', event:'Evento', offer:'Oferta', top:'Top seller', popular:'Popular' };
-    const statusWeight = { event:100, offer:90, bonus:90, new:80, top:70, popular:60 };
+    const statusLabels = { featured:'Destaque', bonus:'Bônus', new:'Novo', event:'Evento', offer:'Oferta', top:'Top seller', popular:'Popular' };
+    const statusWeight = { featured:100, event:100, offer:90, bonus:90, new:80, top:70, popular:60 };
 
     let state = { query:'', filter:'all', catalogExpanded:false };
     const $ = (s, root=document) => root.querySelector(s);
@@ -4141,30 +4156,42 @@
       return { type, priceHtml: `<span class="price-fallback">${fallback}</span>` };
     }
 
+    /* Mesmo padrão de transform do Cloudinary do resto do repo
+       (/upload/ → /upload/c_fill,...), no dobro do tamanho exibido. */
+    function cardImage(url) {
+      const u = String(url || '');
+      return u.includes('/upload/') && !u.includes('/upload/c_') ? u.replace('/upload/', '/upload/c_fill,w_240,h_240,q_auto,f_auto/') : u;
+    }
+
+    function wordmark(product) {
+      return `<div class="wordmark ${product.short.length > 7 ? 'long-mark' : ''}" style="--logo-color:${esc(product.color || '#F5700A')}">${esc(product.short)}</div>`;
+    }
+
     function productArt(product) {
-      // Progressive enhancement: if a product carries a real key-art/logo URL (product.img,
-      // set in shared/data/products.js), use it. Until then, every card falls back to the
-      // current text wordmark, so nothing breaks and no image work blocks shipping this page.
-      if (product.img) {
-        return `<img src="${product.img}" alt="${product.name}" loading="lazy" width="120" height="120" onerror="this.replaceWith(Object.assign(document.createElement('div'), {className:'wordmark ${product.short.length > 7 ? 'long-mark' : ''}', style:'--logo-color:${product.color}', textContent:'${product.short}'}))">`;
+      // Imagem do admin (games.thumbnail_url) quando existe; se falhar, o
+      // listener de 'error' em initEvents() troca pelo wordmark. Sem onerror
+      // inline: ele interpolava nome do banco dentro de JS.
+      if (product.image) {
+        return `<img src="${esc(cardImage(product.image))}" alt="${esc(product.name)}" loading="lazy" width="120" height="120" data-wordmark-for="${esc(product.id)}">`;
       }
-      return `<div class="wordmark ${product.short.length > 7 ? 'long-mark' : ''}" style="--logo-color:${product.color}">${product.short}</div>`;
+      return wordmark(product);
     }
 
     function productCard(product, context='mixed') {
       if (!product) return '';
       const showPlatform = context !== 'popular';
-      const platform = showPlatform ? `<span class="tag">${platformLabels[product.platform]}</span>` : '';
+      // O catálogo não tem plataforma: sem dado, sem tag.
+      const platform = showPlatform && platformLabels[product.platform] ? `<span class="tag">${platformLabels[product.platform]}</span>` : '';
       const status = product.status ? `<span class="tag status-${product.status}">${statusLabels[product.status]}</span>` : '';
       const tagCount = (platform ? 1 : 0) + (status ? 1 : 0);
       const cardClasses = ['product-card', tagCount ? 'has-tags' : '', tagCount > 1 ? 'has-dual-tags' : '', product.short.length > 7 ? 'has-long-mark' : ''].filter(Boolean).join(' ');
       const meta = productMeta(product);
       return `
-        <article class="${cardClasses}" tabindex="0" data-product="${product.id}" aria-label="Ver opções para ${product.name}">
+        <article class="${cardClasses}" tabindex="0" data-product="${esc(product.id)}" aria-label="Ver opções para ${esc(product.name)}">
           <div class="tag-row">${platform}${status}</div>
           <div class="media">${productArt(product)}</div>
           <div class="product-body">
-            <h3 class="product-title">${product.name}</h3>
+            <h3 class="product-title">${esc(product.name)}</h3>
             <div class="product-meta"><span class="product-type type-${product.type}">${meta.type}</span></div>
             <div class="product-price-line">${meta.priceHtml}</div>
             <span class="card-micro-cta" aria-hidden="true">Ver opções <span>→</span></span>
@@ -4188,6 +4215,9 @@
     function renderRail(id, ids, context) {
       const el = document.getElementById(id);
       el.innerHTML = ids.map(x => productCard(byId(x), context)).join('');
+      // Trilho sem produto some inteiro, em vez de mostrar um título vazio.
+      const section = el.closest('section');
+      if (section) section.hidden = ids.length === 0;
       setRailStatic(id);
     }
 
@@ -4248,8 +4278,8 @@
 
     function renderFilters() {
       const filters = [
-        ['all','Todos'], ['direct','Recarga direta'], ['digital','Códigos digitais'],
-        ['mobile','Mobile'], ['pc','PC'], ['console','Console'], ['app','Apps']
+        // Filtros de plataforma saíram: o catálogo não tem esse dado.
+        ['all','Todos'], ['direct','Recarga direta'], ['digital','Códigos digitais']
       ];
       $('#catalogFilters').innerHTML = filters.map(([key,label]) => `<button type="button" class="filter ${state.filter === key ? 'active' : ''}" data-filter="${key}">${label}</button>`).join('');
     }
@@ -4333,6 +4363,7 @@
     }
 
     function renderCatalog() {
+      if (!catalogReady) return;
       renderFilters();
       const list = filteredProducts();
       const isMobile = window.matchMedia('(max-width: 760px)').matches;
@@ -4373,7 +4404,7 @@
         const p = payload;
         title = p.name;
         const meta = productMeta(p);
-        body = `<div class="drawer-card"><div class="media" style="border-radius:14px; min-height:120px">${productArt(p)}</div><h3>${p.name}</h3><p>${typeLabels[p.type]} • ${p.price ? `A partir de ${p.price}` : 'Valores disponíveis'}</p><button class="drawer-primary">Continuar</button></div>`;
+        body = `<div class="drawer-card"><div class="media" style="border-radius:14px; min-height:120px">${productArt(p)}</div><h3>${esc(p.name)}</h3><p>${typeLabels[p.type]} • ${p.price ? `A partir de ${p.price}` : 'Valores disponíveis'}</p><button class="drawer-primary">Continuar</button></div>`;
       } else if (kind === 'account') {
         title = 'Entrar ou criar conta';
         body = `<div class="drawer-card"><h3>Acesse sua conta</h3><p>Entre para acompanhar pedidos, salvar dados e comprar mais rápido.</p><button class="drawer-primary">Entrar</button><p style="margin-top:14px"><strong>Idioma:</strong> PT-BR</p></div>`;
@@ -4427,9 +4458,9 @@
       $('#suggestionHead').textContent = `Sugestões para “${state.query}”`;
       $('#suggestionAll').textContent = direct.length ? 'Ver todos os resultados' : 'Ver catálogo completo';
       $('#suggestionList').innerHTML = list.map((p, index) => `
-        <button class="suggestion-item" type="button" data-suggestion="${p.id}">
-          <span class="suggestion-thumb"><span style="--logo-color:${p.color}">${p.short}</span></span>
-          <span><span class="suggestion-title">${p.name}</span><span class="suggestion-meta">${typeLabels[p.type]} • ${platformLabels[p.platform]}${index >= direct.length && direct.length ? ' • Relacionado' : ''}</span></span>
+        <button class="suggestion-item" type="button" data-suggestion="${esc(p.id)}">
+          <span class="suggestion-thumb"><span style="--logo-color:${esc(p.color || '#F5700A')}">${esc(p.short)}</span></span>
+          <span><span class="suggestion-title">${esc(p.name)}</span><span class="suggestion-meta">${typeLabels[p.type]}${index >= direct.length && direct.length ? ' • Relacionado' : ''}</span></span>
           <span class="suggestion-action">Ver</span>
         </button>`).join('') || `<div class="suggestion-head">Nenhum produto encontrado.</div>`;
       $('#suggestions').classList.add('show');
@@ -4569,6 +4600,12 @@
           return;
         }
       });
+      document.addEventListener('error', e => {
+        const img = e.target;
+        if (!img || img.tagName !== 'IMG' || !img.dataset.wordmarkFor) return;
+        const p = byId(img.dataset.wordmarkFor);
+        if (p) img.outerHTML = wordmark(p);
+      }, true);
       $('#drawerClose').addEventListener('click', closeDrawer);
       $('#drawerBackdrop').addEventListener('click', closeDrawer);
       $('#loadMore').addEventListener('click', () => {
@@ -4597,16 +4634,37 @@
       input.placeholder = w < 380 ? 'Buscar produto' : (w < 760 ? 'Buscar jogo ou código' : 'Buscar jogo, gift card ou código');
     }
 
-    function init() {
+    function renderCatalogUnavailable() {
+      ['popularRail', 'digitalRail', 'directRail'].forEach(id => {
+        const section = document.getElementById(id).closest('section');
+        if (section) section.hidden = true;
+      });
+      $('#catalogFilters').innerHTML = '';
+      $('#emptyState').classList.remove('show');
+      $('#loadMore').style.display = 'none';
+      $('#catalogGrid').innerHTML =
+        '<div class="empty-state show" role="status">Catálogo indisponível no momento. ' +
+        '<button class="status-btn" type="button" id="catalogRetry">Tentar de novo</button></div>';
+      $('#catalogRetry').addEventListener('click', () => location.reload());
+    }
+
+    async function init() {
       updateSearchPlaceholder();
-      renderRail('popularRail', sections.popular, 'popular');
       renderOffers();
-      renderRail('digitalRail', sections.digital, 'digital');
-      renderRail('directRail', sections.direct, 'direct');
-      renderCatalog();
       renderSocialProof();
       initHero();
       initEvents();
+      try {
+        products = (await RecargaStore.getProducts()).map(toCard);
+      } catch (e) {
+        renderCatalogUnavailable();
+        return;
+      }
+      catalogReady = true;
+      renderRail('popularRail', sectionIds('popular'), 'popular');
+      renderRail('digitalRail', sectionIds('digital'), 'digital');
+      renderRail('directRail', sectionIds('direct'), 'direct');
+      renderCatalog();
     }
     init();
   </script>

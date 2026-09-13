@@ -40,18 +40,26 @@ categoria que exige `orderdetail` fica fora do catálogo B2C (seção 3).
 
 ### Ligação produto → jogo (não exclui nada)
 
-`price_benchmarks` não referencia o jogo. A ligação é feita pelo código:
-o produto pertence à categoria Lapak cujo `code` é o **prefixo mais
-longo** do `group_product_code` dele, entre as categorias que a Lapak
-devolve para o mercado. O jogo é a linha de `games` com esse
-`category_code`.
+`price_benchmarks` não referencia o jogo. A ligação vem da Lapak:
 
-Exemplo: `FFLATAM110` casa com `FF` e com `FFLATAM`; ganha `FFLATAM`. O
-produto vai para o jogo cujo `category_code` é `FFLATAM`, e não para o
-Free Fire (`FF`).
+1. **Primeiro:** o `category_code` que o próprio produto traz em
+   `/all-products`. O jogo é a linha de `games` com esse `category_code`.
+2. **Fallback**, só se o campo vier vazio: a categoria cujo `code` é o
+   **prefixo mais longo** do `group_product_code`.
 
-Isto é necessário porque `/product?category_code=FF` devolve também os
-produtos `FFLATAM…`, então filtrar pela consulta não isola a categoria.
+**Revisão de 13/09, na implementação.** A primeira versão desta seção
+usava o prefixo mais longo como regra principal. Ao ler `/all-products`
+apareceu o campo `category_code`, e ele discorda do prefixo: a Lapak põe
+`FFLATAM110-S98-br` na categoria **`FF`**, e não em `FFLATAM`. Como a
+Lapak é a fonte do catálogo, o campo dela vence. O prefixo virou só
+fallback. Nos dois casos a ligação só serve para achar o jogo; nunca
+exclui produto.
+
+Por isso o aviso "categoria sugere incompatibilidade" confere o nome das
+**duas** categorias: a ligada (`category_code`) e a sugerida pelo
+prefixo. Um `FFLATAM110` publicado no `br` gera o aviso, porque a
+categoria do prefixo, `FFLATAM`, diz "exclude Brazil", mesmo estando
+ligado ao Free Fire.
 
 Publicado que não casa com nenhum jogo ativo do mercado **não aparece**
 (não há página onde mostrá-lo) e **é logado** como

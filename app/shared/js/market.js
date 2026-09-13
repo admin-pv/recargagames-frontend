@@ -67,28 +67,25 @@
 
   /* ── Formatação de dinheiro ───────────────────────────────────────────
 
-     >>> A UNIDADE MUDA NA FASE 2. LEIA ANTES DE MEXER. <<<
+     >>> DESDE A FASE 2, `cents` É INTEIRO EM CENTAVOS. <<<
 
-     HOJE (Fase 1): `amount` é um DECIMAL na unidade maior — reais, não
-     centavos. 49.9 → "R$ 49,90". É assim porque app/shared/data/products.js
-     guarda `price` como float, herdado do protótipo do fornecedor.
+     4990 → "R$ 49,90". O catálogo (/api/catalog) e os pedidos trazem
+     preço em centavos inteiros (priceCents, amount_cents); float só existe
+     aqui, na última linha antes da tela.
 
-     NA FASE 2: o catálogo vem do backend e o preço passa a ser INTEIRO em
-     centavos (4990), que é a única forma de não acumular erro de ponto
-     flutuante em soma de pedido. Quando isso acontecer, a mudança aqui é
-     uma linha — dividir por 100 — e ela tem que ser feita NO MESMO COMMIT
-     em que products.js muda de unidade.
+     Na Fase 1 o parâmetro era um decimal em reais, porque products.js
+     guardava `price` como float. A troca foi feita no mesmo commit que
+     tirou products.js do runtime, com todos os call sites ajustados.
 
-     Não dá para detectar a unidade em runtime: 4990 é um preço plausível
-     tanto em centavos quanto em reais. Por isso a regra é documental, e
-     por isso ela está em caixa alta.
-
-     O nome do parâmetro é `amount`, e não `cents` como no brief da Fase 1,
-     justamente para não afirmar uma unidade que ainda não é verdade. */
-  function formatMoney(amount, marketOverride) {
+     Não dá para detectar a unidade em runtime: 4990 é plausível em
+     centavos e em reais. Por isso a regra é documental e está em caixa
+     alta. Moedas sem casas decimais (nenhuma das quatro de hoje) vão
+     precisar de expoente por moeda aqui. */
+  function formatMoney(cents, marketOverride) {
     var m = marketOverride || current;
-    var n = typeof amount === 'number' ? amount : parseFloat(amount);
+    var n = typeof cents === 'number' ? cents : parseInt(cents, 10);
     if (!isFinite(n)) n = 0;
+    n = n / 100;
 
     try {
       return n.toLocaleString(m.locale, {

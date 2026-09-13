@@ -404,7 +404,6 @@
 </footer>
 
 
-<script src="shared/data/products.js"></script>
 <script src="shared/data/orders.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script src="shared/js/market.js"></script>
@@ -468,12 +467,17 @@
     location.href = 'product.html?id=' + encodeURIComponent(productId);
   };
 
+  /* Fase 2: o catálogo é assíncrono; carregado uma vez antes do primeiro
+     render (fim do arquivo). O stub de preview acima continua síncrono. */
+  var catalogById = {};
+
   function enrich(order) {
-    var product = RecargaStore.getProductById(order.productId);
+    var product = catalogById[order.productId] ||
+      (typeof RecargaStore.getProducts !== 'function' ? RecargaStore.getProductById(order.productId) : null);
     return {
       order: order,
       name: product ? product.name : order.productId,
-      color: product ? product.color : '#F5700A',
+      color: (product && product.color) || '#F5700A',
       short: product ? product.short : '?'
     };
   }
@@ -606,7 +610,14 @@
     render();
   });
 
-  render();
+  (async function () {
+    if (typeof RecargaStore.getProducts === 'function') {
+      try {
+        (await RecargaStore.getProducts()).forEach(function (p) { catalogById[p.id] = p; });
+      } catch (e) { /* sem catálogo, a lista mostra o id do produto */ }
+    }
+    render();
+  })();
 })();
 </script>
 

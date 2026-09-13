@@ -6,6 +6,16 @@
 # cada bloco — este arquivo é a versão curta.
 # ══════════════════════════════════════════════════════════════════════════
 
+# ── 0. API do storefront → Netlify Functions ──────────────────────────────
+# Fase 2. Rotas explícitas, uma por Function, em vez de /api/*: um nome de
+# arquivo novo em netlify/functions/ não vira endpoint público sem alguém
+# acrescentar a linha aqui.
+[[redirects]]
+  from = "/api/catalog"
+  to = "/.netlify/functions/catalog"
+  status = 200
+  force = true
+
 # ── 1. /app/ não é endereço público ───────────────────────────────────────
 # O gate (netlify/edge-functions/gate.ts) só casa com /br, /br/* e
 # /_gate/auth. Sem isto, /app/* serviria a loja sem senha. Forçada porque os

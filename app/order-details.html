@@ -301,15 +301,15 @@
   </div>
 </footer>
 
-<script src="shared/data/products.js"></script>
 <script src="shared/data/orders.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script src="shared/js/market.js"></script>
 <script src="shared/js/supabase-client.js"></script>
 <script src="shared/js/store.js"></script>
+<script src="shared/js/redemption-fields.js"></script>
 <script src="shared/js/header-session.js"></script>
 <script>
-(function () {
+(async function () {
   'use strict';
 
   var container = document.getElementById('orderContent');
@@ -391,6 +391,13 @@
 
   /* Product fallback for an order whose product was removed from the
      catalog since it was placed — keeps the page from breaking. */
+  /* Pedido antigo traz o shape do protótipo (redemption.fields); produto do
+     catálogo da Fase 2 traz `fields` da Lapak. Some no C3. */
+  function productFields(product) {
+    return (product.redemption && product.redemption.fields) ||
+      (window.RecargaFields ? RecargaFields.toFormFields(product) : []);
+  }
+
   function fallbackProduct(order) {
     return { id: order.productId, name: order.productId, category: '', color: '#F5700A', short: '?', type: null, redemption: { fields: [] } };
   }
@@ -423,7 +430,7 @@
     ) : '';
 
     var mainFieldValue = null;
-    (product.redemption && product.redemption.fields || []).some(function (f) {
+    productFields(product).some(function (f) {
       if (order[f.key]) { mainFieldValue = order[f.key]; return true; }
       return false;
     });
@@ -463,7 +470,7 @@
 
     // Every extra redemption field this product needs (playerId, zoneId, riotId, ...),
     // read generically off product.redemption.fields instead of hardcoded field names.
-    var extraFieldsHtml = (product.redemption && product.redemption.fields || []).map(function (f) {
+    var extraFieldsHtml = productFields(product).map(function (f) {
       if (!order[f.key]) return '';
       var val = f.key === 'playerId' ? maskId(order[f.key]) : order[f.key];
       var cls = f.key === 'playerId' ? ' masked' : '';
@@ -506,7 +513,7 @@
 
         '<div class="order-detail-summary-col card">' +
           '<div class="order-detail-product">' +
-            '<div class="order-detail-thumb" style="--thumb-color:' + product.color + '">' + esc(product.short) + '</div>' +
+            '<div class="order-detail-thumb" style="--thumb-color:' + esc(product.color || '#F5700A') + '">' + esc(product.short) + '</div>' +
             '<div><h2>' + esc(product.name) + '</h2><p>' + esc(product.category) + '</p></div>' +
           '</div>' +
           '<div class="detail-lines">' +
@@ -585,7 +592,10 @@
   if (!order) {
     renderNotFound(id);
   } else {
-    var product = hasStore ? RecargaStore.getProductById(order.productId) : null;
+    var product = null;
+    if (hasStore) {
+      try { product = await RecargaStore.getProductById(order.productId); } catch (e) { product = null; }
+    }
     if (!product) product = fallbackProduct(order);
     var showSuccess = params.get('new') === '1' || params.get('retried') === '1';
     renderOrder(order, product, showSuccess);

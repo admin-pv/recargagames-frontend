@@ -268,7 +268,6 @@
   </div>
 </div>
 
-<script src="shared/data/products.js"></script>
 <script src="shared/data/orders.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script src="shared/js/market.js"></script>
@@ -276,7 +275,7 @@
 <script src="shared/js/store.js"></script>
 <script src="shared/js/header-session.js"></script>
 <script>
-(function () {
+(async function () {
   'use strict';
 
   var params = new URLSearchParams(window.location.search);
@@ -295,14 +294,15 @@
   var order = (hasStore && retryId && typeof RecargaStore.getOrderById === 'function')
     ? RecargaStore.getOrderById(retryId)
     : null;
-  var product = (hasStore && order && typeof RecargaStore.getProductById === 'function')
-    ? RecargaStore.getProductById(order.productId)
-    : null;
+  var product = null;
+  if (hasStore && order && typeof RecargaStore.getProductById === 'function') {
+    try { product = await RecargaStore.getProductById(order.productId); } catch (e) { product = null; }
+  }
 
   var DEMO_ORDER = {
     id: retryId || 'RG-260831-6190', status: 'failed', productId: 'mobile-legends',
     packageLabel: 'Pacote Diamantes Mega (1.050 💎)', qty: 1,
-    email: 'alex.***@gmail.com', paymentMethod: 'Cartão de crédito', amount: 89.90,
+    email: 'alex.***@gmail.com', paymentMethod: 'Cartão de crédito', amount: 8990, amountUnit: 'cents',
     createdAt: '2026-08-31T20:40:00',
     failReason: 'O cartão foi recusado pela operadora. Nenhum valor foi cobrado.'
   };
@@ -400,7 +400,7 @@
 
       '<div class="card">' +
         '<div class="order-detail-product">' +
-          '<div class="order-detail-thumb" style="--thumb-color:' + product.color + '">' + esc(product.short) + '</div>' +
+          '<div class="order-detail-thumb" style="--thumb-color:' + esc(product.color || '#F5700A') + '">' + esc(product.short) + '</div>' +
           '<div><h2>' + esc(product.name) + '</h2><p>' + esc(product.category) + '</p></div>' +
         '</div>' +
         '<div class="detail-lines">' +
