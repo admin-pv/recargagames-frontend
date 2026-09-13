@@ -199,6 +199,9 @@ export function buildCatalog({ market, games, benchmarks, categories, lapakProdu
   const cfg = MARKETS[market];
   const report = {
     market,
+    // Todo jogo ativo lido do banco, com a categoria que ele declara. Sem
+    // isto, jogo cuja categoria não existe na Lapak sumia do relatório.
+    games: games.map((g) => ({ slug: g.slug, category: g.category_code || null })),
     publishedRows: 0,
     eligibleRows: 0,
     notInLapak: [],
@@ -277,7 +280,9 @@ export function buildCatalog({ market, games, benchmarks, categories, lapakProdu
     const category = catByCode.get(upper(g.category_code));
 
     if (!category) {
-      if (entry) report.categoryMissing.push({ slug: g.slug, category: g.category_code });
+      // Sempre reportado: é o sintoma de games.category_code diferente do
+      // código da Lapak, e nesse caso nenhum produto consegue se ligar a ele.
+      report.categoryMissing.push({ slug: g.slug, category: g.category_code || null, published: entry ? entry.candidates.length : 0 });
       continue;
     }
     const forms = Array.isArray(category.forms) ? category.forms : [];
@@ -408,8 +413,8 @@ async function fetchAndBuild(market) {
 function logReport({ products, report: r }) {
   const packages = products.reduce((n, p) => n + p.packages.length, 0);
   console.log(
-    'catalog: built market=%s games=%d packages=%d published=%d eligible=%d not_in_lapak=%d unavailable=%d without_game=%d non_canonical=%d',
-    r.market, products.length, packages, r.publishedRows, r.eligibleRows,
+    'catalog: built market=%s games_active=%d games=%d packages=%d published=%d eligible=%d not_in_lapak=%d unavailable=%d without_game=%d non_canonical=%d',
+    r.market, r.games.length, products.length, packages, r.publishedRows, r.eligibleRows,
     r.notInLapak.length, r.unavailable.length, r.withoutGame.length, r.nonCanonical.length
   );
   if (r.unavailable.length) console.log('catalog: unavailable market=%s codes=%s', r.market, r.unavailable.join(','));
