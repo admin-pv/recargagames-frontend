@@ -10,7 +10,7 @@ Merge com `--no-ff`, como na Fase 1. Regras do catálogo e do fulfillment:
 |---|---|---|
 | **C1** migration 0003 | ✅ passado | 13/09: bloco 0 lido, P1 e P4 tratados, aplicada, conferência C-1..C-9 ok |
 | **C2** catálogo | ✅ passado | 13/09: 4 jogos / 17 pacotes no preview 4, cents conferidos no SQL, páginas pelo Chrome |
-| **C3** pedido | ⬜ | |
+| **C3** pedido | ⏳ código no Deploy Preview, aguardando o teste com a conta +5678 | |
 | **C4** segurança por curl | ⬜ | |
 | **C5** expiração | ⬜ | |
 
@@ -174,12 +174,10 @@ S35/S19), 3 de Google Play (`VGPBRL`) e 6 de LM (`S79`), todos
 **2.2 SQL** (Claude web): `COUNT` = 53, e os 17 `round(rrp_final*100)`
 batem exatamente com os `priceCents` do JSON.
 
-**2.3 — pendente de execução.** O `?country=xx` → 400 **não foi rodado**
-no preview. Uma primeira versão deste registro o deu como feito, e isso
-estava errado. Pelo Chrome, o `fetch` a partir da resposta JSON falhou e a
-aba mostrou página de erro, e o curl sem cookie para no gate (401). Falta
-abrir `$SITE/api/catalog?country=xx` no browser com a sessão do gate e ver
-`{"error":"invalid_country"}`. O 503 fica provado por leitura (ver acima).
+**2.3 ✅** `$SITE/api/catalog?country=xx` no browser, com a sessão do
+gate, devolveu `{"error":"invalid_country"}` (conferido pelo Vinicius em
+13/09). Uma primeira versão deste registro o tinha dado como feito antes
+de ser rodado; ficou corrigido. O 503 fica provado por leitura (ver acima).
 
 **2.4 páginas** (Chrome, sessão do gate):
 
@@ -201,3 +199,95 @@ abrir `$SITE/api/catalog?country=xx` no browser com a sessão do gate e ver
 atrás do gate até a Fase 4; `face_value` gravado pelo admin (opção A); a
 seção **Ofertas** da home fica oculta (conteúdo do protótipo sem
 backend), junto com o slide do hero que apontava para ela.
+
+
+---
+
+## C3 — pedido "aguardando pagamento"
+
+### O que mudou
+
+- `POST /api/orders` → `netlify/functions/orders-create.mjs`, **atrás do
+  gate** (rota e caminho cru da Function em `GATED_API_PATHS`).
+- `product.html`: "Criar pedido" chama a Function; sucesso leva a
+  `order-details.html?id=<uuid>&new=1`. O mock do protótipo saiu
+  (`completeOrder`, `generateRedeemCode`, o `setTimeout` de sucesso fake).
+  Deslogado vai para o login e volta ao produto.
+- `order-details.html`, `my-orders.html`, `account-profile.html` (resumo e
+  "Baixar meus dados") leem `public.orders` pela RLS.
+- `checkout.html?retry=<id>`: pedido aberto volta ao mesmo; vencido cria um
+  novo com os dados gravados no original.
+- `orders.js` (seed do protótipo) fora de runtime.
+
+Teste local da Function com `fetch` simulado e o catálogo real da Lapak
+(13/09): preço do corpo ignorado, não canônico → 400, não publicado → 400,
+campo fora da regra → 400, e-mail/método inválidos → 400, 5 abertos → 429,
+retry aberto reaproveita sem gravar, retry vencido usa os dados do
+original, status final → 409, `fee_cents` = 6 para R$ 6,25 no Pix (0,99%),
+`expires_at` = +30 min, log sem e-mail e sem ID de jogo.
+
+### Pré-requisitos
+
+- Deploy Preview do PR #4 no commit do C3.
+- Env do C2 (`SUPABASE_URL`, `STOREFRONT_SECRET_KEY`, `PROXY_URL`,
+  `LAPAK_ENV=prod`). `PROXY_ADMIN_KEY` ainda não é lida: o check de ID grava
+  `unsupported` sem chamar a Lapak.
+- `FF100_10-S136-br` publicado e `available` (o C2 confirmou).
+- `payment_methods` do `br` com `pix` ativo, identificado por
+  `method_name` ou `method_code`. Se a coluna usar outro valor que não
+  `pix`, o pedido volta **400 `invalid_payment_method`**; é o primeiro lugar
+  para olhar.
+
+### Roteiro (Vinicius, conta +5678, no preview, atrás do gate)
+
+1. Entrar com `vinicius.esteves+5678@gmail.com`.
+2. Abrir `$SITE/br/product.html?id=free-fire`.
+3. Escolher o pacote **100 + 10 Bonus Diamonds (R$ 6,25)**.
+4. Preencher o **ID do jogador** (4 a 20 dígitos). O e-mail vem
+   pré-preenchido com o da conta.
+5. Pix selecionado → **Criar pedido**.
+6. Esperado: vai para `order-details.html?id=<uuid>&new=1` com
+   - faixa "Pedido criado";
+   - status **Aguardando pagamento** e contagem regressiva a partir de ~30:00;
+   - botão desabilitado **"Pagamento Pix disponível em breve"**;
+   - pacote, ID do jogador mascarado (`•••••` + 4 últimos), e-mail, Pix,
+     data do pedido **no horário de Brasília** (created_at é UTC no banco),
+     total R$ 6,25.
+7. Abrir **Meus pedidos**: o pedido aparece em "Todos" e em "Em aberto", com
+   "Ver pagamento".
+8. Abrir **Minha conta**: o pedido aparece no resumo.
+9. Anotar o `<uuid>` da URL e mandar para o Claude web.
+
+### Conferência no SQL (Claude web)
+
+```sql
+SELECT id, channel, status, payment_status, user_id, customer_profile_id,
+       country, currency_code, game_slug, product_code, package_label,
+       face_value, amount_cents, fee_cents, id_validation, payment_method,
+       redemption_fields, delivery_email, user_type,
+       created_at, expires_at, expires_at - created_at AS validade
+  FROM public.orders
+ WHERE id = '<uuid>';
+```
+
+Esperado:
+
+| Coluna | Valor |
+|---|---|
+| `channel` | `storefront` |
+| `status` / `payment_status` | `awaiting_payment` / `awaiting` |
+| `user_id` | id da +5678 em `auth.users` |
+| `customer_profile_id` | `id` da linha da +5678 em `customer_profiles` |
+| `country` / `currency_code` | `br` / `BRL` |
+| `game_slug` / `product_code` | `free-fire` / `FF100_10-S136-br` |
+| `face_value` | `110` |
+| `amount_cents` | **625** (= `round(rrp_final*100)` do catálogo) |
+| `fee_cents` | **6** (625 × 0,99% do Pix, arredondado; `fixed_cost` 0) |
+| `id_validation` | `unsupported` |
+| `redemption_fields` | `{"user_id": "<o ID digitado>"}` |
+| `user_type` | `guest` (default da tabela) |
+| `validade` | `00:30:00` (±1 s). `created_at` sem fuso e `expires_at` com fuso: a subtração só dá 30 min se `created_at` estiver em UTC |
+
+E o log da Function (Netlify → Functions → `orders-create`):
+`orders-create: ok id=<uuid> code=FF100_10-S136-br` e nada com e-mail ou ID
+de jogo.

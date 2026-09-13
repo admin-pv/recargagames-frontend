@@ -2206,8 +2206,8 @@
       buyNowText.textContent = 'Inserir ' + contactLabel();
       buyNow.setAttribute('aria-label', 'Inserir ' + contactLabel());
     } else {
-      buyNowText.textContent = 'Confirmar e pagar';
-      buyNow.setAttribute('aria-label', 'Confirmar e pagar');
+      buyNowText.textContent = 'Criar pedido';
+      buyNow.setAttribute('aria-label', 'Criar pedido');
     }
 
     /* Mobile bar */
@@ -2232,9 +2232,9 @@
     } else {
       barTitle.textContent = p.label;
       barPrice.innerHTML = `Total <strong>${fmt(totalWithFee)}</strong>`;
-      barBtn.textContent = 'Confirmar e pagar';
+      barBtn.textContent = 'Criar pedido';
       barBtn.className = 'bar-btn ready';
-      barBtn.setAttribute('aria-label', 'Confirmar e pagar');
+      barBtn.setAttribute('aria-label', 'Criar pedido');
     }
 
     renderPackages();
@@ -2318,11 +2318,36 @@
     }
   });
 
-  /* ── Checkout ──
-     AINDA É O MOCK DO PROTÓTIPO (localStorage). O C3 da Fase 2 troca isto
-     por POST /api/orders, com valor calculado no servidor. Até lá, só a
-     unidade mudou: amount em centavos. */
-  function handleCheckout() {
+  /* ── Checkout — Fase 2 (C3): POST /api/orders ──
+     Cria o pedido "aguardando pagamento" no servidor e leva para a página
+     do pedido. O corpo leva só jogo, pacote, campos, e-mail e meio de
+     pagamento: o VALOR é calculado pela Function a partir do catálogo, e
+     RecargaStore.createOrder nem aceita campo de preço.
+
+     Precisa de conta: o pedido é do usuário (RLS por user_id). Deslogado
+     vai para o login e volta para este produto.
+
+     Não há cobrança nesta fase. A página do pedido mostra a contagem e o
+     botão "Pagamento Pix disponível em breve". */
+  const ORDER_ERRORS = {
+    product_not_available: 'Este pacote não está mais disponível. Escolha outro pacote.',
+    package_not_canonical: 'Este pacote mudou no catálogo. Recarregue a página e escolha de novo.',
+    invalid_redemption_fields: 'Confira os dados do jogo: algum campo não está no formato esperado.',
+    invalid_email: 'Confira o e-mail de entrega.',
+    invalid_payment_method: 'Este meio de pagamento não está disponível.',
+    too_many_open_orders: 'Você já tem 5 pedidos aguardando pagamento. Conclua ou espere algum expirar antes de criar outro.',
+    id_not_eligible: 'Este ID não pode receber este pacote. Confira o ID ou escolha outro pacote.',
+    catalog_unavailable: 'O catálogo está indisponível agora. Tente de novo em instantes.',
+    profile_missing: 'Não encontramos o perfil da sua conta. Saia e entre de novo.',
+    _default: 'Não foi possível criar o pedido agora. Tente de novo em instantes.'
+  };
+  let submitting = false;
+
+  function goToLogin() {
+    window.location.href = 'account-login.html?redirect=' + encodeURIComponent('product.html?id=' + productData.id);
+  }
+
+  async function handleCheckout() {
     if (!pkg()) { $('packages-section').scrollIntoView({behavior:'smooth',block:'start'}); return; }
     if (!allFieldsValid() || !state.emailValid) {
       const first = document.querySelector('.field-group.is-invalid .field-input') ||
@@ -2330,35 +2355,44 @@
       if (first) { first.scrollIntoView({behavior:'smooth',block:'center'}); first.focus(); }
       return;
     }
-    const baseTotal = pkg().priceCents;
-    const fTotal = applyCouponDiscount(baseTotal);
+    if (submitting) return;
+
+    if (!(await RecargaStore.getSession())) { goToLogin(); return; }
+
     const fieldValues = {};
     productData.fields.forEach(f => { const el = $('input-' + f.key); fieldValues[f.key] = el ? el.value.trim() : ''; });
 
+    submitting = true;
     buyNow.disabled = true;
     barBtn.disabled = true;
-    $('processingModal').classList.add('show');
+    const modal = $('processingModal');
+    const modalTitle = modal.querySelector('h3');
+    const modalText = modal.querySelector('p');
+    if (modalTitle) modalTitle.textContent = 'Criando seu pedido…';
+    if (modalText) modalText.textContent = 'Só um instante.';
+    modal.classList.add('show');
 
-    setTimeout(() => {
-      const order = RecargaStore.createOrder(Object.assign({
-        productId: productData.id,
-        packageId: pkg().id,
-        packageLabel: pkg().label,
-        packageDetail: pkg().detail,
-        qty: state.qty,
-        amount: fTotal,
-        amountUnit: 'cents',
-        productType: activeProduct.type,
-        couponCode: state.coupon ? state.coupon.code : null,
-        discountAmount: state.coupon ? (baseTotal - fTotal) : 0,
-        paymentMethod: state.payLabel,
-        deliveryMethod: state.deliveryMethod,
-        email: state.deliveryMethod === 'whatsapp' ? '' : emailEl.value.trim(),
-        phone: state.deliveryMethod === 'whatsapp' ? phoneEl.value.trim() : (phoneEl.value.trim() || undefined)
-      }, fieldValues));
-      RecargaStore.completeOrder(order.id);
-      window.location.href = 'order-details.html?id=' + encodeURIComponent(order.id) + '&new=1';
-    }, 1400);
+    const res = await RecargaStore.createOrder({
+      gameSlug: productData.id,
+      productCode: pkg().id,
+      redemptionFields: fieldValues,
+      deliveryEmail: emailEl.value.trim(),
+      paymentMethod: state.payKey || 'pix'
+    });
+
+    if (res.ok) {
+      window.location.href = 'order-details.html?id=' + encodeURIComponent(res.order.id) + '&new=1';
+      return;
+    }
+
+    modal.classList.remove('show');
+    submitting = false;
+    if (res.status === 401 && res.code !== 'gate_required') { goToLogin(); return; }
+    if (res.code === 'gate_required') { window.location.reload(); return; }
+    updateUI();
+    summaryWarn.textContent = ORDER_ERRORS[res.code] || ORDER_ERRORS._default;
+    summaryWarn.classList.add('show');
+    summaryWarn.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'center' });
   }
 
   /* ── Coupon apply (demo — see applyCouponDiscount() above) ── */
@@ -2440,6 +2474,13 @@
      chegar. */
   renderSavedAccountPicker();
   renderDeliveryMethodPicker();
+  /* E-mail de entrega pré-preenchido com o da conta (auth.users), editável. */
+  RecargaStore.getAuthUser().then(u => {
+    if (u && u.email && !emailEl.value.trim()) {
+      emailEl.value = u.email;
+      emailEl.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  });
   renderPackages();
   renderRelated();
   updateUI();

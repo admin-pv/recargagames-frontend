@@ -435,7 +435,6 @@
     </div>
   </footer>
 
-  <script src="shared/data/orders.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script src="shared/js/market.js"></script>
 <script src="shared/js/supabase-client.js"></script>
@@ -539,7 +538,16 @@
 
     function initials(name) { return (name || '?').trim().split(/\s+/).map(function (p) { return p[0]; }).slice(0, 2).join('').toUpperCase(); }
     function escapeHtml(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]; }); }
-    function statusLabel(s) { return { completed: 'Concluído', processing: 'Processando', failed: 'Falhou' }[s] || s; }
+    /* Pedido real vem do store (status da tabela orders); o MOCK_ORDERS do
+       preview avulso usa os status do protótipo. */
+    function statusLabel(o) {
+      if (hasStore) return RecargaStore.isOrderExpired(o) ? RecargaStore.statusLabel('expired') : RecargaStore.statusLabel(o.status);
+      return { completed: 'Concluído', processing: 'Processando', failed: 'Falhou' }[o.status] || o.status;
+    }
+    function statusTone(o) {
+      if (hasStore) return RecargaStore.isOrderExpired(o) ? 'failed' : RecargaStore.statusTone(o.status);
+      return o.status;
+    }
 
     if (!user) {
       navName.textContent = 'Cadastre-se';
@@ -782,14 +790,19 @@
       return catalogProducts.find(function (p) { return p.id === id; }) || null;
     }
 
-    var orders = (hasStore && RecargaStore.getOrders) ? RecargaStore.getOrders().slice(0, 3) : MOCK_ORDERS;
+    /* Fase 2 (C3): os 3 pedidos mais recentes de public.orders, pela RLS.
+       Falha de leitura mostra "nenhum pedido", não derruba o perfil. */
+    var orders = MOCK_ORDERS;
+    if (hasStore) {
+      try { orders = (await RecargaStore.getOrders()).slice(0, 3); } catch (e) { orders = []; }
+    }
     var ordersMini = document.getElementById('ordersMini');
     ordersMini.innerHTML = orders.length ? orders.map(function (o) {
       var name = o.product || (catalogProduct(o.productId) ? catalogProduct(o.productId).name : o.productId);
       return '<div class="order-row-mini" onclick="location.href=\'order-details.html?id=' + encodeURIComponent(o.id) + '\'">' +
         '<div class="order-row-thumb-mini" style="--thumb-color:' + (o.color || '#F5700A') + '">' + escapeHtml((name || '?').slice(0, 2).toUpperCase()) + '</div>' +
-        '<div class="order-row-mini-info"><strong>' + escapeHtml(name) + '</strong><span>' + escapeHtml(o.pkg || o.packageLabel || '') + ' · ' + escapeHtml(o.date || '') + '</span></div>' +
-        '<span class="status-pill ' + o.status + '">' + statusLabel(o.status) + '</span>' +
+        '<div class="order-row-mini-info"><strong>' + escapeHtml(name) + '</strong><span>' + escapeHtml(o.pkg || o.packageLabel || '') + ' · ' + escapeHtml(o.date || (o.createdAt ? RecargaStore.formatDate(o.createdAt) : '')) + '</span></div>' +
+        '<span class="status-pill ' + escapeHtml(statusTone(o)) + '">' + escapeHtml(statusLabel(o)) + '</span>' +
       '</div>';
     }).join('') : '<div class="empty-note">Nenhum pedido ainda.</div>';
 
@@ -1119,11 +1132,10 @@
        A real backend should include anything it holds server-side too. */
     var exportBtn = document.getElementById('exportDataBtn');
     if (exportBtn) exportBtn.addEventListener('click', async function () {
-      /* O pacote é montado pelo store (exportUserData), que junta o perfil
-         do servidor com os pedidos locais E anexa uma nota dizendo que os
-         pedidos são só deste navegador enquanto a Fase 2 não chega. Sem
-         essa nota, quem receber o arquivo lê um histórico incompleto como
-         se fosse completo. */
+      /* O pacote é montado pelo store (exportUserData): perfil de
+         customer_profiles e pedidos de public.orders, os dois do servidor.
+         Se os pedidos não carregarem, o arquivo diz isso em notes.orders em
+         vez de sair com uma lista vazia que parece completa. */
       var exportPayload = hasStore
         ? await RecargaStore.exportUserData()
         : { exportedAt: new Date().toISOString(), profile: user, orders: [] };

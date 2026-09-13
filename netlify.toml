@@ -10,11 +10,17 @@
 # Fase 2. Rotas explícitas, uma por Function, em vez de /api/*: um nome de
 # arquivo novo em netlify/functions/ não vira endpoint público sem alguém
 # acrescentar a linha aqui.
-# Atrás do gate enquanto o site estiver: o `path` do gate.ts inclui
-# /api/catalog e /.netlify/functions/catalog. Sai na Fase 4.
+# Atrás do gate enquanto o site estiver: GATED_API_PATHS no gate.ts inclui
+# cada rota e o caminho cru da Function. Sai na Fase 4.
 [[redirects]]
   from = "/api/catalog"
   to = "/.netlify/functions/catalog"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/orders"
+  to = "/.netlify/functions/orders-create"
   status = 200
   force = true
 

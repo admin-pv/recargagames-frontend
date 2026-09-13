@@ -6,7 +6,8 @@
    FASE 1: SESSÃO e PERFIL passam a ser Supabase Auth + a tabela
            public.customer_profiles. PEDIDOS continuam em localStorage.
    FASE 2: CATÁLOGO vem de /api/catalog e é ASSÍNCRONO; dinheiro em
-           CENTAVOS inteiros. PEDIDOS saem do localStorage no C3.
+           CENTAVOS inteiros. PEDIDOS (C3) vêm de public.orders pela RLS e
+           são criados só pela Function orders-create.
 
    >>> A MUDANÇA QUE QUEBRA CHAMADOR: as funções de sessão e perfil agora
        são ASSÍNCRONAS. getUser(), isLoggedIn(), updateUser() e as de
@@ -24,8 +25,6 @@
    ────────────────────────────────────────────────────────────────────────── */
 (function (global) {
   "use strict";
-
-  var LS_ORDERS = "recarga_orders_v1";
 
   /* O cliente Supabase vem de shared/js/supabase-client.js. Guardado numa
      função (e não numa const no topo) porque a ordem de <script> já
@@ -136,97 +135,162 @@
   }
 
   /* ================================================================
-     PEDIDOS — AINDA localStorage ATÉ O C3 DA FASE 2.
+     PEDIDOS — FASE 2 (C3): public.orders
 
-     Continuam em localStorage, síncronos, exatamente como o fornecedor
-     entregou. Saem no C3, quando orders-create e a leitura por RLS
-     entrarem. Até lá, um ajuste de transição: `amount` passa a sair
-     em CENTAVOS (ver inCents).
+     LEITURA: sb.from('orders') com a sessão do cliente. A policy
+     orders_select_own devolve só os pedidos DELE e só os da loja
+     (channel = 'storefront'). O GRANT é POR COLUNA (migration 0003), então
+     select('*') falha com 42501: as colunas vão pelo nome, e
+     ORDER_COLUMNS TEM que espelhar o GRANT SELECT da 0003, coluna por
+     coluna. Coluna que entrar aqui e não lá vira 42501 na tela.
 
-     Consequências que valem saber enquanto isto for verdade:
-       - os pedidos são do BROWSER, não da conta. Trocar de usuário na
-         mesma máquina mostra os pedidos do anterior; logar noutra máquina
-         não mostra nenhum;
-       - createOrder/completeOrder não cobram nada e sempre "dão certo";
-       - a exclusão de conta (Netlify Function account-delete) NÃO apaga
-         pedidos — nem teria como, eles não estão no servidor. A retenção
-         fiscal, que é o motivo de não apagar, só passa a valer de fato
-         quando isto virar tabela.
+     ESCRITA: nunca por aqui. O browser não tem GRANT nem policy de escrita
+     em orders. createOrder() e retryOrder() chamam POST /api/orders
+     (netlify/functions/orders-create.mjs), que recalcula o valor do
+     catálogo no servidor. Preço não sai deste arquivo.
+
+     DATAS: created_at é `timestamp` SEM fuso, gravado em UTC. Ver dbTime().
+     DINHEIRO: `amount` do objeto de pedido é amount_cents, em CENTAVOS.
+
+     Erros de leitura REJEITAM com err.code: 'not_authenticated' ou
+     'orders_unavailable'. Criação devolve { ok:false, code, status }.
      ================================================================ */
 
-  function readOrdersRaw() {
+  var ORDER_COLUMNS = [
+    "id", "user_id", "channel", "status", "payment_status", "country",
+    "currency_code", "game_slug", "product_code", "package_label",
+    "face_value", "amount_cents", "redemption_fields", "delivery_email",
+    "payment_method", "created_at", "updated_at", "paid_at",
+    "completed_at", "code_visible_until", "expires_at"
+  ].join(",");
+
+  var UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+  /* created_at é `timestamp` sem fuso, e o now() do servidor grava em UTC.
+     O PostgREST devolve "2026-09-13T20:20:18.348" sem sufixo, que o
+     browser leria como hora LOCAL: 3h de diferença no Brasil. As colunas
+     timestamptz já chegam com offset e passam como estão. */
+  function dbTime(ts) {
+    if (!ts) return null;
+    var s = String(ts).replace(" ", "T");
+    return /(Z|[+-]\d\d:?\d\d)$/.test(s) ? s : s + "Z";
+  }
+
+  function toOrder(r) {
+    return {
+      id: r.id,
+      status: r.status,
+      paymentStatus: r.payment_status,
+      country: r.country,
+      currency: r.currency_code,
+      productId: r.game_slug,
+      productCode: r.product_code,
+      packageLabel: r.package_label,
+      faceValue: r.face_value,
+      amount: r.amount_cents,                 // CENTAVOS
+      redemptionFields: r.redemption_fields || {},
+      email: r.delivery_email,
+      paymentMethod: r.payment_method,
+      createdAt: dbTime(r.created_at),
+      updatedAt: dbTime(r.updated_at),
+      paidAt: dbTime(r.paid_at),
+      completedAt: dbTime(r.completed_at),
+      codeVisibleUntil: dbTime(r.code_visible_until),
+      expiresAt: dbTime(r.expires_at)
+    };
+  }
+
+  function ordersError(code) {
+    var e = new Error(code);
+    e.code = code;
+    return e;
+  }
+
+  async function getOrders() {
+    if (!(await getAuthUser())) throw ordersError("not_authenticated");
+    var res = await sb()
+      .from("orders")
+      .select(ORDER_COLUMNS)
+      .eq("channel", "storefront")
+      .order("created_at", { ascending: false });
+    if (res.error) throw ordersError("orders_unavailable");
+    return (res.data || []).map(toOrder);
+  }
+
+  /* Id que não é uuid nem vai ao banco: o PostgREST responderia 400
+     (22P02) e a página mostraria "indisponível" em vez de "não
+     encontrado". Pedido de outra pessoa volta null pela RLS, igual a um
+     inexistente — a página não distingue, e não deve. */
+  async function getOrderById(id) {
+    if (!UUID_RE.test(String(id || ""))) return null;
+    if (!(await getAuthUser())) throw ordersError("not_authenticated");
+    var res = await sb()
+      .from("orders")
+      .select(ORDER_COLUMNS)
+      .eq("id", id)
+      .maybeSingle();
+    if (res.error) throw ordersError("orders_unavailable");
+    return res.data ? toOrder(res.data) : null;
+  }
+
+  async function postOrder(payload) {
+    var session = await getSession();
+    if (!session) return { ok: false, code: "not_authenticated", status: 401 };
     try {
-      var raw = localStorage.getItem(LS_ORDERS);
-      if (raw) return JSON.parse(raw);
-    } catch (e) { /* ignore corrupt storage */ }
-    var seed = (global.RECARGA_SEED_ORDERS || []).slice();
-    writeOrdersRaw(seed);
-    return seed;
+      var res = await fetch("/api/orders", {
+        method: "POST",
+        headers: {
+          "Authorization": "Bearer " + session.access_token,
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        body: JSON.stringify(Object.assign({ country: market().key }, payload))
+      });
+      var body = null;
+      try { body = await res.json(); } catch (e) { /* corpo vazio */ }
+      if (!res.ok) {
+        return { ok: false, status: res.status, code: (body && body.error) || "order_failed", field: body && body.field };
+      }
+      return { ok: true, order: body };
+    } catch (e) {
+      return { ok: false, status: 0, code: "network" };
+    }
   }
 
-  function writeOrdersRaw(list) {
-    try { localStorage.setItem(LS_ORDERS, JSON.stringify(list)); } catch (e) { /* storage unavailable */ }
-  }
-
-  /* Transição do C2: pedidos antigos (seed e os criados antes da Fase 2)
-     guardam `amount` em reais, float. As páginas agora formatam centavos,
-     então a leitura converte. Pedido novo já nasce com amountUnit:'cents'.
-     Some junto com o localStorage no C3. */
-  function inCents(o) {
-    if (!o || o.amountUnit === "cents") return o;
-    return Object.assign({}, o, { amount: Math.round(Number(o.amount || 0) * 100), amountUnit: "cents" });
-  }
-
-  function getOrders() {
-    return readOrdersRaw().map(inCents).sort(function (a, b) {
-      return new Date(b.createdAt) - new Date(a.createdAt);
+  /* Whitelist do que vai no corpo. Preço, taxa, status e validade NUNCA:
+     se uma página passar `amount` aqui por engano, ele morre nesta função
+     e não chega nem a ser ignorado pelo servidor. */
+  function createOrder(input) {
+    input = input || {};
+    return postOrder({
+      gameSlug: input.gameSlug,
+      productCode: input.productCode,
+      redemptionFields: input.redemptionFields,
+      deliveryEmail: input.deliveryEmail,
+      paymentMethod: input.paymentMethod
     });
   }
 
-  function getOrderById(id) {
-    return inCents(readOrdersRaw().find(function (o) { return o.id === id; }));
+  /* checkout.html: o servidor decide se reabre o mesmo pedido (ainda
+     aguardando) ou cria um novo com os dados do vencido. Nunca duplica. */
+  function retryOrder(orderId) {
+    return postOrder({ retryOf: orderId });
   }
 
-  function generateOrderId() {
-    return "RG-" + Math.floor(70000 + Math.random() * 29999);
+  /* Vencido para a TELA: status 'expired', ou 'awaiting_payment' com o
+     prazo já passado e o orders-expire ainda não rodou (roda a cada 10 min). */
+  function isOrderExpired(order, now) {
+    if (!order) return false;
+    if (order.status === "expired") return true;
+    return order.status === "awaiting_payment" && !!order.expiresAt &&
+      new Date(order.expiresAt).getTime() <= (now || Date.now());
   }
 
-  function createOrder(order) {
-    var list = readOrdersRaw();
-    var full = Object.assign({
-      id: generateOrderId(),
-      status: "processing",
-      createdAt: new Date().toISOString()
-    }, order);
-    list.unshift(full);
-    writeOrdersRaw(list);
-    return full;
-  }
-
-  function generateRedeemCode() {
-    var chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O/1/I ambiguity
-    function block() {
-      var s = "";
-      for (var i = 0; i < 4; i++) s += chars[Math.floor(Math.random() * chars.length)];
-      return s;
-    }
-    return [block(), block(), block(), block()].join("-");
-  }
-
-  function completeOrder(id) {
-    var list = readOrdersRaw();
-    var order = list.find(function (o) { return o.id === id; });
-    if (order) {
-      order.status = "completed";
-      order.completedAt = new Date().toISOString();
-      /* `productType` gravado na criação: o catálogo agora é assíncrono e
-         esta função continua síncrona até sair, no C3. */
-      if (!order.code && (order.productType === "code" || order.productType === "giftcard")) {
-        order.code = generateRedeemCode();
-      }
-      writeOrdersRaw(list);
-    }
-    return order;
+  /* D4: código visível só com pedido concluído e dentro de
+     code_visible_until. Fora disso, a página diz que foi para o e-mail. */
+  function isCodeVisible(order, now) {
+    return !!order && order.status === "completed" && !!order.codeVisibleUntil &&
+      (now || Date.now()) < new Date(order.codeVisibleUntil).getTime();
   }
 
   /* ================================================================
@@ -665,26 +729,53 @@
     }
   }
 
-  /* Pacote de dados do titular (LGPD, "baixar meus dados"). Perfil vem do
-     servidor; pedidos vêm do localStorage enquanto a Fase 2 não chega —
-     e o JSON diz isso, para quem receber o arquivo não achar que o
-     histórico é completo. */
+  /* Pacote de dados do titular (LGPD, "baixar meus dados"). Perfil e
+     pedidos vêm do servidor. Se os pedidos falharem, `orders` sai null e
+     `notes.orders` diz por quê: uma lista vazia seria lida como "não há
+     pedidos", que é outra afirmação. */
   async function exportUserData() {
     var profile = await getUser({ fresh: true });
+    var orders = null;
+    var ordersNote = "Pedidos da loja (public.orders), valores em centavos.";
+    try {
+      orders = await getOrders();
+    } catch (e) {
+      ordersNote = "Não foi possível carregar os pedidos agora (" + (e && e.code) + "). Exporte de novo para incluí-los.";
+    }
     return {
       exportedAt: new Date().toISOString(),
       market: market().key,
       profile: profile,
-      orders: getOrders(),
+      orders: orders,
       notes: {
-        orders: "Pedidos ainda são locais a este navegador (Fase 2 os move para o servidor). Este arquivo reflete apenas este dispositivo.",
+        orders: ordersNote,
         profile: "Perfil vem de public.customer_profiles. O e-mail é o de auth.users."
       }
     };
   }
 
+  /* Rótulo e tom (classe CSS status-pill: completed | processing | failed)
+     por status de orders. Status que não está no mapa recebe rótulo
+     neutro, nunca o valor cru da coluna. */
+  var STATUS_LABELS = {
+    awaiting_payment: "Aguardando pagamento",
+    paid: "Pagamento confirmado",
+    fulfilling: "Em processamento",
+    completed: "Concluído",
+    failed: "Falhou",
+    refunded: "Reembolsado",
+    expired: "Expirado",
+    cancelled: "Cancelado"
+  };
+
   function statusLabel(status) {
-    return { completed: "Concluído", processing: "Processando", failed: "Falhou" }[status] || status;
+    return STATUS_LABELS[status] || "Em análise";
+  }
+
+  function statusTone(status) {
+    if (status === "completed") return "completed";
+    if (["failed", "expired", "cancelled", "refunded"].indexOf(status) > -1) return "failed";
+    return "processing";
   }
 
   /* ---------------- Offerwall e cupons ----------------
@@ -714,19 +805,20 @@
     formatMoney: formatMoney,      // CENTAVOS
     formatDate: formatDate,
     statusLabel: statusLabel,
+    statusTone: statusTone,
+    isOrderExpired: isOrderExpired,
+    isCodeVisible: isCodeVisible,
 
     /* catálogo — /api/catalog, ASSÍNCRONOS (Fase 2) */
     getProducts: getProducts,
     getProductById: getProductById,
     relatedProducts: relatedProducts,
 
-    /* pedidos — localStorage, síncronos, saem no C3 da Fase 2 */
+    /* pedidos — public.orders (leitura RLS) e POST /api/orders, ASSÍNCRONOS */
     getOrders: getOrders,
     getOrderById: getOrderById,
     createOrder: createOrder,
-    completeOrder: completeOrder,
-    generateOrderId: generateOrderId,
-    generateRedeemCode: generateRedeemCode,
+    retryOrder: retryOrder,
 
     /* sessão e perfil — ASSÍNCRONOS */
     signUp: signUp,

@@ -268,7 +268,6 @@
   </div>
 </div>
 
-<script src="shared/data/orders.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script src="shared/js/market.js"></script>
 <script src="shared/js/supabase-client.js"></script>
@@ -278,179 +277,131 @@
 (async function () {
   'use strict';
 
-  var params = new URLSearchParams(window.location.search);
-  var retryId = params.get('retry');
-  var presetMethod = params.get('method'); // e.g. 'pix' from the "Pagar com Pix" retry button
+  /* ── checkout.html — Fase 2 (C3): refazer um pedido ─────────────────────
+     Chega aqui por checkout.html?retry=<id>.
+       - pedido ainda aguardando e no prazo → volta para o MESMO pedido
+       - pedido vencido                       → oferece criar um novo, com os
+                                                 dados gravados no original
+       - qualquer outro status                → página do pedido
+     Quem decide reabrir ou criar é o servidor (orders-create, retryOf):
+     esta página só mostra e chama. Nunca duplica. Não há cobrança nesta
+     fase. */
 
-  /* ============================================================
-     Real integration point: this reads the order via RecargaStore
-     the same way order-details.html is meant to (see the TODO in
-     that file). Until order-details.html itself is wired to real
-     data, retryId here won't match a real order, so this page
-     falls back to a bundled demo "failed" order below — same
-     stand-in pattern used across the other prototype pages.
-  ============================================================ */
-  var hasStore = !!window.RecargaStore;
-  var order = (hasStore && retryId && typeof RecargaStore.getOrderById === 'function')
-    ? RecargaStore.getOrderById(retryId)
-    : null;
-  var product = null;
-  if (hasStore && order && typeof RecargaStore.getProductById === 'function') {
-    try { product = await RecargaStore.getProductById(order.productId); } catch (e) { product = null; }
-  }
-
-  var DEMO_ORDER = {
-    id: retryId || 'RG-260831-6190', status: 'failed', productId: 'mobile-legends',
-    packageLabel: 'Pacote Diamantes Mega (1.050 💎)', qty: 1,
-    email: 'alex.***@gmail.com', paymentMethod: 'Cartão de crédito', amount: 8990, amountUnit: 'cents',
-    createdAt: '2026-08-31T20:40:00',
-    failReason: 'O cartão foi recusado pela operadora. Nenhum valor foi cobrado.'
-  };
-  var DEMO_PRODUCTS = {
-    'mobile-legends': { name: 'Mobile Legends', category: 'Diamantes', color: '#F5700A', short: 'ML' },
-    'freefire-gift':  { name: 'Free Fire — Cartão Presente', category: 'Gift Card digital', color: '#2ECC8A', short: 'FF' }
-  };
-
-  if (!order) order = DEMO_ORDER;
-  if (!product) product = DEMO_PRODUCTS[order.productId] || { name: order.productId, category: '', color: '#F5700A', short: '?' };
+  var content = document.getElementById('checkoutContent');
+  var breadcrumbLink = document.getElementById('breadcrumbOrderLink');
+  var retryId = new URLSearchParams(window.location.search).get('retry');
 
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]; }); }
-  /* Fase 1: formatação vem do market.js (locale + moeda do mercado). O
-     fallback com 'R$' fixo saiu — reintroduzia o hardcode de BR no
-     caminho de erro, que é onde ninguém olha. */
-  function formatBRL(n) { return RecargaMarket.formatMoney(n); }
-  function formatDate(iso) {
-    if (!iso) return '—';
-    var d = new Date(iso);
-    return d.toLocaleDateString(RecargaMarket.locale, { day: '2-digit', month: 'short', year: 'numeric' });
+  function shortId(id) { return String(id || '').slice(0, 8).toUpperCase(); }
+
+  function renderMessage(title, bodyHtml, actionsHtml) {
+    document.title = 'Recarga Games — ' + title;
+    content.innerHTML =
+      '<div class="card" style="padding:56px 28px;text-align:center;">' +
+        '<h1 style="font-family:\'Barlow Condensed\',sans-serif;text-transform:uppercase;font-size:28px;margin:0 0 10px;">' + esc(title) + '</h1>' +
+        '<p style="color:var(--muted);font-size:14px;margin:0 auto 24px;max-width:42ch;">' + bodyHtml + '</p>' +
+        '<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">' + actionsHtml + '</div>' +
+      '</div>';
   }
 
-  var PAY_METHODS = [
-    { key: 'pix', label: 'Pix', desc: 'Transferência instantânea via QR Code', trust: '✓ Confirmação em segundos', recommended: true,
-      icon: '<svg viewBox="0 0 20 20" fill="none"><path d="M10 3L14.5 7.5H12.5V12.5H7.5V7.5H5.5L10 3Z" fill="currentColor" opacity=".7"/><path d="M10 17L5.5 12.5H7.5V7.5H12.5V12.5H14.5L10 17Z" fill="currentColor"/></svg>' },
-    { key: 'card', label: 'Cartão de crédito', desc: 'Visa, Mastercard, Elo · Parcelas disponíveis', trust: '',
-      icon: '<svg viewBox="0 0 20 20" fill="none"><rect x="2" y="5" width="16" height="11" rx="2" stroke="currentColor" stroke-width="1.4"/><path d="M2 8h16" stroke="currentColor" stroke-width="1.4"/><rect x="4" y="11" width="4" height="1.5" rx=".5" fill="currentColor"/></svg>' },
-    { key: 'boleto', label: 'Boleto bancário', desc: '1–3 dias úteis para compensação', trust: '',
-      icon: '<svg viewBox="0 0 20 20" fill="none"><rect x="3" y="4" width="14" height="12" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M6 8v5M8 7v5M10 8v5M12 7v5M14 8v5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>' }
-  ];
-
-  // Preselect: explicit ?method= param wins, then the order's own failed method
-  // mapped to a key, else Pix (the "safest" alternative after a card decline).
-  function methodToKey(label) {
-    if (!label) return null;
-    label = label.toLowerCase();
-    if (label.indexOf('pix') > -1) return 'pix';
-    if (label.indexOf('cart') > -1) return 'card';
-    if (label.indexOf('boleto') > -1) return 'boleto';
-    return null;
+  var session = await RecargaStore.getSession();
+  if (!session) {
+    window.location.replace('account-login.html?redirect=' + encodeURIComponent('checkout.html' + window.location.search));
+    return;
   }
-  /* ── Fase 0 — o que ainda não tem backend fica oculto, não removido ──
-     PagBrasil ainda não está integrado, então só Pix é oferecido. PAY_METHODS
-     acima fica intacto: para reabrir cartão/boleto, basta acrescentar a chave
-     nesta allowlist. O filtro roda na renderização (e não só no CSS) porque
-     estas opções são geradas por JS — esconder depois deixaria a opção
-     focável por teclado. */
-  var PHASE0_ALLOWED_PAY = ['pix'];
-  var VISIBLE_PAY_METHODS = PAY_METHODS.filter(function (m) {
-    return PHASE0_ALLOWED_PAY.indexOf(m.key) > -1;
-  });
 
-  var requestedKey = PAY_METHODS.some(function (m) { return m.key === presetMethod; }) ? presetMethod
-    : (methodToKey(order.paymentMethod) === 'card' ? 'pix' : (methodToKey(order.paymentMethod) || 'pix'));
-  // Um ?method=card na URL não pode selecionar um método que não está visível.
-  var initialKey = PHASE0_ALLOWED_PAY.indexOf(requestedKey) > -1 ? requestedKey : PHASE0_ALLOWED_PAY[0];
+  var order = null;
+  try {
+    order = retryId ? await RecargaStore.getOrderById(retryId) : null;
+  } catch (e) {
+    renderMessage('Pedido indisponível', 'Não conseguimos carregar o pedido agora. Tente de novo em instantes.',
+      '<a class="cta-primary" style="width:auto;padding:0 26px;" href="' + esc(window.location.href) + '">Tentar de novo</a>');
+    return;
+  }
+  if (!order) {
+    renderMessage('Pedido não encontrado', 'Não encontramos este pedido na sua conta.',
+      '<a class="cta-primary" style="width:auto;padding:0 26px;" href="my-orders.html">Meus pedidos</a>');
+    return;
+  }
 
-  document.title = 'Recarga Games — Pagamento · Pedido ' + order.id;
-  document.getElementById('breadcrumbOrderLink').textContent = 'Pedido ' + order.id;
-  document.getElementById('breadcrumbOrderLink').setAttribute('href', 'order-details.html?id=' + encodeURIComponent(order.id));
+  if (!RecargaStore.isOrderExpired(order)) {
+    window.location.replace('order-details.html?id=' + encodeURIComponent(order.id));
+    return;
+  }
 
-  var failHtml = order.status === 'failed' ? (
-    '<div class="fail-note"><strong>Pagamento anterior não foi concluído.</strong>' + esc(order.failReason || 'Escolha outro método de pagamento para tentar novamente.') + '</div>'
-  ) : '';
+  var product = null;
+  try { product = await RecargaStore.getProductById(order.productId); } catch (e) { product = null; }
+  var productName = product ? product.name : order.productId;
 
-  var payOptsHtml = VISIBLE_PAY_METHODS.map(function (m) {
-    var checked = m.key === initialKey;
-    return '<div class="pay-opt" role="radio" aria-checked="' + checked + '" tabindex="0" data-pay="' + m.key + '" data-pay-label="' + esc(m.label) + '">' +
-      (m.recommended ? '<span class="pay-recommended">Recomendado</span>' : '') +
-      '<div class="pay-icon" aria-hidden="true">' + m.icon + '</div>' +
-      '<div class="pay-meta"><div class="pay-name">' + esc(m.label) + '</div><div class="pay-desc">' + esc(m.desc) + '</div>' +
-        (m.trust ? '<div class="pay-trust">' + esc(m.trust) + '</div>' : '') +
-      '</div>' +
-      '<div class="pay-radio" aria-hidden="true"></div>' +
-    '</div>';
-  }).join('');
+  document.title = 'Recarga Games — Novo pedido · ' + shortId(order.id);
+  breadcrumbLink.textContent = 'Pedido ' + shortId(order.id);
+  breadcrumbLink.setAttribute('href', 'order-details.html?id=' + encodeURIComponent(order.id));
 
-  document.getElementById('checkoutContent').innerHTML =
+  var ERRORS = {
+    product_not_available: 'Este pacote não está mais disponível. Escolha outro na página do jogo.',
+    package_not_canonical: 'Este pacote mudou no catálogo. Escolha de novo na página do jogo.',
+    invalid_redemption_fields: 'Os dados do jogo deste pedido não valem mais. Faça o pedido de novo pela página do jogo.',
+    invalid_payment_method: 'O meio de pagamento deste pedido não está disponível. Faça o pedido de novo pela página do jogo.',
+    too_many_open_orders: 'Você já tem 5 pedidos aguardando pagamento. Conclua ou espere algum expirar.',
+    catalog_unavailable: 'O catálogo está indisponível agora. Tente de novo em instantes.',
+    _default: 'Não foi possível criar o pedido agora. Tente de novo em instantes.'
+  };
+
+  content.innerHTML =
     '<div class="account-head">' +
       '<div>' +
-        '<h1 class="account-title">Finalizar pagamento</h1>' +
-        '<p class="account-sub">Pedido ' + esc(order.id) + ' · ' + esc(product.name) + '</p>' +
+        '<h1 class="account-title">Criar novo pedido</h1>' +
+        '<p class="account-sub">Pedido ' + esc(shortId(order.id)) + ' · ' + esc(productName) + '</p>' +
       '</div>' +
       '<a class="back-link" href="order-details.html?id=' + encodeURIComponent(order.id) + '"><svg viewBox="0 0 24 24" fill="none"><path d="M15 5 8 12l7 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Voltar ao pedido</a>' +
     '</div>' +
-
     '<div class="order-detail-grid">' +
       '<div>' +
-        failHtml +
-        '<div class="card pay-card">' +
-          '<div class="pay-card-head"><h2>Método de pagamento</h2><p>Escolha como prefere pagar desta vez.</p></div>' +
-          '<div class="payment-options" role="radiogroup" aria-label="Selecione o método de pagamento" id="payOpts">' + payOptsHtml + '</div>' +
-        '</div>' +
+        '<div class="fail-note"><strong>Este pedido expirou.</strong>O prazo para pagar terminou e nenhum valor foi cobrado. O novo pedido usa o mesmo pacote e os mesmos dados do jogo, com o valor do catálogo de agora.</div>' +
       '</div>' +
-
       '<div class="card">' +
         '<div class="order-detail-product">' +
-          '<div class="order-detail-thumb" style="--thumb-color:' + esc(product.color || '#F5700A') + '">' + esc(product.short) + '</div>' +
-          '<div><h2>' + esc(product.name) + '</h2><p>' + esc(product.category) + '</p></div>' +
+          '<div class="order-detail-thumb" style="--thumb-color:#F5700A">' + esc(product ? product.short : '?') + '</div>' +
+          '<div><h2>' + esc(productName) + '</h2><p>' + esc(order.packageLabel || order.productCode) + '</p></div>' +
         '</div>' +
         '<div class="detail-lines">' +
-          '<div class="detail-line"><span class="lbl">Pacote</span><span class="val">' + esc(order.packageLabel) + '</span></div>' +
-          '<div class="detail-line"><span class="lbl">Quantidade</span><span class="val">' + esc(order.qty) + '</span></div>' +
           '<div class="detail-line"><span class="lbl">E-mail</span><span class="val">' + esc(order.email || '—') + '</span></div>' +
-          '<div class="detail-line"><span class="lbl">Pedido original</span><span class="val">' + formatDate(order.createdAt) + '</span></div>' +
+          '<div class="detail-line"><span class="lbl">Pedido original</span><span class="val">' + esc(RecargaStore.formatDate(order.createdAt)) + '</span></div>' +
+          '<div class="detail-line"><span class="lbl">Valor anterior</span><span class="val">' + esc(RecargaStore.formatMoney(order.amount)) + '</span></div>' +
         '</div>' +
-        '<div class="detail-total"><span class="lbl">Total a pagar</span><span class="val">' + formatBRL(order.amount) + '</span></div>' +
+        '<p id="retryError" role="alert" style="color:#FFC1B7;font-size:13px;margin:12px 0 0;" hidden></p>' +
         '<div class="order-actions">' +
-          '<button class="cta-primary" id="payBtn" type="button">Finalizar pagamento</button>' +
+          '<button class="cta-primary" id="retryBtn" type="button">Criar novo pedido</button>' +
           '<a class="cta-secondary" href="order-details.html?id=' + encodeURIComponent(order.id) + '">Cancelar e voltar</a>' +
-        '</div>' +
-        '<div class="help-row">Precisa de ajuda? <a href="help-center.html?order=' + encodeURIComponent(order.id) + '">Falar com o suporte</a></div>' +
-        '<div class="summary-trust-strip" aria-label="Sinais de confiança">' +
-          '<div class="st-item"><span>✓</span> Pagamento seguro</div>' +
-          '<div class="st-item"><span>✓</span> Pedido rastreável</div>' +
-          '<div class="st-item"><span>✓</span> Suporte em português</div>' +
-          '<div class="st-item"><span>✓</span> Nota fiscal disponível</div>' +
         '</div>' +
       '</div>' +
     '</div>';
 
-  var payOpts = document.getElementById('payOpts');
-  payOpts.addEventListener('click', function (e) {
-    var opt = e.target.closest('[data-pay]');
-    if (!opt) return;
-    payOpts.querySelectorAll('.pay-opt').forEach(function (o) { o.setAttribute('aria-checked', 'false'); });
-    opt.setAttribute('aria-checked', 'true');
-  });
-  payOpts.addEventListener('keydown', function (e) {
-    if (e.key !== 'Enter' && e.key !== ' ') return;
-    var opt = e.target.closest('[data-pay]');
-    if (opt) { e.preventDefault(); opt.click(); }
-  });
+  var modal = document.getElementById('processingModal');
+  var modalTitle = document.getElementById('processingTitle');
+  if (modalTitle) modalTitle.textContent = 'Criando seu pedido…';
+  var modalText = modal ? modal.querySelector('p') : null;
+  if (modalText) modalText.textContent = 'Só um instante.';
 
-  /* No real payment gateway in this prototype: confirming shows a brief
-     "processing" overlay, marks the order complete via RecargaStore (when
-     available), then hands off to Order Details — same handshake product.html
-     uses for a first-time purchase. */
-  document.getElementById('payBtn').addEventListener('click', function () {
-    var btn = this;
+  var btn = document.getElementById('retryBtn');
+  var errorEl = document.getElementById('retryError');
+  btn.addEventListener('click', async function () {
     btn.disabled = true;
-    document.getElementById('processingModal').classList.add('show');
-    setTimeout(function () {
-      if (hasStore && typeof RecargaStore.completeOrder === 'function') {
-        try { RecargaStore.completeOrder(order.id); } catch (e) { /* ignore in demo mode */ }
-      }
-      window.location.href = 'order-details.html?id=' + encodeURIComponent(order.id) + '&retried=1';
-    }, 1400);
+    errorEl.hidden = true;
+    if (modal) modal.classList.add('show');
+    var res = await RecargaStore.retryOrder(order.id);
+    if (res.ok) {
+      window.location.href = 'order-details.html?id=' + encodeURIComponent(res.order.id) + (res.order.reused ? '' : '&new=1');
+      return;
+    }
+    if (modal) modal.classList.remove('show');
+    if (res.status === 401) {
+      window.location.replace('account-login.html?redirect=' + encodeURIComponent('checkout.html' + window.location.search));
+      return;
+    }
+    errorEl.textContent = ERRORS[res.code] || ERRORS._default;
+    errorEl.hidden = false;
+    btn.disabled = false;
   });
 })();
 </script>

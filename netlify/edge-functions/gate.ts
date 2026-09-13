@@ -16,6 +16,14 @@ import bcrypt from "https://esm.sh/bcryptjs@2.4.3";
 import { create, verify, getNumericDate } from "https://deno.land/x/djwt@v3.0.2/mod.ts";
 
 const COOKIE_NAME = "rg_gate";
+
+// Rotas de API atrás do gate. Cada uma aparece duas vezes: a rota pública
+// (/api/...) e o caminho cru da Function, que contornaria o gate. TEM que
+// casar com `config.path` no fim do arquivo.
+const GATED_API_PATHS = [
+  "/api/catalog", "/.netlify/functions/catalog",
+  "/api/orders", "/.netlify/functions/orders-create",
+];
 const COOKIE_MAX_AGE_DAYS = 90;
 const JWT_ISSUER = "recargagames";
 
@@ -185,7 +193,9 @@ export default async (req: Request, ctx: Context): Promise<Response | undefined>
   // não página). O caminho direto /.netlify/functions/catalog entra junto;
   // sem ele, o gate seria contornado pela URL crua da Function.
   // Sai na Fase 4, junto com o resto do gate.
-  if (pathname === "/api/catalog" || pathname === "/.netlify/functions/catalog") {
+  // /api/orders entrou no C3 (decisão de 13/09): a Function já exige o JWT
+  // do cliente, mas nenhuma rota do preview fica acessível sem a senha.
+  if (GATED_API_PATHS.includes(pathname)) {
     const token = getCookie(req, COOKIE_NAME);
     if (token && (await verifyJwt(token, JWT_SIGNING_SECRET))) {
       return ctx.next();
@@ -199,7 +209,12 @@ export default async (req: Request, ctx: Context): Promise<Response | undefined>
 
 // Configuração da Edge Function
 export const config: Config = {
-  path: ["/br", "/br/*", "/_gate/auth", "/api/catalog", "/.netlify/functions/catalog"],
+  path: [
+    "/br", "/br/*", "/_gate/auth",
+    // espelho de GATED_API_PATHS
+    "/api/catalog", "/.netlify/functions/catalog",
+    "/api/orders", "/.netlify/functions/orders-create",
+  ],
   // Excluímos o próprio _gate.html para evitar loop quando o handler busca a página
   excludedPath: ["/br/_gate.html"],
 };
