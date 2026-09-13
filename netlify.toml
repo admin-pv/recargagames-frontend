@@ -20,10 +20,9 @@
 
 # ── 1. /app/ não é endereço público ───────────────────────────────────────
 # O gate (netlify/edge-functions/gate.ts) casa com /br, /br/*, /_gate/auth e
-# as rotas de API da seção 0 — não com /app/*. Por isso a regra abaixo. Antes:
-# só casava com /br, /br/* e
-# /_gate/auth. Sem isto, /app/* serviria a loja sem senha. Forçada porque os
-# arquivos existem e venceriam uma regra não-forçada.
+# as rotas de API da seção 0 — não com /app/*. Sem isto, /app/* serviria a
+# loja sem senha. Forçada porque os arquivos existem e venceriam uma regra
+# não-forçada.
 [[redirects]]
   from = "/app/*"
   to = "/br/:splat"
