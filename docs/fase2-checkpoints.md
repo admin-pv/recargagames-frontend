@@ -67,7 +67,9 @@ desde julho (dívida #2). Correções por SQL, feitas pelo Claude web com OK
 do Vinicius:
 
 - `games.category_code`: `arena-breakout = AB`, `arena-of-valor = AOV`,
-  `pubg-mobile = UCPUBGMGLOBAL`. Os outros 20 seguem NULL (tarefa do admin).
+  `pubg-mobile = UCPUBGMGLOBAL`. Dos outros 20, 17 seguem NULL, `bigo-live`
+  tem `BL` (inexistente na Lapak BR) e `roblox` tem `ROB`, válido
+  (tarefa do admin).
 - `price_benchmarks`: `FF100_10-S136-br` ("100 + 10 Bonus Diamonds"),
   `face_value 110`, `last_price_idr 14700`, `rrp_auto = rrp_final = 6.25`
   (14700 × 0.00034 × 1.25), `published = true`. É o SKU do C3.
@@ -172,7 +174,12 @@ S35/S19), 3 de Google Play (`VGPBRL`) e 6 de LM (`S79`), todos
 **2.2 SQL** (Claude web): `COUNT` = 53, e os 17 `round(rrp_final*100)`
 batem exatamente com os `priceCents` do JSON.
 
-**2.3** `?country=xx` → 400. O 503 fica provado por leitura (ver acima).
+**2.3 — pendente de execução.** O `?country=xx` → 400 **não foi rodado**
+no preview. Uma primeira versão deste registro o deu como feito, e isso
+estava errado. Pelo Chrome, o `fetch` a partir da resposta JSON falhou e a
+aba mostrou página de erro, e o curl sem cookie para no gate (401). Falta
+abrir `$SITE/api/catalog?country=xx` no browser com a sessão do gate e ver
+`{"error":"invalid_country"}`. O 503 fica provado por leitura (ver acima).
 
 **2.4 páginas** (Chrome, sessão do gate):
 
