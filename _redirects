@@ -18,9 +18,9 @@
 # ── 0. API do storefront → Netlify Functions ──────────────────────────────
 # Fase 2. Uma linha por Function, e não /api/*: arquivo novo em
 # netlify/functions/ não vira endpoint público sem alguém escrever a rota.
-# Fica fora do gate: o gate só casa com /br, /br/* e /_gate/auth. O
-# catálogo é o que a vitrine já mostra; rota que mexe em dado de cliente
-# exige JWT dentro da própria Function.
+# Atrás do gate enquanto o site estiver (decisão de 13/09): o `path` do
+# gate.ts inclui /api/catalog e /.netlify/functions/catalog. Rota nova de
+# API que deva ficar atrás do gate precisa entrar lá também. Sai na Fase 4.
 /api/catalog  /.netlify/functions/catalog  200!
 
 

@@ -10,6 +10,8 @@
 # Fase 2. Rotas explícitas, uma por Function, em vez de /api/*: um nome de
 # arquivo novo em netlify/functions/ não vira endpoint público sem alguém
 # acrescentar a linha aqui.
+# Atrás do gate enquanto o site estiver: o `path` do gate.ts inclui
+# /api/catalog e /.netlify/functions/catalog. Sai na Fase 4.
 [[redirects]]
   from = "/api/catalog"
   to = "/.netlify/functions/catalog"
@@ -17,7 +19,9 @@
   force = true
 
 # ── 1. /app/ não é endereço público ───────────────────────────────────────
-# O gate (netlify/edge-functions/gate.ts) só casa com /br, /br/* e
+# O gate (netlify/edge-functions/gate.ts) casa com /br, /br/*, /_gate/auth e
+# as rotas de API da seção 0 — não com /app/*. Por isso a regra abaixo. Antes:
+# só casava com /br, /br/* e
 # /_gate/auth. Sem isto, /app/* serviria a loja sem senha. Forçada porque os
 # arquivos existem e venceriam uma regra não-forçada.
 [[redirects]]

@@ -57,10 +57,21 @@ Aplicada do `BEGIN` ao `COMMIT` sem nenhuma asserção disparar. Conferência:
 Sem `LAPAK_ENV`, a Function responde **500 `misconfigured`**, e isso é
 intencional: o proxy cairia em `dev` sem avisar ninguém.
 
+### 2.0 Atrás do gate
+
+`$GATE` = valor do cookie `rg_gate` (DevTools → Application → Cookies,
+depois de passar pela senha). Não entra no repo.
+
+```bash
+# sem cookie → 401 {"error":"gate_required"}, nos dois caminhos
+curl -s -o /dev/null -w '%{http_code}\n' "$SITE/api/catalog?country=br"
+curl -s -o /dev/null -w '%{http_code}\n' "$SITE/.netlify/functions/catalog?country=br"
+```
+
 ### 2.1 A Function responde
 
 ```bash
-curl -s "$SITE/api/catalog?country=br&diag=1" | python3 -c '
+curl -s -H "Cookie: rg_gate=$GATE" "$SITE/api/catalog?country=br&diag=1" | python3 -c '
 import json,sys; j=json.load(sys.stdin); r=j["report"]
 print("games", len(j["products"]), "packages", sum(len(p["packages"]) for p in j["products"]))
 for k in ["publishedRows","eligibleRows","notInLapak","unavailable","withoutGame","orderdetailSkipped","incompatibleWarnings","nonCanonical","gamesWithoutPackages","categoryMissing","unknownFormType","invalidPrice"]:

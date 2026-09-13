@@ -7,8 +7,10 @@
    docs/modelo-catalogo-e-fulfillment.md.
 
    Rota: /api/catalog é rewrite para /.netlify/functions/catalog
-   (netlify.toml e _redirects). Fica FORA do gate de propósito: é o mesmo
-   dado que a vitrine mostra, sem nada de cliente.
+   (netlify.toml e _redirects). ATRÁS DO GATE enquanto o site estiver
+   (decisão de 13/09): netlify/edge-functions/gate.ts casa com
+   /api/catalog e com /.netlify/functions/catalog, e responde 401
+   { error: 'gate_required' } sem o cookie rg_gate. Sai na Fase 4.
 
    Respostas:
      200  { country, currency, generatedAt, products: [...] }

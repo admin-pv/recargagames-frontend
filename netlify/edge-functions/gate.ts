@@ -179,13 +179,27 @@ export default async (req: Request, ctx: Context): Promise<Response | undefined>
     });
   }
 
+  // --- ROTA 3: API do storefront atrás do gate (Fase 2) ---
+  // O catálogo segue o site: enquanto /br/ exigir senha, /api/catalog também.
+  // Mesmo cookie, mesma verificação. Sem cookie válido, 401 em JSON (é API,
+  // não página). O caminho direto /.netlify/functions/catalog entra junto;
+  // sem ele, o gate seria contornado pela URL crua da Function.
+  // Sai na Fase 4, junto com o resto do gate.
+  if (pathname === "/api/catalog" || pathname === "/.netlify/functions/catalog") {
+    const token = getCookie(req, COOKIE_NAME);
+    if (token && (await verifyJwt(token, JWT_SIGNING_SECRET))) {
+      return ctx.next();
+    }
+    return jsonResponse({ error: "gate_required" }, 401);
+  }
+
   // Qualquer outra rota: deixa passar
   return ctx.next();
 };
 
 // Configuração da Edge Function
 export const config: Config = {
-  path: ["/br", "/br/*", "/_gate/auth"],
+  path: ["/br", "/br/*", "/_gate/auth", "/api/catalog", "/.netlify/functions/catalog"],
   // Excluímos o próprio _gate.html para evitar loop quando o handler busca a página
   excludedPath: ["/br/_gate.html"],
 };
