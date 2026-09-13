@@ -57,6 +57,25 @@ Aplicada do `BEGIN` ao `COMMIT` sem nenhuma asserção disparar. Conferência:
 Sem `LAPAK_ENV`, a Function responde **500 `misconfigured`**, e isso é
 intencional: o proxy cairia em `dev` sem avisar ninguém.
 
+### Pré-requisitos de dado (13/09)
+
+O primeiro `diag=1` no preview 4 voltou **0 jogos / 0 pacotes**: das 52
+linhas publicadas, 36 `empty` na Lapak e 16 disponíveis sem jogo. Causa:
+`games.category_code` vazio ou diferente do código da Lapak, e nenhuma
+linha de Free Fire em `price_benchmarks`. O admin não consegue publicar
+desde julho (dívida #2). Correções por SQL, feitas pelo Claude web com OK
+do Vinicius:
+
+- `games.category_code`: `arena-breakout = AB`, `arena-of-valor = AOV`,
+  `pubg-mobile = UCPUBGMGLOBAL`. Os outros 20 seguem NULL (tarefa do admin).
+- `price_benchmarks`: `FF100_10-S136-br` ("100 + 10 Bonus Diamonds"),
+  `face_value 110`, `last_price_idr 14700`, `rrp_auto = rrp_final = 6.25`
+  (14700 × 0.00034 × 1.25), `published = true`. É o SKU do C3.
+
+**Esperado depois disso:** 4 jogos (`arena-breakout`, `arena-of-valor`,
+`pubg-mobile`, `free-fire`) e 17 pacotes (1 AB + 9 PUBG + 6 AOV + 1 FF),
+salvo mudança de estoque na Lapak.
+
 ### 2.0 Atrás do gate
 
 `$GATE` = valor do cookie `rg_gate` (DevTools → Application → Cookies,
