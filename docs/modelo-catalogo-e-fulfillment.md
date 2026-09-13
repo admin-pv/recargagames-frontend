@@ -33,7 +33,10 @@ Um pacote entra no catálogo do mercado `M` se e somente se:
   `published = true` e `auto_paused` diferente de `true`; e
 - **(b)** a Lapak devolve o `product_code` com `status = "available"`.
 
-**Só isso.** Nenhuma outra regra exclui produto.
+**Só isso.** Nenhuma outra regra de mercado exclui produto.
+
+A única exclusão fora de (a)+(b) não é de mercado, é de segurança: a
+categoria que exige `orderdetail` fica fora do catálogo B2C (seção 3).
 
 ### Ligação produto → jogo (não exclui nada)
 
@@ -125,13 +128,25 @@ rótulo genérico, nunca o `name` cru.
 `games.redemption_form jsonb` no admin, para sobrescrever label e regex
 por jogo. Fora da Fase 2.
 
-### ⚠️ Ponto aberto: `orderdetail`
+### Decisão (13/09): `orderdetail` fica FORA do catálogo B2C no lançamento
 
-31 categorias pedem `orderdetail`, que pela doc Lapak são **credenciais
-de login do jogo** ("Password : 123 Nickname : … Security code"). Gravar
-senha de terceiro em `orders.redemption_fields` é outro nível de risco
-(LGPD, vazamento, responsabilidade). **Decisão pendente do owner** antes
-de algum jogo com esse campo ser publicado para a loja.
+31 categorias BR pedem `orderdetail`, que pela doc Lapak são
+**credenciais de login do jogo** ("Password : 123 Nickname : … Security
+code"). Gravar senha de terceiro em `orders.redemption_fields` é outro
+nível de risco: LGPD, vazamento, responsabilidade.
+
+Regra, decidida pelo Vinicius:
+
+- `catalog.mjs` descarta toda categoria cujo `forms` contenha
+  `name = "orderdetail"`, **mesmo com pacote publicado e disponível**.
+- Cada descarte vai para o log, com a categoria e sem PII:
+  `catalog: skip orderdetail_required market=<m> category=<code> published=<n>`
+- Como o `orders-create` valida contra o catálogo, pedido para esses SKUs
+  cai no mesmo 400 de produto inexistente. Não há um segundo caminho.
+
+**Revisitar** só com consentimento explícito do cliente e armazenamento
+transitório cifrado: a credencial existe apenas até o fulfillment e
+nunca fica em claro no banco nem no log.
 
 ---
 
@@ -164,16 +179,21 @@ registrar tentativas recusadas. Hoje o `invalid` sem alternativa devolve
 - `/category` traz um campo `check_id`: `inactive` em 261 categorias BR e
   `active` em 3 (`MCGG`, `NEAR`, `SS`). Nenhuma delas é jogo do catálogo.
 
-Então, na Fase 2, o gancho existe no `orders-create` e **sempre grava
-`unsupported`**: sem contrato documentado, chamar um endpoint inventado
-seria pior do que não chamar.
+**Decisão (13/09):** na Fase 2 o gancho existe no `orders-create` e
+**sempre grava `unsupported`**. Sem contrato documentado, chamar um
+endpoint inventado seria pior do que não chamar.
 
-### 🔴 Pré-requisito da Fase 3
+### 🔴 Pré-requisito COMERCIAL da Fase 3
 
-- [ ] Pedir à Lapak o contrato do check de ID (endpoint, parâmetros,
-      resposta, rate limit) e o que `check_id: active` habilita.
-- [ ] Pedir a ativação para as categorias que vamos vender (FF primeiro).
-- [ ] Implementar a chamada no gancho; até lá, `unsupported`.
+Conversa com a Lapak, não tarefa de código:
+
+- [ ] Pedir a **ativação do `check_id`** para as categorias de
+      **Free Fire, PUBG Mobile e Mobile Legends**.
+- [ ] Obter o contrato da checagem (endpoint, parâmetros, resposta, rate
+      limit), que não está na doc v1.6.
+
+Só depois disso, tarefa técnica: implementar a chamada no gancho. Até
+lá, `unsupported`.
 
 ---
 
