@@ -192,6 +192,18 @@ o DevTools aberto pega a publishable key do HTML e escreve em `banners` e
 - [ ] **Repo do admin:** aba Pedidos lendo `orders` como `authenticated`
       com policy `is_admin()` (hoje 401 depois da 0003, ver seção
       `orders` acima)
+- [ ] 🔴 **Repo do admin: publicar SKU falha com 42501 desde julho.**
+      Diagnóstico de 13/09 (Claude web): `price_benchmarks` tem a policy
+      `admin_write` (ALL, `is_admin()`), que está correta, e o usuário do
+      admin está em `admin_users`. Mas as 52 linhas publicadas são todas
+      de **13/04**, anteriores ao fechamento das policies em julho. A tela
+      de Catálogo ainda escreve com `fetch` cru usando a chave **anon, sem
+      sessão**, então `is_admin()` é falso e a escrita é negada.
+      **Conserto:** trocar o `fetch` cru por `sb.from('price_benchmarks')`
+      com a sessão do admin logado. Consequência: nada foi publicado ou
+      despublicado desde julho, e o catálogo reflete o estado de abril.
+      Em 13/09 um SKU de Free Fire entrou por SQL para destravar o C3 da
+      Fase 2 (`notes` da linha diz isso).
 - [ ] **Repo do admin:** tela de jogo com campo "categoria Lapak"
       (dropdown do `/category`) gravando `games.category_code`. Em 13/09,
       3 jogos foram corrigidos por SQL (`AB`, `AOV`, `UCPUBGMGLOBAL`) e 20
