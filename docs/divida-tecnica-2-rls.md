@@ -192,6 +192,12 @@ o DevTools aberto pega a publishable key do HTML e escreve em `banners` e
 - [ ] **Repo do admin:** aba Pedidos lendo `orders` como `authenticated`
       com policy `is_admin()` (hoje 401 depois da 0003, ver seção
       `orders` acima)
+- [ ] **Repo do admin:** tela de jogo com campo "categoria Lapak"
+      (dropdown do `/category`) gravando `games.category_code`. Em 13/09,
+      3 jogos foram corrigidos por SQL (`AB`, `AOV`, `UCPUBGMGLOBAL`) e 20
+      seguem NULL, logo fora da loja. Não é RLS, mas é a mesma superfície:
+      hoje o único jeito de corrigir é SQL direto em produção. Ver
+      `docs/modelo-catalogo-e-fulfillment.md`, seção 2.
 - [ ] `robots.txt` trocado (hoje é `Disallow: /`, ver raiz do repo)
 - [ ] Caixas laranja "Para quem for finalizar esta página" removidas das 8
       páginas estáticas

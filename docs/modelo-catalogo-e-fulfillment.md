@@ -61,6 +61,24 @@ prefixo. Um `FFLATAM110` publicado no `br` gera o aviso, porque a
 categoria do prefixo, `FFLATAM`, diz "exclude Brazil", mesmo estando
 ligado ao Free Fire.
 
+### Pré-requisito de dado: `games.category_code`
+
+A ligação só funciona se `games.category_code` for **exatamente** o
+código de categoria da Lapak. No primeiro Deploy Preview (13/09) o
+catálogo saiu vazio: 16 produtos publicados e disponíveis não acharam
+jogo, porque a coluna estava vazia ou diferente.
+
+- **13/09, atalho de operador por SQL** (Claude web, com OK do
+  Vinicius): `arena-breakout = AB`, `arena-of-valor = AOV`,
+  `pubg-mobile = UCPUBGMGLOBAL`.
+- **Os outros 20 jogos seguem com `category_code` NULL.** Jogo sem
+  categoria não aparece na loja, mesmo com pacote publicado. A Function
+  lista todos em `report.categoryMissing` (`?diag=1`).
+- **🟡 Tarefa do repo do admin:** a tela de jogo ganha o campo
+  "categoria Lapak", um dropdown alimentado por `/category` do mercado.
+  Nada de texto livre: código digitado errado é exatamente o defeito que
+  esvaziou o catálogo. Até lá, a correção é por SQL e caso a caso.
+
 Publicado que não casa com nenhum jogo ativo do mercado **não aparece**
 (não há página onde mostrá-lo) e **é logado** como
 `catalog: published_without_game code=<product_code>`.
