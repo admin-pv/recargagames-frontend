@@ -117,6 +117,31 @@ O storefront continua lendo catálogo e conteúdo com a publishable key e
 conteúdo são problemas separados, e misturá-los nesta fase acoplaria o
 login do cliente ao conserto do painel.
 
+## `orders` — Fase 2 (13/09)
+
+A migration `0003_storefront_orders.sql` fecha `orders` para o browser:
+`REVOKE ALL` de `anon` e `authenticated`, `SELECT` só por coluna (lista
+positiva) para `authenticated`, policy `orders_select_own`
+(`user_id = auth.uid() AND channel = 'storefront'`) e nenhuma policy de
+escrita. Escrita só pelas Netlify Functions, com a secret key.
+
+**O que o bloco 0 encontrou:** _pendente, preencher com a saída de
+`docs/fase2-bloco0.sql` (queries 0a–0d: RLS, policies, grants de tabela e
+de coluna)._
+
+### Efeito colateral aceito: aba Pedidos do admin passa a dar 401
+
+O painel lê `orders` com a chave **anon** via `fetch` cru
+(`loadPedidos()` em `recargagames-admin/index.html`). Desde a migration
+0001 do proxy, `orders` já tem RLS ligada sem policy, então a aba já
+volta vazia. Depois do `REVOKE` da 0003, passa a mostrar erro 401.
+Nenhum dado se perde, porque ela já não via nada. Aceito pelo Vinicius
+em 13/09.
+
+**Conserto é no repo do admin**, e depende da dívida #1: o admin
+autentica como `authenticated`, e uma policy de leitura
+`USING (is_admin())` abre `orders` para ele.
+
 ## Pré-requisito da Fase 4
 
 Abrir o site ao público sem resolver isto significa: qualquer visitante com
@@ -134,6 +159,9 @@ o DevTools aberto pega a publishable key do HTML e escreve em `banners` e
       catálogo migradas para `is_admin()`
 - [ ] Policies de leitura revisadas tabela a tabela (o que é público de
       fato continua `anon`; o resto fecha)
+- [ ] **Repo do admin:** aba Pedidos lendo `orders` como `authenticated`
+      com policy `is_admin()` (hoje 401 depois da 0003, ver seção
+      `orders` acima)
 - [ ] `robots.txt` trocado (hoje é `Disallow: /`, ver raiz do repo)
 - [ ] Caixas laranja "Para quem for finalizar esta página" removidas das 8
       páginas estáticas
