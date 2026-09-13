@@ -3897,20 +3897,9 @@
                 <div class="banner-token t3" style="--logo-color:#F0B429"><strong>PlayStation</strong></div>
               </div>
             </article>
-            <article class="hero-slide" data-target="offers" style="--glow: rgba(224,55,154,.28); --glow-x: 72%;">
-              <div class="hero-copy">
-                <div class="hero-kicker">Ofertas da semana</div>
-                <h1 class="hero-title">Bônus e drops em <span class="accent">poucos cliques.</span></h1>
-                <p>Campanhas ativas, produtos selecionados e condições especiais por tempo limitado.</p>
-                <div class="hero-cta">Explorar ofertas <span>→</span></div>
-              </div>
-              <div class="hero-visual" aria-hidden="true">
-                <span class="banner-line"></span>
-                <div class="banner-token t1" style="--logo-color:#2ECC8A"><strong>MLBB</strong></div>
-                <div class="banner-token t2" style="--logo-color:#E0379A"><strong>Drop da Semana</strong></div>
-                <div class="banner-token t3" style="--logo-color:#F5700A"><strong>10% Extra</strong></div>
-              </div>
-            </article>
+            <!-- Slide "Ofertas da semana" removido na Fase 2 (13/09): apontava para a
+                 seção Ofertas, que é conteúdo do protótipo sem backend. Volta
+                 quando existir campanha real vinda do admin. -->
           </div>
           <button class="hero-btn prev" id="heroPrev" type="button" aria-label="Banner anterior"><svg width="22" height="22"><use href="#i-chevron-left"/></svg></button>
           <button class="hero-btn next" id="heroNext" type="button" aria-label="Próximo banner"><svg width="22" height="22"><use href="#i-chevron-right"/></svg></button>
@@ -3940,7 +3929,10 @@
       <div class="product-rail" id="popularRail"></div>
     </section>
 
-    <section class="section wide" id="offers" aria-labelledby="offers-title">
+    <!-- Fase 2 (13/09): oculta. Cards de oferta eram texto fixo do protótipo
+         (sem backend, sem produto real por trás). O markup e renderOffers()
+         ficam para quando houver campanha vinda do admin. -->
+    <section class="section wide" id="offers" aria-labelledby="offers-title" hidden>
       <div class="section-head">
         <div class="title-wrap"><div class="section-title"><h2 id="offers-title">Ofertas</h2></div></div>
         <div class="rail-actions"><button class="rail-btn" type="button" data-scroll="offerRail" data-dir="-1" aria-label="Anterior"><svg width="20" height="20"><use href="#i-chevron-left"/></svg></button><button class="rail-btn" type="button" data-scroll="offerRail" data-dir="1" aria-label="Próximo"><svg width="20" height="20"><use href="#i-chevron-right"/></svg></button></div>
@@ -4650,7 +4642,7 @@
 
     async function init() {
       updateSearchPlaceholder();
-      renderOffers();
+      // renderOffers() fora: seção Ofertas oculta desde a Fase 2 (ver o markup)
       renderSocialProof();
       initHero();
       initEvents();

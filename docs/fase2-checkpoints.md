@@ -9,7 +9,7 @@ Merge com `--no-ff`, como na Fase 1. Regras do catálogo e do fulfillment:
 | | Estado | Quando |
 |---|---|---|
 | **C1** migration 0003 | ✅ passado | 13/09: bloco 0 lido, P1 e P4 tratados, aplicada, conferência C-1..C-9 ok |
-| **C2** catálogo | ⏳ código pronto para o Deploy Preview | |
+| **C2** catálogo | ✅ passado | 13/09: 4 jogos / 17 pacotes no preview 4, cents conferidos no SQL, páginas pelo Chrome |
 | **C3** pedido | ⬜ | |
 | **C4** segurança por curl | ⬜ | |
 | **C5** expiração | ⬜ | |
@@ -135,10 +135,62 @@ SELECT product_code, rrp_final, round(rrp_final * 100)::int AS cents
 
 ### 2.4 Páginas
 
-- [ ] `index.html` renderiza os jogos do catálogo; badges Destaque/Popular
+- [x] `index.html` renderiza os jogos do catálogo; badges Destaque/Popular
       de `is_featured`/`is_popular`; preço "A partir de" = menor pacote
-- [ ] `product.html?id=free-fire` renderiza pacotes, preço em R$ correto
+- [x] `product.html?id=free-fire` renderiza pacotes, preço em R$ correto
       (centavos ÷ 100), campo "ID do jogador" validando 4–20 dígitos
-- [ ] `product.html?id=<slug sem pacote>` → "Produto não encontrado"
-- [ ] Console sem erro nas duas páginas
-- [ ] **Network: `products.js` não é requisitado** em nenhuma página
+- [x] `product.html?id=<slug sem pacote>` → "Produto não encontrado"
+- [x] Console sem erro nas duas páginas
+- [x] **Network: `products.js` não é requisitado** em nenhuma página
+
+---
+
+### Resultado C2 ✅ (13/09)
+
+**2.0 gate.** Sem cookie, `/api/catalog` e `/.netlify/functions/catalog`
+devolvem `401 {"error":"gate_required"}`; `/br/` devolve 401 com a página
+do gate.
+
+**2.1 Function** (preview 4, commit `32f92e7`): **4 jogos, 17 pacotes.**
+`publishedRows` 53 = `eligibleRows` 17 + `unavailable` 36. `notInLapak`,
+`withoutGame`, `invalidPrice`, `incompatibleWarnings`, `nonCanonical`,
+`orderdetailSkipped` e `unknownFormType` vazios.
+
+| Jogo | Pacotes | Menor |
+|---|---|---|
+| `arena-breakout` (AB) | 1 | R$ 5,95 |
+| `arena-of-valor` (AOV) | 6 | R$ 2,07 |
+| `free-fire` (FF) | 1 (`FF100_10-S136-br`) | R$ 6,25 |
+| `pubg-mobile` (UCPUBGMGLOBAL) | 9 (variante S113) | R$ 6,53 |
+
+Os 36 indisponíveis: 4 de Arena Breakout, 23 de PUBG (UC S50/S7 e VC
+S35/S19), 3 de Google Play (`VGPBRL`) e 6 de LM (`S79`), todos
+`status: empty` na Lapak. `categoryMissing`: 17 jogos com
+`category_code` NULL, mais `bigo-live` com `BL`, que não existe na Lapak BR.
+`roblox` (`ROB`) está em `gamesWithoutPackages`.
+
+**2.2 SQL** (Claude web): `COUNT` = 53, e os 17 `round(rrp_final*100)`
+batem exatamente com os `priceCents` do JSON.
+
+**2.3** `?country=xx` → 400. O 503 fica provado por leitura (ver acima).
+
+**2.4 páginas** (Chrome, sessão do gate):
+
+- `index.html`: 4 cards com os preços do catálogo; badge Destaque em AOV,
+  Popular em FF e PUBG; trilho "Códigos digitais" oculto (nenhum produto
+  tipo código); filtros de plataforma fora; único recurso de dado
+  requisitado é `/api/catalog?country=br`; console sem erro. Imagens do
+  Cloudinary com o transform `c_fill,w_240,h_240,q_auto,f_auto` (200).
+- `product.html?id=free-fire`: 1 pacote `FF100_10-S136-br` a R$ 6,25 no
+  card, no Pix e no total; "ID do jogador" com `inputmode=numeric` e
+  `maxlength=20`. `123` e `12ab5678` inválidos, `123456789` válido;
+  "Somente resgatável em: Brasil" vindo do Intl; relacionados com preço do
+  catálogo; recursos sem `products.js`; console sem erro.
+- `product.html?id=roblox`: "Produto não encontrado", 0 pacotes, console
+  sem erro.
+
+**Decisões tomadas durante o C2:** ligação produto → jogo pelo
+`category_code` da Lapak, com prefixo só como fallback; `/api/catalog`
+atrás do gate até a Fase 4; `face_value` gravado pelo admin (opção A); a
+seção **Ofertas** da home fica oculta (conteúdo do protótipo sem
+backend), junto com o slide do hero que apontava para ela.

@@ -71,9 +71,11 @@ jogo, porque a coluna estava vazia ou diferente.
 - **13/09, atalho de operador por SQL** (Claude web, com OK do
   Vinicius): `arena-breakout = AB`, `arena-of-valor = AOV`,
   `pubg-mobile = UCPUBGMGLOBAL`.
-- **Os outros 20 jogos seguem com `category_code` NULL.** Jogo sem
-  categoria não aparece na loja, mesmo com pacote publicado. A Function
-  lista todos em `report.categoryMissing` (`?diag=1`).
+- **Situação no `diag=1` de 13/09, 20:20:** dos 23 jogos ativos, 17 têm
+  `category_code` NULL e `bigo-live` tem `BL`, código que não existe na
+  Lapak BR. Esses 18 ficam fora da loja, mesmo com pacote publicado, e a
+  Function lista todos em `report.categoryMissing`. `roblox` (`ROB`) tem
+  categoria válida, só não tem pacote publicado.
 - **🟡 Tarefa do repo do admin:** a tela de jogo ganha o campo
   "categoria Lapak", um dropdown alimentado por `/category` do mercado.
   Nada de texto livre: código digitado errado é exatamente o defeito que
@@ -107,6 +109,21 @@ As variantes não canônicas continuam valendo como **alternativas de
 fallback** (seções 4 e 5): elegíveis, mesmo jogo, mesmo `face_value`.
 
 Evolução registrada: flag `is_primary` no admin.
+
+**Pré-requisito: `face_value` preenchido.** O agrupamento é por
+`face_value`; com ele NULL, cada `product_code` vira um pacote próprio.
+Em 13/09 as 52 linhas antigas estavam todas com `face_value` NULL (só o
+Free Fire inserido por SQL tem 110). Hoje isso não aparece, porque só uma
+variante de cada pacote está `available`. Mas se, por exemplo,
+`UCPUBGMGLOBAL325-S50` voltar ao estoque ao lado de
+`VCPUBGMGLOBAL325-S113`, a loja mostra "300 + 25 UC" duas vezes, com dois
+preços.
+
+**Decisão (13/09), opção A:** o admin passa a gravar `face_value` ao
+publicar, no mesmo conserto da tela de Catálogo (dívida #2). Até lá,
+`face_value` só é preenchido por SQL **se aparecer variante duplicada** na
+loja. A Function não tenta adivinhar (agrupar pelo rótulo da Lapak foi a
+opção B, recusada: agrupar por texto é frágil e esconde o dado faltando).
 
 ### Contagem esperada no C2
 

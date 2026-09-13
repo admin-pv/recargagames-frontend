@@ -200,14 +200,17 @@ o DevTools aberto pega a publishable key do HTML e escreve em `banners` e
       de Catálogo ainda escreve com `fetch` cru usando a chave **anon, sem
       sessão**, então `is_admin()` é falso e a escrita é negada.
       **Conserto:** trocar o `fetch` cru por `sb.from('price_benchmarks')`
-      com a sessão do admin logado. Consequência: nada foi publicado ou
+      com a sessão do admin logado, e **gravar `face_value` na publicação**
+      (hoje o upsert não manda a coluna; sem ela a loja não junta variantes
+      do mesmo pacote. Decisão A de 13/09, ver o modelo, seção 2). Consequência: nada foi publicado ou
       despublicado desde julho, e o catálogo reflete o estado de abril.
       Em 13/09 um SKU de Free Fire entrou por SQL para destravar o C3 da
       Fase 2 (`notes` da linha diz isso).
 - [ ] **Repo do admin:** tela de jogo com campo "categoria Lapak"
       (dropdown do `/category`) gravando `games.category_code`. Em 13/09,
-      3 jogos foram corrigidos por SQL (`AB`, `AOV`, `UCPUBGMGLOBAL`) e 20
-      seguem NULL, logo fora da loja. Não é RLS, mas é a mesma superfície:
+      3 jogos foram corrigidos por SQL (`AB`, `AOV`, `UCPUBGMGLOBAL`); 17
+      seguem NULL e `bigo-live` tem `BL`, que não existe na Lapak BR. Os 18
+      estão fora da loja. Não é RLS, mas é a mesma superfície:
       hoje o único jeito de corrigir é SQL direto em produção. Ver
       `docs/modelo-catalogo-e-fulfillment.md`, seção 2.
 - [ ] `robots.txt` trocado (hoje é `Disallow: /`, ver raiz do repo)
