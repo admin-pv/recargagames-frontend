@@ -161,15 +161,17 @@ function cleanRedemptionFields(product, raw) {
   return { clean };
 }
 
-/* payment_methods: o admin exibe `method_name || method_code`, então a
-   chave pode estar em qualquer um dos dois. Ativo = nem `active` nem
-   `is_active` explicitamente false. */
+/* payment_methods: colunas reais conferidas no SQL em 13/09 — `code`
+   ('pix', 'cc', 'debit', 'nupay') é a chave; `name` é o rótulo ('PIX',
+   'Cartão Crédito'...). A primeira versão procurava method_code/method_name
+   (nomes lidos no fallback do admin, que não existem na tabela) e recusava
+   todo pedido com invalid_payment_method.
+   Só `active = true` explícito vale: coluna ausente ou NULL não abre método. */
 function findPaymentMethod(rows, key) {
   const k = String(key || '').trim().toLowerCase();
   if (!k || k.length > 32) return null;
-  const row = rows.find((r) =>
-    String(r.method_code || '').toLowerCase() === k || String(r.method_name || '').toLowerCase() === k);
-  if (!row || row.active === false || row.is_active === false) return null;
+  const row = rows.find((r) => String(r.code || '').toLowerCase() === k);
+  if (!row || row.active !== true) return null;
   return row;
 }
 

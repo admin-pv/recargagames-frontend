@@ -233,10 +233,15 @@ original, status final → 409, `fee_cents` = 6 para R$ 6,25 no Pix (0,99%),
   `LAPAK_ENV=prod`). `PROXY_ADMIN_KEY` ainda não é lida: o check de ID grava
   `unsupported` sem chamar a Lapak.
 - `FF100_10-S136-br` publicado e `available` (o C2 confirmou).
-- `payment_methods` do `br` com `pix` ativo, identificado por
-  `method_name` ou `method_code`. Se a coluna usar outro valor que não
-  `pix`, o pedido volta **400 `invalid_payment_method`**; é o primeiro lugar
-  para olhar.
+- `payment_methods` do `br` com `code = 'pix'` e `active = true`. Colunas
+  reais (SQL, 13/09): `code` é a chave (`pix`, `cc`, `debit`, `nupay`) e
+  `name` é o rótulo.
+
+> **1ª tentativa do C3 (13/09): falhou com 400 `invalid_payment_method`.**
+> A Function procurava `method_code`/`method_name`, nomes tirados do
+> fallback de exibição do admin, que não existem em `payment_methods`, e
+> todo pedido era recusado antes de gravar. Corrigido para `code`. Nenhum
+> pedido `storefront` chegou a ser criado (conferido no SQL).
 
 ### Roteiro (Vinicius, conta +5678, no preview, atrás do gate)
 
