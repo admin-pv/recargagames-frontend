@@ -10,9 +10,9 @@ Merge com `--no-ff`, como na Fase 1. Regras do catálogo e do fulfillment:
 |---|---|---|
 | **C1** migration 0003 | ✅ passado | 13/09: bloco 0 lido, P1 e P4 tratados, aplicada, conferência C-1..C-9 ok |
 | **C2** catálogo | ✅ passado | 13/09: 4 jogos / 17 pacotes no preview 4, cents conferidos no SQL, páginas pelo Chrome |
-| **C3** pedido | ✅ passado (1 item em aberto: "Meus pedidos") | 14/09: pedido `a9b58143…` pela +5678, conferido no SQL |
-| **C4** segurança por curl | ⏳ aguardando tokens | |
-| **C5** expiração | ⏳ código no preview | |
+| **C3** pedido | ✅ passado | 14/09: pedido `a9b58143…` pela +5678, conferido no SQL; Meus pedidos listou |
+| **C4** segurança por curl | ⏳ 11/16; 5 testes aguardam `JWT_A` novo | 14/09 |
+| **C5** expiração | ⏳ Netlify recusa chamada pela URL (403); aguardando decisão | 14/09 |
 
 **Convenção:** `$SITE` = URL do Deploy Preview. `$URL` e `$PUB` como na
 Fase 1. `$JWT_A` = token de `vinicius.esteves+5678@gmail.com`. Nenhum
@@ -316,8 +316,9 @@ conta +5678 no preview 4. Conferido pelo Claude web no SQL:
 
 Tela de detalhe correta, em horário de Brasília.
 
-- [ ] **Em aberto:** "Meus pedidos" listou o pedido? O registro recebido
-      veio sem a resposta preenchida.
+- [x] "Meus pedidos" listou 1 pedido, `A9B58143`, **Expirado** na tela
+      (prazo já vencido na hora da conferência), R$ 6,25. Conferido pelo
+      Claude web no Chrome.
 
 ---
 
@@ -353,10 +354,49 @@ post() { curl -s -w ' %{http_code}\n' -X POST "$SITE/api/orders" -H "Cookie: rg_
 | 4.7b | anon na Function | `post -d "$BODY"` sem `Authorization` | 401 `missing_token` |
 | 4.8 | sexto pedido aberto | `post` com `$JWT_A` até 5 abertos, depois mais um | 429 `too_many_open_orders` |
 
-**Nota 4.3:** o C2 mostrou `nonCanonical: []`, porque hoje não há duas
-variantes `available` do mesmo jogo e `face_value`. Sem isso não existe
-código "não canônico" para mandar. O caminho está coberto no teste local
-(`package_not_canonical`); ao vivo, só com dado preparado por SQL.
+**4.3, decisão de 14/09: coberto só pelo teste local.** O C2 mostrou
+`nonCanonical: []`: hoje não há duas variantes `available` do mesmo jogo e
+`face_value`, então não existe código "não canônico" para mandar ao vivo. O
+caminho `package_not_canonical` está coberto no teste local da Function
+com o catálogo real da Lapak.
+
+### Resultado C4, 1ª rodada (14/09, 10:2x UTC): 11 de 16
+
+Rodado com `$JWT_A` (+5678), `$JWT_B` (+1234) e `$GATE` só em variável de
+ambiente. Nenhum pedido foi criado nesta rodada.
+
+| # | Teste | Resultado |
+|---|---|---|
+| 4.7b | Function sem `Authorization` | ✅ `401 missing_token` |
+| 4.7c | Function com JWT malformado | ✅ `401 invalid_token` |
+| 4.5 | B pedindo o pedido de A por id | ✅ `200 []` |
+| 4.5c | B listando orders sem filtro | ✅ `200`, 0 linhas de A |
+| 4.5b | A lendo o próprio pedido | ✅ `200`, 1 linha |
+| 4.5d | `select=*` com JWT de A | ✅ `403 42501` (GRANT por coluna) |
+| 4.5e | coluna fora da lista (`fee_cents`) | ✅ `403 42501` |
+| 4.6 | PATCH com JWT de A | ✅ `403 42501` |
+| 4.6b | DELETE com JWT de A | ✅ `403 42501` |
+| 4.6c | INSERT com JWT de A | ✅ `403 42501` |
+| 4.7 | anon (publishable key) na tabela | ✅ `401 42501` |
+| 4.1, 4.2, 4.4, 4.4b, 4.8 | exigem criar pedido | ⏸ `401 invalid_token` na Function |
+
+**Por que os cinco pararam.** O `JWT_A` tinha assinatura válida (o PostgREST
+aceitou no 4.5b), mas a **sessão dele já não existia**: o GoTrue respondeu
+`403 session_not_found` ("Session from session_id claim in JWT does not
+exist"). A sessão da +5678 foi encerrada depois de o token ser copiado. O
+`JWT_B` voltou 200 no mesmo teste.
+
+Isso **não é defeito**, é a diferença entre as duas validações, e vale
+registrar:
+
+- **PostgREST** confere só a assinatura e a validade do JWT. Um token de
+  sessão encerrada continua lendo (pela RLS) até expirar, no máximo 1 h.
+- **orders-create** (e account-delete) validam no GoTrue, que exige a
+  sessão viva. Logout derruba a criação de pedido na hora.
+
+Para rodar os cinco restantes: um `JWT_A` novo, copiado de uma sessão que
+continue aberta durante o teste (não sair da conta no Chrome depois de
+copiar).
 
 ---
 
@@ -367,7 +407,14 @@ código "não canônico" para mandar. O caminho está coberto no teste local
 no passado → `expired`. Idempotente.
 
 **Limite do Netlify:** Scheduled Function só roda sozinha no deploy de
-produção. No preview é preciso chamá-la à mão (ver resultado abaixo).
+produção.
+
+**14/09, 10:27 UTC: chamada pela URL recusada.**
+`GET $SITE/.netlify/functions/orders-expire` respondeu **HTTP 403 com corpo
+vazio**, duas vezes. É o bloqueio do Netlify a Scheduled Function chamada
+por URL, e não o gate: a rota não está em `GATED_API_PATHS`, e o gate
+responde 401 com JSON. Nada rodou; o `a9b58143…` continua como estava.
+Como rodar o C5 no preview é decisão pendente.
 
 1. Garantir um pedido vencido: o `a9b58143…` expirou 30 min depois de
    criado, mas continua `awaiting_payment` no banco até a Function rodar.
