@@ -117,6 +117,61 @@ O storefront continua lendo catálogo e conteúdo com a publishable key e
 conteúdo são problemas separados, e misturá-los nesta fase acoplaria o
 login do cliente ao conserto do painel.
 
+## `orders` — Fase 2 (13/09)
+
+A migration `0003_storefront_orders.sql` fecha `orders` para o browser:
+`REVOKE ALL` de `anon` e `authenticated`, `SELECT` só por coluna (lista
+positiva) para `authenticated`, policy `orders_select_own`
+(`user_id = auth.uid() AND channel = 'storefront'`) e nenhuma policy de
+escrita. Escrita só pelas Netlify Functions, com a secret key.
+
+### 🔴 Achado do bloco 0 (13/09): `orders` com privilégio total para anon/authenticated
+
+Saída de `docs/fase2-bloco0.sql`:
+
+- **0c:** `anon` e `authenticated` tinham **todos** os privilégios de
+  tabela em `orders`: `SELECT`, `INSERT`, `UPDATE`, `DELETE`, `TRUNCATE`,
+  `REFERENCES`, `TRIGGER`.
+- **0d:** os dois papéis tinham também `INSERT`/`SELECT`/`UPDATE`/`REFERENCES`
+  nas 19 colunas.
+- **0a/0b:** RLS ligada, com 3 policies, todas para `authenticated` e
+  nenhuma com `true`: `orders_admin_read_all` (SELECT `is_admin()`),
+  `orders_admin_write` (ALL `is_admin()`) e `orders_read_own` (SELECT
+  `auth.uid() = user_id`).
+
+**Leitura:** o que impedia um visitante com a publishable key de
+escrever ou apagar pedidos era **só a RLS**. Não houve exposição, porque
+nenhuma policy abria para anon e as de escrita exigem `is_admin()`. Mas
+era uma tranca só: uma policy permissiva criada por engano, em qualquer
+repo, abriria `orders` na hora. É a mesma classe de problema do achado de
+11/09 em `profiles`.
+
+**Remediação:** a própria 0003 (decisão do Vinicius). `REVOKE ALL` de
+`anon` e `authenticated`, `SELECT` por coluna em lista positiva e troca
+de `orders_read_own` por `orders_select_own` com filtro de canal.
+
+**Achado junto (P4):** `orders.user_id` tinha FK para `profiles(id)` (a
+identidade do admin) com `ON DELETE CASCADE`. A 0003 troca para
+`auth.users(id) ON DELETE SET NULL`; o porquê está na migration.
+
+**Vale conferir nas outras tabelas:** se `orders` herdou o GRANT amplo
+padrão do Supabase, as outras tabelas de `public` criadas fora das
+migrations deste repo provavelmente também têm. Rodar o 0c por tabela
+faz parte da revisão tabela a tabela do checklist abaixo.
+
+### Efeito colateral aceito: aba Pedidos do admin passa a dar 401
+
+O painel lê `orders` com a chave **anon** via `fetch` cru
+(`loadPedidos()` em `recargagames-admin/index.html`). Desde a migration
+0001 do proxy, `orders` já tem RLS ligada sem policy, então a aba já
+volta vazia. Depois do `REVOKE` da 0003, passa a mostrar erro 401.
+Nenhum dado se perde, porque ela já não via nada. Aceito pelo Vinicius
+em 13/09.
+
+**Conserto é no repo do admin**, e depende da dívida #1: o admin
+autentica como `authenticated`, e uma policy de leitura
+`USING (is_admin())` abre `orders` para ele.
+
 ## Pré-requisito da Fase 4
 
 Abrir o site ao público sem resolver isto significa: qualquer visitante com
@@ -134,6 +189,30 @@ o DevTools aberto pega a publishable key do HTML e escreve em `banners` e
       catálogo migradas para `is_admin()`
 - [ ] Policies de leitura revisadas tabela a tabela (o que é público de
       fato continua `anon`; o resto fecha)
+- [ ] **Repo do admin:** aba Pedidos lendo `orders` como `authenticated`
+      com policy `is_admin()` (hoje 401 depois da 0003, ver seção
+      `orders` acima)
+- [ ] 🔴 **Repo do admin: publicar SKU falha com 42501 desde julho.**
+      Diagnóstico de 13/09 (Claude web): `price_benchmarks` tem a policy
+      `admin_write` (ALL, `is_admin()`), que está correta, e o usuário do
+      admin está em `admin_users`. Mas as 52 linhas publicadas são todas
+      de **13/04**, anteriores ao fechamento das policies em julho. A tela
+      de Catálogo ainda escreve com `fetch` cru usando a chave **anon, sem
+      sessão**, então `is_admin()` é falso e a escrita é negada.
+      **Conserto:** trocar o `fetch` cru por `sb.from('price_benchmarks')`
+      com a sessão do admin logado, e **gravar `face_value` na publicação**
+      (hoje o upsert não manda a coluna; sem ela a loja não junta variantes
+      do mesmo pacote. Decisão A de 13/09, ver o modelo, seção 2). Consequência: nada foi publicado ou
+      despublicado desde julho, e o catálogo reflete o estado de abril.
+      Em 13/09 um SKU de Free Fire entrou por SQL para destravar o C3 da
+      Fase 2 (`notes` da linha diz isso).
+- [ ] **Repo do admin:** tela de jogo com campo "categoria Lapak"
+      (dropdown do `/category`) gravando `games.category_code`. Em 13/09,
+      3 jogos foram corrigidos por SQL (`AB`, `AOV`, `UCPUBGMGLOBAL`); 17
+      seguem NULL e `bigo-live` tem `BL`, que não existe na Lapak BR. Os 18
+      estão fora da loja. Não é RLS, mas é a mesma superfície:
+      hoje o único jeito de corrigir é SQL direto em produção. Ver
+      `docs/modelo-catalogo-e-fulfillment.md`, seção 2.
 - [ ] `robots.txt` trocado (hoje é `Disallow: /`, ver raiz do repo)
 - [ ] Caixas laranja "Para quem for finalizar esta página" removidas das 8
       páginas estáticas

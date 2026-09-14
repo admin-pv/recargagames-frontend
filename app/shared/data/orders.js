@@ -1,3 +1,11 @@
+// ════════════════════════════════════════════════════════════════════════
+// NÃO USADO EM RUNTIME desde o C3 da Fase 2 (13/09/2026).
+//
+// Pedidos vêm de public.orders (RLS, só os do próprio cliente) e são criados
+// pela Function orders-create. Nenhuma página carrega este arquivo; fica só
+// como referência do shape do protótipo.
+// ════════════════════════════════════════════════════════════════════════
+//
 // Seed order history for the Recarga Games prototype (both branding versions).
 // Real orders created during a session (via checkout) are appended on top of this
 // seed list and persisted in localStorage — see shared/js/store.js.

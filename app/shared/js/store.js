@@ -5,6 +5,9 @@
            senha nenhuma.
    FASE 1: SESSÃO e PERFIL passam a ser Supabase Auth + a tabela
            public.customer_profiles. PEDIDOS continuam em localStorage.
+   FASE 2: CATÁLOGO vem de /api/catalog e é ASSÍNCRONO; dinheiro em
+           CENTAVOS inteiros. PEDIDOS (C3) vêm de public.orders pela RLS e
+           são criados só pela Function orders-create.
 
    >>> A MUDANÇA QUE QUEBRA CHAMADOR: as funções de sessão e perfil agora
        são ASSÍNCRONAS. getUser(), isLoggedIn(), updateUser() e as de
@@ -22,8 +25,6 @@
    ────────────────────────────────────────────────────────────────────────── */
 (function (global) {
   "use strict";
-
-  var LS_ORDERS = "recarga_orders_v1";
 
   /* O cliente Supabase vem de shared/js/supabase-client.js. Guardado numa
      função (e não numa const no topo) porque a ordem de <script> já
@@ -47,117 +48,249 @@
   }
 
   /* Delegam para market.js, que é quem conhece locale e moeda.
-     `formatBRL` sumiu de propósito: o nome afirmava um mercado. */
-  function formatMoney(value) { return market().formatMoney(value); }
+     `formatBRL` sumiu de propósito: o nome afirmava um mercado.
+
+     FASE 2: `formatMoney` recebe CENTAVOS INTEIROS (4990 → R$ 49,90).
+     Ver o comentário em caixa alta no market.js. */
+  function formatMoney(cents) { return market().formatMoney(cents); }
   function formatDate(iso) { return market().formatDate(iso, { separator: " às " }); }
 
-  /* ---------------- Catálogo (estático — vira backend na Fase 2) ---------------- */
-
-  function getProducts() {
-    return global.RECARGA_PRODUCTS || [];
-  }
-
-  function getProductById(id) {
-    return getProducts().find(function (p) { return p.id === id; });
-  }
-
-  function relatedProducts(product, max) {
-    if (!product) return [];
-    var ids = product.related || [];
-    var list = ids.map(getProductById).filter(Boolean);
-    if (list.length < (max || 5)) {
-      getProducts().forEach(function (p) {
-        if (list.length >= (max || 5)) return;
-        if (p.id !== product.id && ids.indexOf(p.id) === -1) list.push(p);
-      });
-    }
-    return list.slice(0, max || 5);
-  }
-
   /* ================================================================
-     PEDIDOS — FASE 2.
+     CATÁLOGO — FASE 2: /api/catalog, ASSÍNCRONO
 
-     Continuam inteiros em localStorage, síncronos, exatamente como o
-     fornecedor entregou. Não foram tocados nesta fase de propósito:
-     misturar a troca de auth com a troca de pedidos dobraria a
-     superfície de um checkpoint só.
+     >>> QUEBRA CHAMADOR: getProducts(), getProductById() e
+         relatedProducts() devolvem Promise. <<<
 
-     Consequências que valem saber enquanto isto for verdade:
-       - os pedidos são do BROWSER, não da conta. Trocar de usuário na
-         mesma máquina mostra os pedidos do anterior; logar noutra máquina
-         não mostra nenhum;
-       - createOrder/completeOrder não cobram nada e sempre "dão certo";
-       - a exclusão de conta (Netlify Function account-delete) NÃO apaga
-         pedidos — nem teria como, eles não estão no servidor. A retenção
-         fiscal, que é o motivo de não apagar, só passa a valer de fato
-         quando isto virar tabela.
+     Fonte: netlify/functions/catalog.mjs, que cruza o que o admin
+     publicou (price_benchmarks) com a disponibilidade na Lapak. Preço em
+     `priceCents`, inteiro.
+
+     Falha (503, rede, JSON inesperado) REJEITA a Promise com
+     `err.code === 'catalog_unavailable'`. A página mostra "catálogo
+     indisponível, tente de novo". Não há fallback para products.js, e não
+     pode haver: seria vender com preço velho.
+
+     Cache: uma Promise por carregamento de página. Uma falha limpa a
+     cache, para a próxima chamada tentar de novo.
      ================================================================ */
 
-  function readOrdersRaw() {
-    try {
-      var raw = localStorage.getItem(LS_ORDERS);
-      if (raw) return JSON.parse(raw);
-    } catch (e) { /* ignore corrupt storage */ }
-    var seed = (global.RECARGA_SEED_ORDERS || []).slice();
-    writeOrdersRaw(seed);
-    return seed;
+  var catalogPromise = null;
+
+  function catalogError(detail) {
+    var e = new Error("catalog_unavailable");
+    e.code = "catalog_unavailable";
+    e.detail = detail;
+    return e;
   }
 
-  function writeOrdersRaw(list) {
-    try { localStorage.setItem(LS_ORDERS, JSON.stringify(list)); } catch (e) { /* storage unavailable */ }
-  }
-
-  function getOrders() {
-    return readOrdersRaw().slice().sort(function (a, b) {
-      return new Date(b.createdAt) - new Date(a.createdAt);
+  /* O catálogo não tem cor de marca nem sigla curta; as páginas do
+     fornecedor usam as duas para o "logo" de texto. Defaults aqui, num
+     lugar só, em vez de `|| '#F5700A'` espalhado. */
+  function normalizeProduct(p) {
+    return Object.assign({ color: null }, p, {
+      short: p.short || String(p.name || "?").slice(0, 3).toUpperCase()
     });
   }
 
-  function getOrderById(id) {
-    return readOrdersRaw().find(function (o) { return o.id === id; });
+  function loadCatalog() {
+    if (catalogPromise) return catalogPromise;
+    var url = "/api/catalog?country=" + encodeURIComponent(market().key);
+    catalogPromise = fetch(url, { headers: { Accept: "application/json" } })
+      .then(function (res) {
+        if (!res.ok) throw catalogError("http_" + res.status);
+        return res.json();
+      })
+      .then(function (body) {
+        if (!body || !Array.isArray(body.products)) throw catalogError("shape");
+        return body.products.map(normalizeProduct);
+      })
+      .catch(function (e) {
+        catalogPromise = null;
+        throw e && e.code === "catalog_unavailable" ? e : catalogError("network");
+      });
+    return catalogPromise;
   }
 
-  function generateOrderId() {
-    return "RG-" + Math.floor(70000 + Math.random() * 29999);
+  function getProducts() {
+    return loadCatalog();
   }
 
-  function createOrder(order) {
-    var list = readOrdersRaw();
-    var full = Object.assign({
-      id: generateOrderId(),
-      status: "processing",
-      createdAt: new Date().toISOString()
-    }, order);
-    list.unshift(full);
-    writeOrdersRaw(list);
-    return full;
+  async function getProductById(id) {
+    var list = await loadCatalog();
+    return list.find(function (p) { return p.id === id; }) || null;
   }
 
-  function generateRedeemCode() {
-    var chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O/1/I ambiguity
-    function block() {
-      var s = "";
-      for (var i = 0; i < 4; i++) s += chars[Math.floor(Math.random() * chars.length)];
-      return s;
-    }
-    return [block(), block(), block(), block()].join("-");
+  /* Sem `related` no catálogo: destaque e popular primeiro, depois a
+     ordem do admin (display_order, que a Function já respeita). */
+  async function relatedProducts(product, max) {
+    if (!product) return [];
+    var list = await loadCatalog();
+    var limit = max || 5;
+    return list
+      .filter(function (p) { return p.id !== product.id; })
+      .map(function (p, i) { return { p: p, i: i, w: (p.featured ? 2 : 0) + (p.popular ? 1 : 0) }; })
+      .sort(function (a, b) { return b.w - a.w || a.i - b.i; })
+      .slice(0, limit)
+      .map(function (x) { return x.p; });
   }
 
-  function completeOrder(id) {
-    var list = readOrdersRaw();
-    var order = list.find(function (o) { return o.id === id; });
-    if (order) {
-      order.status = "completed";
-      order.completedAt = new Date().toISOString();
-      if (!order.code) {
-        var product = getProductById(order.productId);
-        if (product && (product.type === "code" || product.type === "giftcard")) {
-          order.code = generateRedeemCode();
-        }
+  /* ================================================================
+     PEDIDOS — FASE 2 (C3): public.orders
+
+     LEITURA: sb.from('orders') com a sessão do cliente. A policy
+     orders_select_own devolve só os pedidos DELE e só os da loja
+     (channel = 'storefront'). O GRANT é POR COLUNA (migration 0003), então
+     select('*') falha com 42501: as colunas vão pelo nome, e
+     ORDER_COLUMNS TEM que espelhar o GRANT SELECT da 0003, coluna por
+     coluna. Coluna que entrar aqui e não lá vira 42501 na tela.
+
+     ESCRITA: nunca por aqui. O browser não tem GRANT nem policy de escrita
+     em orders. createOrder() e retryOrder() chamam POST /api/orders
+     (netlify/functions/orders-create.mjs), que recalcula o valor do
+     catálogo no servidor. Preço não sai deste arquivo.
+
+     DATAS: created_at é `timestamp` SEM fuso, gravado em UTC. Ver dbTime().
+     DINHEIRO: `amount` do objeto de pedido é amount_cents, em CENTAVOS.
+
+     Erros de leitura REJEITAM com err.code: 'not_authenticated' ou
+     'orders_unavailable'. Criação devolve { ok:false, code, status }.
+     ================================================================ */
+
+  var ORDER_COLUMNS = [
+    "id", "user_id", "channel", "status", "payment_status", "country",
+    "currency_code", "game_slug", "product_code", "package_label",
+    "face_value", "amount_cents", "redemption_fields", "delivery_email",
+    "payment_method", "created_at", "updated_at", "paid_at",
+    "completed_at", "code_visible_until", "expires_at"
+  ].join(",");
+
+  var UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+  /* created_at é `timestamp` sem fuso, e o now() do servidor grava em UTC.
+     O PostgREST devolve "2026-09-13T20:20:18.348" sem sufixo, que o
+     browser leria como hora LOCAL: 3h de diferença no Brasil. As colunas
+     timestamptz já chegam com offset e passam como estão. */
+  function dbTime(ts) {
+    if (!ts) return null;
+    var s = String(ts).replace(" ", "T");
+    return /(Z|[+-]\d\d:?\d\d)$/.test(s) ? s : s + "Z";
+  }
+
+  function toOrder(r) {
+    return {
+      id: r.id,
+      status: r.status,
+      paymentStatus: r.payment_status,
+      country: r.country,
+      currency: r.currency_code,
+      productId: r.game_slug,
+      productCode: r.product_code,
+      packageLabel: r.package_label,
+      faceValue: r.face_value,
+      amount: r.amount_cents,                 // CENTAVOS
+      redemptionFields: r.redemption_fields || {},
+      email: r.delivery_email,
+      paymentMethod: r.payment_method,
+      createdAt: dbTime(r.created_at),
+      updatedAt: dbTime(r.updated_at),
+      paidAt: dbTime(r.paid_at),
+      completedAt: dbTime(r.completed_at),
+      codeVisibleUntil: dbTime(r.code_visible_until),
+      expiresAt: dbTime(r.expires_at)
+    };
+  }
+
+  function ordersError(code) {
+    var e = new Error(code);
+    e.code = code;
+    return e;
+  }
+
+  async function getOrders() {
+    if (!(await getAuthUser())) throw ordersError("not_authenticated");
+    var res = await sb()
+      .from("orders")
+      .select(ORDER_COLUMNS)
+      .eq("channel", "storefront")
+      .order("created_at", { ascending: false });
+    if (res.error) throw ordersError("orders_unavailable");
+    return (res.data || []).map(toOrder);
+  }
+
+  /* Id que não é uuid nem vai ao banco: o PostgREST responderia 400
+     (22P02) e a página mostraria "indisponível" em vez de "não
+     encontrado". Pedido de outra pessoa volta null pela RLS, igual a um
+     inexistente — a página não distingue, e não deve. */
+  async function getOrderById(id) {
+    if (!UUID_RE.test(String(id || ""))) return null;
+    if (!(await getAuthUser())) throw ordersError("not_authenticated");
+    var res = await sb()
+      .from("orders")
+      .select(ORDER_COLUMNS)
+      .eq("id", id)
+      .maybeSingle();
+    if (res.error) throw ordersError("orders_unavailable");
+    return res.data ? toOrder(res.data) : null;
+  }
+
+  async function postOrder(payload) {
+    var session = await getSession();
+    if (!session) return { ok: false, code: "not_authenticated", status: 401 };
+    try {
+      var res = await fetch("/api/orders", {
+        method: "POST",
+        headers: {
+          "Authorization": "Bearer " + session.access_token,
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        body: JSON.stringify(Object.assign({ country: market().key }, payload))
+      });
+      var body = null;
+      try { body = await res.json(); } catch (e) { /* corpo vazio */ }
+      if (!res.ok) {
+        return { ok: false, status: res.status, code: (body && body.error) || "order_failed", field: body && body.field };
       }
-      writeOrdersRaw(list);
+      return { ok: true, order: body };
+    } catch (e) {
+      return { ok: false, status: 0, code: "network" };
     }
-    return order;
+  }
+
+  /* Whitelist do que vai no corpo. Preço, taxa, status e validade NUNCA:
+     se uma página passar `amount` aqui por engano, ele morre nesta função
+     e não chega nem a ser ignorado pelo servidor. */
+  function createOrder(input) {
+    input = input || {};
+    return postOrder({
+      gameSlug: input.gameSlug,
+      productCode: input.productCode,
+      redemptionFields: input.redemptionFields,
+      deliveryEmail: input.deliveryEmail,
+      paymentMethod: input.paymentMethod
+    });
+  }
+
+  /* checkout.html: o servidor decide se reabre o mesmo pedido (ainda
+     aguardando) ou cria um novo com os dados do vencido. Nunca duplica. */
+  function retryOrder(orderId) {
+    return postOrder({ retryOf: orderId });
+  }
+
+  /* Vencido para a TELA: status 'expired', ou 'awaiting_payment' com o
+     prazo já passado e o orders-expire ainda não rodou (roda a cada 10 min). */
+  function isOrderExpired(order, now) {
+    if (!order) return false;
+    if (order.status === "expired") return true;
+    return order.status === "awaiting_payment" && !!order.expiresAt &&
+      new Date(order.expiresAt).getTime() <= (now || Date.now());
+  }
+
+  /* D4: código visível só com pedido concluído e dentro de
+     code_visible_until. Fora disso, a página diz que foi para o e-mail. */
+  function isCodeVisible(order, now) {
+    return !!order && order.status === "completed" && !!order.codeVisibleUntil &&
+      (now || Date.now()) < new Date(order.codeVisibleUntil).getTime();
   }
 
   /* ================================================================
@@ -596,26 +729,53 @@
     }
   }
 
-  /* Pacote de dados do titular (LGPD, "baixar meus dados"). Perfil vem do
-     servidor; pedidos vêm do localStorage enquanto a Fase 2 não chega —
-     e o JSON diz isso, para quem receber o arquivo não achar que o
-     histórico é completo. */
+  /* Pacote de dados do titular (LGPD, "baixar meus dados"). Perfil e
+     pedidos vêm do servidor. Se os pedidos falharem, `orders` sai null e
+     `notes.orders` diz por quê: uma lista vazia seria lida como "não há
+     pedidos", que é outra afirmação. */
   async function exportUserData() {
     var profile = await getUser({ fresh: true });
+    var orders = null;
+    var ordersNote = "Pedidos da loja (public.orders), valores em centavos.";
+    try {
+      orders = await getOrders();
+    } catch (e) {
+      ordersNote = "Não foi possível carregar os pedidos agora (" + (e && e.code) + "). Exporte de novo para incluí-los.";
+    }
     return {
       exportedAt: new Date().toISOString(),
       market: market().key,
       profile: profile,
-      orders: getOrders(),
+      orders: orders,
       notes: {
-        orders: "Pedidos ainda são locais a este navegador (Fase 2 os move para o servidor). Este arquivo reflete apenas este dispositivo.",
+        orders: ordersNote,
         profile: "Perfil vem de public.customer_profiles. O e-mail é o de auth.users."
       }
     };
   }
 
+  /* Rótulo e tom (classe CSS status-pill: completed | processing | failed)
+     por status de orders. Status que não está no mapa recebe rótulo
+     neutro, nunca o valor cru da coluna. */
+  var STATUS_LABELS = {
+    awaiting_payment: "Aguardando pagamento",
+    paid: "Pagamento confirmado",
+    fulfilling: "Em processamento",
+    completed: "Concluído",
+    failed: "Falhou",
+    refunded: "Reembolsado",
+    expired: "Expirado",
+    cancelled: "Cancelado"
+  };
+
   function statusLabel(status) {
-    return { completed: "Concluído", processing: "Processando", failed: "Falhou" }[status] || status;
+    return STATUS_LABELS[status] || "Em análise";
+  }
+
+  function statusTone(status) {
+    if (status === "completed") return "completed";
+    if (["failed", "expired", "cancelled", "refunded"].indexOf(status) > -1) return "failed";
+    return "processing";
   }
 
   /* ---------------- Offerwall e cupons ----------------
@@ -642,20 +802,23 @@
   global.RecargaStore = {
     /* síncronos */
     getParam: getParam,
-    formatMoney: formatMoney,
+    formatMoney: formatMoney,      // CENTAVOS
     formatDate: formatDate,
+    statusLabel: statusLabel,
+    statusTone: statusTone,
+    isOrderExpired: isOrderExpired,
+    isCodeVisible: isCodeVisible,
+
+    /* catálogo — /api/catalog, ASSÍNCRONOS (Fase 2) */
     getProducts: getProducts,
     getProductById: getProductById,
     relatedProducts: relatedProducts,
-    statusLabel: statusLabel,
 
-    /* pedidos — localStorage, síncronos, FASE 2 */
+    /* pedidos — public.orders (leitura RLS) e POST /api/orders, ASSÍNCRONOS */
     getOrders: getOrders,
     getOrderById: getOrderById,
     createOrder: createOrder,
-    completeOrder: completeOrder,
-    generateOrderId: generateOrderId,
-    generateRedeemCode: generateRedeemCode,
+    retryOrder: retryOrder,
 
     /* sessão e perfil — ASSÍNCRONOS */
     signUp: signUp,

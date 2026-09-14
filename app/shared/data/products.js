@@ -1,3 +1,14 @@
+// ════════════════════════════════════════════════════════════════════════
+// NÃO USADO EM RUNTIME desde a Fase 2 (13/09/2026).
+//
+// Nenhuma página carrega este arquivo. O catálogo vem de /api/catalog
+// (netlify/functions/catalog.mjs), com preço em centavos inteiros lido do
+// admin. Fica no repo só como referência do shape do protótipo.
+//
+// NÃO reintroduzir como fallback quando o catálogo estiver indisponível:
+// seria vender com preço velho. A página mostra "catálogo indisponível".
+// ════════════════════════════════════════════════════════════════════════
+//
 // Shared product catalog for Recarga Games prototype (both branding versions).
 // type: 'direct' = needs in-game player ID, 'code' = redeem code by email, 'giftcard' = gift card by email
 window.RECARGA_PRODUCTS = [

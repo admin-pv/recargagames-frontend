@@ -1427,11 +1427,10 @@
           </div>
           <div class="payments-bar">
             <h4>Formas de pagamento</h4>
+            <!-- Fase 0: só Pix. Cartão, Boleto e Operadora eram chips do
+                 protótipo; voltam quando o meio existir no PagBrasil. -->
             <div class="pay-pills">
               <span class="pay-pill">Pix</span>
-              <span class="pay-pill">Cartão</span>
-              <span class="pay-pill">Boleto</span>
-              <span class="pay-pill">Operadora</span>
             </div>
             <p>Você revisará o pedido antes do pagamento final.</p>
           </div>
@@ -1621,7 +1620,7 @@
       <div class="footer-col"><h3>Políticas</h3><div class="footer-list"><a href="terms.html">Termos e Condições</a><a href="privacy-policy.html">Política de Privacidade</a><a href="cookie-policy.html">Política de Cookies</a><a href="refund-policy.html">Trocas e Reembolsos</a><a href="faq.html">Perguntas Frequentes</a></div></div>
       <div class="footer-col"><h3>Sobre nós</h3><div class="footer-list"><a href="about.html">Quem somos</a><a href="contact.html">Contato</a></div></div>
       <div class="footer-col"><h3>Suporte</h3><div class="footer-list"><a href="help-center.html">Central de ajuda</a><a href="my-orders.html">Acompanhar pedido</a><span>support@recargagames.com</span></div></div>
-      <div class="footer-col"><h3>Pagamento</h3><div class="payment-row"><span class="payment-badge">Pix</span><span class="payment-badge">Cartão</span><span class="payment-badge">Boleto</span></div></div>
+      <div class="footer-col"><h3>Pagamento</h3><div class="payment-row"><span class="payment-badge">Pix</span></div></div>
       <div class="footer-col"><h3>Newsletter</h3><form class="newsletter-form"><input type="email" placeholder="Seu e-mail" aria-label="E-mail para newsletter"><button type="button">Assinar</button></form></div>
     </div>
     <div class="footer-mobile">
@@ -1639,7 +1638,7 @@
       <details class="footer-accordion"><summary>Políticas</summary><div class="footer-list"><a href="terms.html">Termos e Condições</a><a href="privacy-policy.html">Política de Privacidade</a><a href="cookie-policy.html">Política de Cookies</a><a href="refund-policy.html">Trocas e Reembolsos</a><a href="faq.html">Perguntas Frequentes</a></div></details>
       <details class="footer-accordion"><summary>Suporte</summary><div class="footer-list"><a href="help-center.html">Central de ajuda</a><a href="my-orders.html">Acompanhar pedido</a><span>support@recargagames.com</span></div></details>
       <div class="footer-mobile-bottom">
-        <div class="payment-row"><span class="payment-badge">Pix</span><span class="payment-badge">Cartão</span><span class="payment-badge">Boleto</span></div>
+        <div class="payment-row"><span class="payment-badge">Pix</span></div>
         <p class="footer-copy" style="max-width:none;">© 2026 Recarga Games Brasil.</p>
       </div>
     </div>
@@ -1647,65 +1646,76 @@
 </footer>
 
 <!-- ── JAVASCRIPT ── -->
-<script src="shared/data/products.js"></script>
-<script src="shared/data/orders.js"></script>
 <script src="shared/data/coupons.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script src="shared/js/market.js"></script>
 <script src="shared/js/supabase-client.js"></script>
 <script src="shared/js/store.js"></script>
+<script src="shared/js/redemption-fields.js"></script>
 <script src="shared/js/header-session.js"></script>
 <script>
-(function () {
+(async function () {
   'use strict';
 
-  /* ── Product data (Gemini's data-object approach) ── */
-  // Active product: read ?id= from the URL against the shared catalog
-  // (shared/data/products.js). Sem ?id= nenhum, cai no Free Fire — o exemplo
-  // original — para a página ainda renderizar.
-  const requestedId = RecargaStore.getParam('id');
-  const activeProduct = RecargaStore.getProductById(requestedId) ||
-                         (requestedId ? null : RecargaStore.getProductById('free-fire'));
-
-  /* Um ?id= que não existe no catálogo não pode cair silenciosamente no
-     primeiro produto: o usuário acabaria comprando outra coisa achando que é
-     a que pediu. Mesmo estado vazio de order-details.html. */
-  if (!activeProduct) {
-    document.title = 'Recarga Games — Produto não encontrado';
+  /* Estado vazio de página inteira: produto inexistente ou catálogo fora. */
+  function renderPageMessage(title, bodyHtml, ctaLabel, ctaHref) {
+    document.title = 'Recarga Games — ' + title;
     const bcCurrent = document.getElementById('breadcrumbCurrent');
-    if (bcCurrent) bcCurrent.textContent = 'Produto não encontrado';
+    if (bcCurrent) bcCurrent.textContent = title;
     const main = document.getElementById('main-content');
     if (main) {
       main.innerHTML =
         '<div class="tight product-wrap">' +
           '<div class="card" style="padding:56px 28px;text-align:center;">' +
-            '<h1 style="font-family:\'Barlow Condensed\',sans-serif;text-transform:uppercase;font-size:28px;margin:0 0 10px;">Produto não encontrado</h1>' +
-            '<p style="color:var(--muted);font-size:14px;margin:0 auto 24px;max-width:38ch;">' +
-              'Não encontramos o produto <strong style="color:var(--warm)">' +
-              String(requestedId).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])) +
-              '</strong>. Ele pode ter saído do catálogo ou o link está incorreto.' +
-            '</p>' +
-            '<a class="cta-primary" style="width:auto;padding:0 26px;display:inline-flex;" href="index.html">Ver todos os jogos</a>' +
+            '<h1 style="font-family:\'Barlow Condensed\',sans-serif;text-transform:uppercase;font-size:28px;margin:0 0 10px;">' + escHtml(title) + '</h1>' +
+            '<p style="color:var(--muted);font-size:14px;margin:0 auto 24px;max-width:38ch;">' + bodyHtml + '</p>' +
+            '<a class="cta-primary" style="width:auto;padding:0 26px;display:inline-flex;" href="' + escHtml(ctaHref) + '">' + escHtml(ctaLabel) + '</a>' +
           '</div>' +
         '</div>';
     }
+  }
+
+  /* ── Produto ativo — Fase 2: /api/catalog, assíncrono ──
+     Sem ?id= cai no Free Fire, o exemplo original. Catálogo fora do ar
+     mostra indisponível; NUNCA cai no products.js (preço velho). */
+  const requestedId = RecargaStore.getParam('id');
+  let activeProduct = null;
+  try {
+    activeProduct = await RecargaStore.getProductById(requestedId || 'free-fire');
+  } catch (e) {
+    renderPageMessage('Catálogo indisponível',
+      'Não conseguimos carregar o catálogo agora. Tente de novo em instantes.',
+      'Tentar de novo', window.location.href);
     return;
   }
 
+  /* Um ?id= que não existe no catálogo não pode cair silenciosamente no
+     primeiro produto: o usuário acabaria comprando outra coisa achando que é
+     a que pediu. Inclui jogo sem nenhum pacote publicado e disponível. */
+  if (!activeProduct) {
+    renderPageMessage('Produto não encontrado',
+      'Não encontramos o produto <strong style="color:var(--warm)">' + escHtml(requestedId) +
+      '</strong>. Ele pode ter saído do catálogo ou o link está incorreto.',
+      'Ver todos os jogos', 'index.html');
+    return;
+  }
+
+  /* D2: a taxa do meio de pagamento é absorvida no lançamento, então o
+     preço é o mesmo em todo método: pacote.priceCents. `paymentFees` do
+     protótipo saiu. */
   const productData = {
     id: activeProduct.id,
     name: activeProduct.name,
-    category: activeProduct.category,
-    fields: (activeProduct.redemption && activeProduct.redemption.fields) || [],
-    paymentFees: activeProduct.paymentFees,
+    category: activeProduct.type === 'code' ? 'Código digital' : 'Recarga direta',
+    fields: RecargaFields.toFormFields(activeProduct),
     packages: activeProduct.packages
   };
 
-  const related = RecargaStore.relatedProducts(activeProduct, 5).map(function (p) {
+  const related = (await RecargaStore.relatedProducts(activeProduct, 5)).map(function (p) {
     return {
       id: p.id, short: p.short, name: p.name,
-      price: p.teaserPrice ? ('A partir de ' + p.teaserPrice) : 'Valores disponíveis',
-      color: p.color
+      price: 'A partir de ' + RecargaMarket.formatMoney(p.minPriceCents),
+      color: p.color || '#F5700A'
     };
   });
 
@@ -1792,29 +1802,40 @@
     return productData.fields.find(f => !state.fieldsValid[f.key]);
   }
 
-  /* ── Render dynamic redemption fields (player ID, zone ID, Riot ID, etc.) ──
-     Products that only need an email (gift cards, redeem codes) render none. */
-  function fieldInputMode(key) { return /id$/i.test(key) ? 'numeric' : 'text'; }
-
+  /* ── Campos de resgate — Fase 2: forms da Lapak via catálogo ──
+     Regra (dígitos, tamanho, lista) vem pronta do servidor e é aplicada por
+     RecargaFields.isValid; o orders-create revalida e é quem decide.
+     `option` vira <select>. Produto sem campo (código/gift card) não
+     renderiza nenhum. */
   function renderDynamicFields() {
     if (!dynamicFields) return;
-    dynamicFields.innerHTML = productData.fields.map(f => `
-      <div class="field-group" id="field-${f.key}">
-        <label class="field-label" for="input-${f.key}">${f.label} <span class="field-required">*</span></label>
-        <input class="field-input" id="input-${f.key}" type="text" inputmode="${fieldInputMode(f.key)}" autocomplete="off" placeholder="${f.placeholder}" aria-required="true" aria-describedby="hint-${f.key} err-${f.key}" />
-        <div class="field-hint" id="hint-${f.key}">${f.help}</div>
-        <div class="field-error" id="err-${f.key}" role="alert">Preencha este campo corretamente para continuar.</div>
-      </div>`).join('');
+    dynamicFields.innerHTML = productData.fields.map(f => {
+      const k = escHtml(f.key);
+      const control = f.type === 'option'
+        ? `<select class="field-select field-input" id="input-${k}" aria-required="true" aria-describedby="hint-${k} err-${k}">` +
+            `<option value="">${escHtml(f.chooseLabel)}</option>` +
+            f.options.map(o => `<option value="${escHtml(o.value)}">${escHtml(o.label)}</option>`).join('') +
+          `</select>`
+        : `<input class="field-input" id="input-${k}" type="text" inputmode="${f.inputMode === 'numeric' ? 'numeric' : 'text'}" autocomplete="off" placeholder="${escHtml(f.placeholder)}"${f.maxLength ? ` maxlength="${f.maxLength}"` : ''} aria-required="true" aria-describedby="hint-${k} err-${k}" />`;
+      return `
+      <div class="field-group" id="field-${k}">
+        <label class="field-label" for="input-${k}">${escHtml(f.label)} <span class="field-required">*</span></label>
+        ${control}
+        <div class="field-hint" id="hint-${k}">${escHtml(f.help)}</div>
+        <div class="field-error" id="err-${k}" role="alert">Preencha este campo corretamente para continuar.</div>
+      </div>`;
+    }).join('');
 
     state.fieldsValid = {};
     productData.fields.forEach(f => { state.fieldsValid[f.key] = false; });
 
-    dynamicFields.querySelectorAll('.field-input').forEach(input => {
-      const key = input.id.replace('input-', '');
-      const f = productData.fields.find(x => x.key === key);
-      const group = $('field-' + key);
-      input.addEventListener('input', () => {
-        state.fieldsValid[key] = new RegExp(f.pattern).test(input.value.trim());
+    productData.fields.forEach(f => {
+      const key = f.key;
+      const input = document.getElementById('input-' + key);
+      const group = document.getElementById('field-' + key);
+      if (!input || !group) return;
+      input.addEventListener(f.type === 'option' ? 'change' : 'input', () => {
+        state.fieldsValid[key] = RecargaFields.isValid(f, input.value);
         setValidity(group, state.fieldsValid[key], input);
         updateUI();
       });
@@ -1845,7 +1866,7 @@
       const input = document.getElementById('input-' + f.key);
       if (!input) return;
       input.value = values && values[f.key] != null ? values[f.key] : '';
-      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new Event(f.type === 'option' ? 'change' : 'input', { bubbles: true }));
     });
   }
 
@@ -1961,8 +1982,8 @@
       artEl.setAttribute('aria-label', 'Arte do produto ' + productData.name);
       artEl.innerHTML =
         '<img class="product-art-image" id="productArtImage" alt="" hidden />' +
-        '<div class="generic-art" style="--art-color:' + activeProduct.color + '">' +
-          '<span class="generic-art-mark">' + activeProduct.short + '</span>' +
+        '<div class="generic-art" style="--art-color:' + escHtml(activeProduct.color || '#F5700A') + '">' +
+          '<span class="generic-art-mark">' + escHtml(activeProduct.short) + '</span>' +
         '</div>';
     }
 
@@ -1989,7 +2010,13 @@
 
     /* Redemption-region disclaimer: pull from the catalog so no product
        ships the literal "[país, região ou operadora]" placeholder text. */
-    const regionLabel = activeProduct.region || 'Brasil';
+    /* Fase 2: o mercado vem do market.js, e o nome do país do Intl, sem
+       'Brasil' escrito à mão. Vender aqui = o operador publicou para este
+       mercado no admin (docs/modelo-catalogo-e-fulfillment.md). */
+    const regionLabel = (() => {
+      try { return new Intl.DisplayNames([RecargaMarket.locale], { type: 'region' }).of(RecargaMarket.country); }
+      catch (e) { return RecargaMarket.country; }
+    })();
     const disclaimerSub  = $('disclaimerRegionSub');
     const disclaimerBody = $('disclaimerRegionBody');
     if (disclaimerSub)  disclaimerSub.innerHTML  = '<strong>Somente resgatável em:</strong> ' + regionLabel;
@@ -2062,16 +2089,14 @@
   function renderPackages() {
     packageGrid.innerHTML = productData.packages.map(function(p) {
       var sel = p.id === state.pkgId;
-      var cls = 'pkg' + (sel ? ' selected' : '') + (p.tag ? ' has-tag' : '');
-      var tagHtml = p.tag ? '<span class="pkg-tag ' + (p.tagClass || '') + '">' + p.tag + '</span>' : '';
-      var oldPrice = p.originalPrice ? '<span class="pkg-old-price">' + fmt(p.originalPrice) + '</span>' : '';
-      var priceNote = p.originalPrice ? 'Preço promocional' : 'Preço final';
-      return '<button class="' + cls + '" type="button" role="radio" aria-checked="' + sel + '" tabindex="' + (sel ? '0' : '-1') + '" data-pkg="' + p.id + '" aria-label="' + p.label + ', ' + fmt(p.price) + '">' +
-        tagHtml +
+      var cls = 'pkg' + (sel ? ' selected' : '');
+      /* Fase 2: o catálogo não tem tag, detalhe nem preço "de/por" — sem
+         backend, não aparece. Preço em centavos. */
+      var priceNote = 'Preço final';
+      return '<button class="' + cls + '" type="button" role="radio" aria-checked="' + sel + '" tabindex="' + (sel ? '0' : '-1') + '" data-pkg="' + escHtml(p.id) + '" aria-label="' + escHtml(p.label) + ', ' + fmt(p.priceCents) + '">' +
         '<div class="pkg-check" aria-hidden="true"><svg viewBox="0 0 11 11" fill="none"><path d="M2 5.5L4.5 8L9 3" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>' +
-        '<span class="pkg-amount">' + p.label + '</span>' +
-        '<span class="pkg-detail">' + p.detail + '</span>' +
-        '<span class="pkg-price"><span class="pkg-price-row">' + oldPrice + '<strong class="pkg-current-price">' + fmt(p.price) + '</strong></span><span class="pkg-unit-note">' + priceNote + '</span></span>' +
+        '<span class="pkg-amount">' + escHtml(p.label) + '</span>' +
+        '<span class="pkg-price"><span class="pkg-price-row"><strong class="pkg-current-price">' + fmt(p.priceCents) + '</strong></span><span class="pkg-unit-note">' + priceNote + '</span></span>' +
         '</button>';
     }).join('');
   }
@@ -2079,17 +2104,17 @@
   /* ── Render related ── */
   function renderRelated() {
     $('relatedRail').innerHTML = related.map(r => `
-      <a class="mini-product" href="product.html?id=${encodeURIComponent(r.id)}" aria-label="${r.name}">
-        <div class="mini-logo" style="color:${r.color}">${r.short}</div>
-        <strong>${r.name}</strong>
-        <span class="mini-price">${r.price}</span>
+      <a class="mini-product" href="product.html?id=${encodeURIComponent(r.id)}" aria-label="${escHtml(r.name)}">
+        <div class="mini-logo" style="color:${escHtml(r.color)}">${escHtml(r.short)}</div>
+        <strong>${escHtml(r.name)}</strong>
+        <span class="mini-price">${escHtml(r.price)}</span>
       </a>`).join('');
   }
 
   /* ── Update UI ── */
   function updateUI() {
     const p = pkg();
-    const total = p ? p.price * state.qty : 0;
+    const total = p ? p.priceCents : 0;
     const allOk = p && allFieldsValid() && state.emailValid;
 
     /* Per-payment prices */
@@ -2097,7 +2122,7 @@
       const el = document.getElementById('price-' + key);
       if (!el) return;
       if (p) {
-        const t = applyCouponDiscount(p.price * state.qty * productData.paymentFees[key]);
+        const t = applyCouponDiscount(p.priceCents);   // D2: mesma cifra em todo método
         el.textContent = fmt(t);
         el.classList.add('has-pkg');
       } else {
@@ -2114,10 +2139,10 @@
     const cardNote = $('cardInstallmentNote');
     if (cardNote) {
       if (p) {
-        const cardTotal = applyCouponDiscount(p.price * state.qty * productData.paymentFees.card);
-        const maxInstallments = cardTotal >= 20 ? 3 : 1;
+        const cardTotal = applyCouponDiscount(p.priceCents);
+        const maxInstallments = cardTotal >= 2000 ? 3 : 1;
         cardNote.textContent = maxInstallments > 1
-          ? 'ou 3x de ' + fmt(cardTotal / maxInstallments) + ' sem juros'
+          ? 'ou 3x de ' + fmt(Math.round(cardTotal / maxInstallments)) + ' sem juros'
           : '';
       } else {
         cardNote.textContent = '';
@@ -2125,9 +2150,9 @@
     }
 
     /* Active payment: update total with fee */
-    const feeKey = state.payKey || 'pix';
-    const fee = productData.paymentFees[feeKey] || 1;
-    const totalWithFee = p ? applyCouponDiscount(p.price * state.qty * fee) : 0;
+    /* D2: taxa absorvida — o total não muda com o método. O nome
+       totalWithFee ficou por ser usado em todo o resto desta função. */
+    const totalWithFee = p ? applyCouponDiscount(p.priceCents) : 0;
 
     /* Summary */
     summaryPrice.textContent = fmt(totalWithFee);
@@ -2147,7 +2172,7 @@
         const input = $('input-' + f.key);
         const val = input ? input.value.trim() : '';
         const ok = !!state.fieldsValid[f.key];
-        return '<div class="order-line"><span class="lbl">' + f.label + '</span><span class="val ' + (ok ? 'ok' : 'pending') + '">' + (ok ? val + ' ✓' : 'Pendente') + '</span></div>';
+        return '<div class="order-line"><span class="lbl">' + escHtml(f.label) + '</span><span class="val ' + (ok ? 'ok' : 'pending') + '">' + (ok ? escHtml(val) + ' ✓' : 'Pendente') + '</span></div>';
       }).join('');
     }
 
@@ -2180,8 +2205,8 @@
       buyNowText.textContent = 'Inserir ' + contactLabel();
       buyNow.setAttribute('aria-label', 'Inserir ' + contactLabel());
     } else {
-      buyNowText.textContent = 'Confirmar e pagar';
-      buyNow.setAttribute('aria-label', 'Confirmar e pagar');
+      buyNowText.textContent = 'Criar pedido';
+      buyNow.setAttribute('aria-label', 'Criar pedido');
     }
 
     /* Mobile bar */
@@ -2206,9 +2231,9 @@
     } else {
       barTitle.textContent = p.label;
       barPrice.innerHTML = `Total <strong>${fmt(totalWithFee)}</strong>`;
-      barBtn.textContent = 'Confirmar e pagar';
+      barBtn.textContent = 'Criar pedido';
       barBtn.className = 'bar-btn ready';
-      barBtn.setAttribute('aria-label', 'Confirmar e pagar');
+      barBtn.setAttribute('aria-label', 'Criar pedido');
     }
 
     renderPackages();
@@ -2292,11 +2317,36 @@
     }
   });
 
-  /* ── Checkout ──
-     No real payment gateway exists in this prototype: submitting shows a
-     brief "processing" overlay, records a completed mock order, then hands
-     off to the Order Details page for that order. */
-  function handleCheckout() {
+  /* ── Checkout — Fase 2 (C3): POST /api/orders ──
+     Cria o pedido "aguardando pagamento" no servidor e leva para a página
+     do pedido. O corpo leva só jogo, pacote, campos, e-mail e meio de
+     pagamento: o VALOR é calculado pela Function a partir do catálogo, e
+     RecargaStore.createOrder nem aceita campo de preço.
+
+     Precisa de conta: o pedido é do usuário (RLS por user_id). Deslogado
+     vai para o login e volta para este produto.
+
+     Não há cobrança nesta fase. A página do pedido mostra a contagem e o
+     botão "Pagamento Pix disponível em breve". */
+  const ORDER_ERRORS = {
+    product_not_available: 'Este pacote não está mais disponível. Escolha outro pacote.',
+    package_not_canonical: 'Este pacote mudou no catálogo. Recarregue a página e escolha de novo.',
+    invalid_redemption_fields: 'Confira os dados do jogo: algum campo não está no formato esperado.',
+    invalid_email: 'Confira o e-mail de entrega.',
+    invalid_payment_method: 'Este meio de pagamento não está disponível.',
+    too_many_open_orders: 'Você já tem 5 pedidos aguardando pagamento. Conclua ou espere algum expirar antes de criar outro.',
+    id_not_eligible: 'Este ID não pode receber este pacote. Confira o ID ou escolha outro pacote.',
+    catalog_unavailable: 'O catálogo está indisponível agora. Tente de novo em instantes.',
+    profile_missing: 'Não encontramos o perfil da sua conta. Saia e entre de novo.',
+    _default: 'Não foi possível criar o pedido agora. Tente de novo em instantes.'
+  };
+  let submitting = false;
+
+  function goToLogin() {
+    window.location.href = 'account-login.html?redirect=' + encodeURIComponent('product.html?id=' + productData.id);
+  }
+
+  async function handleCheckout() {
     if (!pkg()) { $('packages-section').scrollIntoView({behavior:'smooth',block:'start'}); return; }
     if (!allFieldsValid() || !state.emailValid) {
       const first = document.querySelector('.field-group.is-invalid .field-input') ||
@@ -2304,34 +2354,44 @@
       if (first) { first.scrollIntoView({behavior:'smooth',block:'center'}); first.focus(); }
       return;
     }
-    const feeK = state.payKey || 'pix';
-    const baseTotal = pkg().price * state.qty * (productData.paymentFees[feeK] || 1);
-    const fTotal = applyCouponDiscount(baseTotal);
+    if (submitting) return;
+
+    if (!(await RecargaStore.getSession())) { goToLogin(); return; }
+
     const fieldValues = {};
     productData.fields.forEach(f => { const el = $('input-' + f.key); fieldValues[f.key] = el ? el.value.trim() : ''; });
 
+    submitting = true;
     buyNow.disabled = true;
     barBtn.disabled = true;
-    $('processingModal').classList.add('show');
+    const modal = $('processingModal');
+    const modalTitle = modal.querySelector('h3');
+    const modalText = modal.querySelector('p');
+    if (modalTitle) modalTitle.textContent = 'Criando seu pedido…';
+    if (modalText) modalText.textContent = 'Só um instante.';
+    modal.classList.add('show');
 
-    setTimeout(() => {
-      const order = RecargaStore.createOrder(Object.assign({
-        productId: productData.id,
-        packageId: pkg().id,
-        packageLabel: pkg().label,
-        packageDetail: pkg().detail,
-        qty: state.qty,
-        amount: fTotal,
-        couponCode: state.coupon ? state.coupon.code : null,
-        discountAmount: state.coupon ? (baseTotal - fTotal) : 0,
-        paymentMethod: state.payLabel,
-        deliveryMethod: state.deliveryMethod,
-        email: state.deliveryMethod === 'whatsapp' ? '' : emailEl.value.trim(),
-        phone: state.deliveryMethod === 'whatsapp' ? phoneEl.value.trim() : (phoneEl.value.trim() || undefined)
-      }, fieldValues));
-      RecargaStore.completeOrder(order.id);
-      window.location.href = 'order-details.html?id=' + encodeURIComponent(order.id) + '&new=1';
-    }, 1400);
+    const res = await RecargaStore.createOrder({
+      gameSlug: productData.id,
+      productCode: pkg().id,
+      redemptionFields: fieldValues,
+      deliveryEmail: emailEl.value.trim(),
+      paymentMethod: state.payKey || 'pix'
+    });
+
+    if (res.ok) {
+      window.location.href = 'order-details.html?id=' + encodeURIComponent(res.order.id) + '&new=1';
+      return;
+    }
+
+    modal.classList.remove('show');
+    submitting = false;
+    if (res.status === 401 && res.code !== 'gate_required') { goToLogin(); return; }
+    if (res.code === 'gate_required') { window.location.reload(); return; }
+    updateUI();
+    summaryWarn.textContent = ORDER_ERRORS[res.code] || ORDER_ERRORS._default;
+    summaryWarn.classList.add('show');
+    summaryWarn.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'center' });
   }
 
   /* ── Coupon apply (demo — see applyCouponDiscount() above) ── */
@@ -2413,6 +2473,13 @@
      chegar. */
   renderSavedAccountPicker();
   renderDeliveryMethodPicker();
+  /* E-mail de entrega pré-preenchido com o da conta (auth.users), editável. */
+  RecargaStore.getAuthUser().then(u => {
+    if (u && u.email && !emailEl.value.trim()) {
+      emailEl.value = u.email;
+      emailEl.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  });
   renderPackages();
   renderRelated();
   updateUI();

@@ -410,7 +410,7 @@
         <div class="footer-col"><h3>Políticas</h3><div class="footer-list"><a href="terms.html">Termos e Condições</a><a href="privacy-policy.html">Política de Privacidade</a><a href="cookie-policy.html">Política de Cookies</a><a href="refund-policy.html">Trocas e Reembolsos</a><a href="faq.html">Perguntas Frequentes</a></div></div>
         <div class="footer-col"><h3>Sobre nós</h3><div class="footer-list"><a href="about.html">Quem somos</a><a href="contact.html">Contato</a></div></div>
         <div class="footer-col"><h3>Suporte</h3><div class="footer-list"><a href="help-center.html">Central de ajuda</a><a href="my-orders.html">Acompanhar pedido</a><span>support@recargagames.com</span></div></div>
-        <div class="footer-col"><h3>Pagamento</h3><div class="payment-row"><span class="payment-badge">Pix</span><span class="payment-badge">Cartão</span><span class="payment-badge">Boleto</span></div></div>
+        <div class="footer-col"><h3>Pagamento</h3><div class="payment-row"><span class="payment-badge">Pix</span></div></div>
         <div class="footer-col"><h3>Newsletter</h3><form class="newsletter-form"><input type="email" placeholder="Seu e-mail" aria-label="E-mail para newsletter"><button type="button">Assinar</button></form></div>
       </div>
       <div class="footer-mobile">
@@ -428,19 +428,18 @@
         <details class="footer-accordion"><summary>Políticas</summary><div class="footer-list"><a href="terms.html">Termos e Condições</a><a href="privacy-policy.html">Política de Privacidade</a><a href="cookie-policy.html">Política de Cookies</a><a href="refund-policy.html">Trocas e Reembolsos</a><a href="faq.html">Perguntas Frequentes</a></div></details>
         <details class="footer-accordion"><summary>Suporte</summary><div class="footer-list"><a href="help-center.html">Central de ajuda</a><a href="my-orders.html">Acompanhar pedido</a><span>support@recargagames.com</span></div></details>
         <div class="footer-mobile-bottom">
-          <div class="payment-row"><span class="payment-badge">Pix</span><span class="payment-badge">Cartão</span><span class="payment-badge">Boleto</span></div>
+          <div class="payment-row"><span class="payment-badge">Pix</span></div>
           <p class="footer-copy" style="max-width:none;">© 2026 Recarga Games Brasil.</p>
         </div>
       </div>
     </div>
   </footer>
 
-  <script src="shared/data/products.js"></script>
-  <script src="shared/data/orders.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script src="shared/js/market.js"></script>
 <script src="shared/js/supabase-client.js"></script>
 <script src="shared/js/store.js"></script>
+<script src="shared/js/redemption-fields.js"></script>
 <script src="shared/js/header-session.js"></script>
   <script>
   (async function () {
@@ -539,7 +538,16 @@
 
     function initials(name) { return (name || '?').trim().split(/\s+/).map(function (p) { return p[0]; }).slice(0, 2).join('').toUpperCase(); }
     function escapeHtml(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]; }); }
-    function statusLabel(s) { return { completed: 'Concluído', processing: 'Processando', failed: 'Falhou' }[s] || s; }
+    /* Pedido real vem do store (status da tabela orders); o MOCK_ORDERS do
+       preview avulso usa os status do protótipo. */
+    function statusLabel(o) {
+      if (hasStore) return RecargaStore.isOrderExpired(o) ? RecargaStore.statusLabel('expired') : RecargaStore.statusLabel(o.status);
+      return { completed: 'Concluído', processing: 'Processando', failed: 'Falhou' }[o.status] || o.status;
+    }
+    function statusTone(o) {
+      if (hasStore) return RecargaStore.isOrderExpired(o) ? 'failed' : RecargaStore.statusTone(o.status);
+      return o.status;
+    }
 
     if (!user) {
       navName.textContent = 'Cadastre-se';
@@ -693,7 +701,7 @@
               '<button class="ghost-btn" type="button" disabled title="Em breve">Adicionar cartão</button>' +
               '<span class="badge-soon">Em breve</span>' +
             '</div>' +
-            '<div class="profile-row" style="margin-top:18px;"><span class="lbl">Aceitos no checkout</span><span class="val payment-row"><span class="payment-badge">Pix</span><span class="payment-badge">Cartão</span><span class="payment-badge">Boleto</span></span></div>' +
+            '<div class="profile-row" style="margin-top:18px;"><span class="lbl">Aceitos no checkout</span><span class="val payment-row"><span class="payment-badge">Pix</span></span></div>' +
           '</section>' +
 
           '<section class="card panel-section" data-panel="seguranca">' +
@@ -771,27 +779,41 @@
     };
     Object.keys(f).forEach(function (k) { if (user[k]) f[k].value = user[k]; });
 
-    var orders = (hasStore && RecargaStore.getOrders) ? RecargaStore.getOrders().slice(0, 3) : MOCK_ORDERS;
+    /* Fase 2: catálogo assíncrono. Carregado uma vez para o resumo de
+       pedidos e para a seção de IDs de jogo. Se falhar, o perfil continua
+       funcionando; só a seção de IDs mostra o aviso de catálogo. */
+    var catalogProducts = [];
+    if (hasStore) {
+      try { catalogProducts = await RecargaStore.getProducts(); } catch (e) { catalogProducts = []; }
+    }
+    function catalogProduct(id) {
+      return catalogProducts.find(function (p) { return p.id === id; }) || null;
+    }
+
+    /* Fase 2 (C3): os 3 pedidos mais recentes de public.orders, pela RLS.
+       Falha de leitura mostra "nenhum pedido", não derruba o perfil. */
+    var orders = MOCK_ORDERS;
+    if (hasStore) {
+      try { orders = (await RecargaStore.getOrders()).slice(0, 3); } catch (e) { orders = []; }
+    }
     var ordersMini = document.getElementById('ordersMini');
     ordersMini.innerHTML = orders.length ? orders.map(function (o) {
-      var name = o.product || (hasStore && RecargaStore.getProductById && RecargaStore.getProductById(o.productId) ? RecargaStore.getProductById(o.productId).name : o.productId);
+      var name = o.product || (catalogProduct(o.productId) ? catalogProduct(o.productId).name : o.productId);
       return '<div class="order-row-mini" onclick="location.href=\'order-details.html?id=' + encodeURIComponent(o.id) + '\'">' +
         '<div class="order-row-thumb-mini" style="--thumb-color:' + (o.color || '#F5700A') + '">' + escapeHtml((name || '?').slice(0, 2).toUpperCase()) + '</div>' +
-        '<div class="order-row-mini-info"><strong>' + escapeHtml(name) + '</strong><span>' + escapeHtml(o.pkg || o.packageLabel || '') + ' · ' + escapeHtml(o.date || '') + '</span></div>' +
-        '<span class="status-pill ' + o.status + '">' + statusLabel(o.status) + '</span>' +
+        '<div class="order-row-mini-info"><strong>' + escapeHtml(name) + '</strong><span>' + escapeHtml(o.pkg || o.packageLabel || '') + ' · ' + escapeHtml(o.date || (o.createdAt ? RecargaStore.formatDate(o.createdAt) : '')) + '</span></div>' +
+        '<span class="status-pill ' + escapeHtml(statusTone(o)) + '">' + escapeHtml(statusLabel(o)) + '</span>' +
       '</div>';
     }).join('') : '<div class="empty-note">Nenhum pedido ainda.</div>';
 
     /* ── IDs de jogos vinculados ──
-       The game list comes live from shared/data/products.js
-       (RecargaStore.getProducts, filtered to type "direct") — nothing here
-       is hardcoded, so adding/removing a game in the catalog is enough to
-       change what shows up in this dropdown. Only DTU ("direct") products
-       have redemption fields worth saving; code/gift-card products don't
-       ask for a player ID at all. */
-    var directProducts = (hasStore && RecargaStore.getProducts)
-      ? RecargaStore.getProducts().filter(function (p) { return p.type === 'direct'; })
-      : [];
+       Fase 2: a lista vem do catálogo (/api/catalog), só jogos de recarga
+       direta que pedem algum campo. Os campos e a validação são os forms
+       da Lapak (RecargaFields), a mesma regra do product.html, então um ID
+       salvo aqui pré-preenche lá. Códigos e gift cards não pedem ID. */
+    var directProducts = catalogProducts.filter(function (p) {
+      return p.type === 'direct' && p.fields && p.fields.length;
+    });
 
     var linkSection = document.querySelector('[data-panel="jogos"]');
     var gameSelect = document.getElementById('f-linkGame');
@@ -818,11 +840,15 @@
 
       function renderLinkFields(productId) {
         var product = directProducts.find(function (p) { return p.id === productId; });
-        var fields = (product && product.redemption && product.redemption.fields) || [];
+        var fields = product ? RecargaFields.toFormFields(product) : [];
         linkDynamicFields.innerHTML = fields.map(function (fld) {
           return '<div class="field-group" data-linkfield="' + fld.key + '">' +
             '<label class="field-label" for="link-' + fld.key + '">' + escapeHtml(fld.label) + ' <span class="field-required">*</span></label>' +
-            '<input class="field-input" id="link-' + fld.key + '" placeholder="' + escapeHtml(fld.placeholder || '') + '" autocomplete="off">' +
+            (fld.type === 'option'
+              ? '<select class="field-input" id="link-' + escapeHtml(fld.key) + '"><option value="">' + escapeHtml(fld.chooseLabel) + '</option>' +
+                  fld.options.map(function (o) { return '<option value="' + escapeHtml(o.value) + '">' + escapeHtml(o.label) + '</option>'; }).join('') +
+                '</select>'
+              : '<input class="field-input" id="link-' + escapeHtml(fld.key) + '" placeholder="' + escapeHtml(fld.placeholder || '') + '" autocomplete="off">') +
             (fld.help ? '<p class="field-hint">' + escapeHtml(fld.help) + '</p>' : '') +
             '<p class="field-error">Preencha este campo corretamente.</p>' +
           '</div>';
@@ -832,8 +858,8 @@
         fields.forEach(function (fld) {
           var input = document.getElementById('link-' + fld.key);
           var group = input.closest('.field-group');
-          input.addEventListener('input', function () {
-            linkFieldsValid[fld.key] = new RegExp(fld.pattern).test(input.value.trim());
+          input.addEventListener(fld.type === 'option' ? 'change' : 'input', function () {
+            linkFieldsValid[fld.key] = RecargaFields.isValid(fld, input.value);
             group.classList.toggle('is-invalid', !linkFieldsValid[fld.key] && input.value.length > 0);
             group.classList.toggle('is-valid', linkFieldsValid[fld.key]);
             updateLinkBtn();
@@ -1106,11 +1132,10 @@
        A real backend should include anything it holds server-side too. */
     var exportBtn = document.getElementById('exportDataBtn');
     if (exportBtn) exportBtn.addEventListener('click', async function () {
-      /* O pacote é montado pelo store (exportUserData), que junta o perfil
-         do servidor com os pedidos locais E anexa uma nota dizendo que os
-         pedidos são só deste navegador enquanto a Fase 2 não chega. Sem
-         essa nota, quem receber o arquivo lê um histórico incompleto como
-         se fosse completo. */
+      /* O pacote é montado pelo store (exportUserData): perfil de
+         customer_profiles e pedidos de public.orders, os dois do servidor.
+         Se os pedidos não carregarem, o arquivo diz isso em notes.orders em
+         vez de sair com uma lista vazia que parece completa. */
       var exportPayload = hasStore
         ? await RecargaStore.exportUserData()
         : { exportedAt: new Date().toISOString(), profile: user, orders: [] };

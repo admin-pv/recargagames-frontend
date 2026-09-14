@@ -296,300 +296,259 @@
       </div>
       <div class="footer-col"><h3>Políticas</h3><div class="footer-list"><a href="terms.html">Termos e Condições</a><a href="privacy-policy.html">Política de Privacidade</a><a href="cookie-policy.html">Política de Cookies</a><a href="refund-policy.html">Trocas e Reembolsos</a><a href="faq.html">Perguntas Frequentes</a></div></div>
       <div class="footer-col"><h3>Suporte</h3><div class="footer-list"><a href="help-center.html">Central de ajuda</a><a href="my-orders.html">Acompanhar pedido</a><span>suporte@recargagames.com</span></div></div>
-      <div class="footer-col"><h3>Pagamento</h3><div class="payment-row"><span class="payment-badge">Pix</span><span class="payment-badge">Cartão</span><span class="payment-badge">Boleto</span></div></div>
+      <div class="footer-col"><h3>Pagamento</h3><div class="payment-row"><span class="payment-badge">Pix</span></div></div>
     </div>
   </div>
 </footer>
 
-<script src="shared/data/products.js"></script>
-<script src="shared/data/orders.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script src="shared/js/market.js"></script>
 <script src="shared/js/supabase-client.js"></script>
 <script src="shared/js/store.js"></script>
+<script src="shared/js/redemption-fields.js"></script>
 <script src="shared/js/header-session.js"></script>
 <script>
-(function () {
+(async function () {
   'use strict';
+
+  /* ── order-details — Fase 2 (C3) ────────────────────────────────────────
+     Lê UM pedido de public.orders pela RLS (RecargaStore.getOrderById).
+     Pedido de outra pessoa volta null e aparece como "não encontrado".
+     Nada aqui escreve em orders. */
 
   var container = document.getElementById('orderContent');
   var announce = document.getElementById('statusAnnounce');
   var breadcrumbId = document.getElementById('breadcrumbOrderId');
-  var hasStore = !!window.RecargaStore;
 
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]; }); }
-  function formatDate(iso) {
-    if (!iso) return '—';
-    var d = new Date(iso);
-    return d.toLocaleDateString(RecargaMarket.locale, { day: '2-digit', month: 'short', year: 'numeric' }) + ', ' +
-           d.toLocaleTimeString(RecargaMarket.locale, { hour: '2-digit', minute: '2-digit' });
-  }
-  /* Fase 1: formatação vem do market.js (locale + moeda do mercado).
-     O fallback com 'R$' fixo saiu — ele reintroduzia o hardcode de BR
-     justamente no caminho de erro. */
-  function formatBRL(n) { return RecargaMarket.formatMoney(n); }
-  function statusLabel(s) { return hasStore ? RecargaStore.statusLabel(s) : ({ completed: 'Concluído', processing: 'Processando', failed: 'Falhou' }[s] || s); }
-  function maskId(id) {
-    id = String(id);
-    if (id.length <= 4) return id;
-    return '•••••' + id.slice(-4);
-  }
+  function fmtDate(iso) { return iso ? RecargaStore.formatDate(iso) : '—'; }
+  function money(cents) { return RecargaMarket.formatMoney(cents); }
+  function shortId(id) { return String(id || '').slice(0, 8).toUpperCase(); }
+  function maskValue(v) { v = String(v); return v.length <= 4 ? v : '•••••' + v.slice(-4); }
+  function payLabel(key) { return ({ pix: 'Pix', cc: 'Cartão de crédito', debit: 'Cartão de débito', nupay: 'NuPay' })[key] || String(key || '—'); }
 
-  /* ── Timeline markup ── */
-  function buildTimeline(order) {
-    var steps = [];
-    steps.push({
-      state: 'done', label: 'Pedido criado',
-      desc: formatDate(order.createdAt)
-    });
-    if (order.status === 'failed') {
-      steps.push({
-        state: 'error', label: 'Pagamento não confirmado',
-        desc: order.failReason || 'Não foi possível confirmar o pagamento deste pedido.'
-      });
-    } else {
-      steps.push({
-        state: 'done', label: 'Pagamento identificado',
-        desc: order.paidAt ? formatDate(order.paidAt) : 'Aguardando confirmação da operadora.'
-      });
-      if (order.status === 'completed') {
-        steps.push({
-          state: 'done', label: 'Entrega concluída',
-          desc: formatDate(order.completedAt)
-        });
-      } else {
-        steps.push({
-          state: 'active', label: 'Entrega em processamento',
-          desc: 'Normalmente concluída em poucos minutos. Avisamos por e-mail assim que finalizar.'
-        });
-      }
-    }
-    return steps.map(function (s, i) {
-      return '<div class="t-step ' + s.state + (i === steps.length - 1 ? '' : ' done') + '">' +
-        '<div class="t-dot">' + (s.state === 'done' ? '✓' : s.state === 'error' ? '✕' : (i + 1)) + '</div>' +
-        '<div class="t-copy"><strong>' + esc(s.label) + '</strong><span>' + esc(s.desc) + '</span></div>' +
-        '</div>';
-    }).join('');
-  }
-
-  function renderNotFound(id) {
-    document.title = 'Recarga Games — Pedido não encontrado';
-    breadcrumbId.textContent = 'Pedido não encontrado';
+  function renderMessage(title, bodyHtml, actionsHtml) {
+    document.title = 'Recarga Games — ' + title;
+    breadcrumbId.textContent = title;
     container.innerHTML =
       '<div class="card" style="padding:56px 28px;text-align:center;">' +
-        '<h1 style="font-family:\'Barlow Condensed\',sans-serif;text-transform:uppercase;font-size:28px;margin:0 0 10px;">Pedido não encontrado</h1>' +
-        '<p style="color:var(--muted);font-size:14px;margin:0 auto 24px;max-width:38ch;">' +
-          (id ? 'Não encontramos o pedido <strong style="color:var(--warm)">' + esc(id) + '</strong>. Verifique o link ou veja a lista completa.'
-              : 'Nenhum pedido foi informado. Acesse pela lista de pedidos.') +
-        '</p>' +
-        '<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">' +
-          '<a class="cta-primary" style="width:auto;padding:0 26px;" href="my-orders.html">Meus pedidos</a>' +
-          '<a class="cta-secondary" style="width:auto;padding:0 26px;" href="index.html">Voltar para a loja</a>' +
-        '</div>' +
+        '<h1 style="font-family:\'Barlow Condensed\',sans-serif;text-transform:uppercase;font-size:28px;margin:0 0 10px;">' + esc(title) + '</h1>' +
+        '<p style="color:var(--muted);font-size:14px;margin:0 auto 24px;max-width:42ch;">' + bodyHtml + '</p>' +
+        '<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">' + actionsHtml + '</div>' +
       '</div>';
   }
 
-  /* Product fallback for an order whose product was removed from the
-     catalog since it was placed — keeps the page from breaking. */
-  function fallbackProduct(order) {
-    return { id: order.productId, name: order.productId, category: '', color: '#F5700A', short: '?', type: null, redemption: { fields: [] } };
+  var params = new URLSearchParams(window.location.search);
+  var id = params.get('id');
+
+  /* Pedido é do usuário: sem sessão, login e volta para cá. */
+  var session = await RecargaStore.getSession();
+  if (!session) {
+    window.location.replace('account-login.html?redirect=' + encodeURIComponent('order-details.html' + window.location.search));
+    return;
   }
 
-  function renderOrder(order, product, showSuccess) {
-    document.title = 'Recarga Games — Pedido ' + order.id;
-    breadcrumbId.textContent = 'Pedido ' + order.id;
-    announce.textContent = 'Status do pedido ' + order.id + ': ' + statusLabel(order.status);
+  var order = null;
+  try {
+    order = id ? await RecargaStore.getOrderById(id) : null;
+  } catch (e) {
+    renderMessage('Pedido indisponível',
+      'Não conseguimos carregar este pedido agora. Tente de novo em instantes.',
+      '<a class="cta-primary" style="width:auto;padding:0 26px;" href="' + esc(window.location.href) + '">Tentar de novo</a>' +
+      '<a class="cta-secondary" style="width:auto;padding:0 26px;" href="my-orders.html">Meus pedidos</a>');
+    return;
+  }
 
-    // 'direct' products credit an in-game account; 'code'/'giftcard' hand over
-    // a redeem code by e-mail — same two delivery styles the design already has.
-    var redemptionKind = product.type === 'direct' ? 'account' : (product.type === 'code' || product.type === 'giftcard') ? 'code' : null;
+  if (!order) {
+    renderMessage('Pedido não encontrado',
+      id ? 'Não encontramos este pedido na sua conta. Verifique o link ou veja a lista completa.'
+         : 'Nenhum pedido foi informado. Acesse pela lista de pedidos.',
+      '<a class="cta-primary" style="width:auto;padding:0 26px;" href="my-orders.html">Meus pedidos</a>' +
+      '<a class="cta-secondary" style="width:auto;padding:0 26px;" href="index.html">Voltar para a loja</a>');
+    return;
+  }
 
-    var bannerHtml = (order.status === 'completed' && showSuccess) ? (
+  /* Catálogo só enfeita (nome, sigla, tipo). Jogo que saiu do catálogo não
+     derruba a página de um pedido que existe. */
+  var product = null;
+  try { product = await RecargaStore.getProductById(order.productId); } catch (e) { product = null; }
+  var productName = product ? product.name : order.productId;
+  var productShort = product ? product.short : String(order.productId || '?').slice(0, 2).toUpperCase();
+  var isCodeProduct = product ? product.type === 'code' : Object.keys(order.redemptionFields).length === 0;
+
+  var showCreated = params.get('new') === '1';
+  var countdownTimer = null;
+
+  function timelineSteps(o, expired) {
+    var steps = [{ state: 'done', label: 'Pedido criado', desc: fmtDate(o.createdAt) }];
+    if (expired) {
+      steps.push({ state: 'error', label: 'Pedido expirado', desc: 'O prazo para pagar terminou. Nenhum valor foi cobrado.' });
+      return steps;
+    }
+    switch (o.status) {
+      case 'awaiting_payment':
+        steps.push({ state: 'active', label: 'Aguardando pagamento', desc: 'Válido até ' + fmtDate(o.expiresAt) + '.' });
+        steps.push({ state: '', label: 'Entrega', desc: 'Começa assim que o pagamento for identificado.' });
+        break;
+      case 'paid':
+      case 'fulfilling':
+        steps.push({ state: 'done', label: 'Pagamento confirmado', desc: fmtDate(o.paidAt) });
+        steps.push({ state: 'active', label: 'Entrega em processamento', desc: 'Normalmente concluída em poucos minutos. Avisamos por e-mail.' });
+        break;
+      case 'completed':
+        steps.push({ state: 'done', label: 'Pagamento confirmado', desc: fmtDate(o.paidAt) });
+        steps.push({ state: 'done', label: 'Entrega concluída', desc: fmtDate(o.completedAt) });
+        break;
+      default:
+        steps.push({ state: 'error', label: RecargaStore.statusLabel(o.status), desc: 'Fale com o suporte informando o número do pedido.' });
+    }
+    return steps;
+  }
+
+  function stepsHtml(steps) {
+    return steps.map(function (s, i) {
+      var mark = s.state === 'done' ? '✓' : s.state === 'error' ? '✕' : String(i + 1);
+      return '<div class="t-step ' + s.state + '">' +
+        '<div class="t-dot">' + mark + '</div>' +
+        '<div class="t-copy"><strong>' + esc(s.label) + '</strong><span>' + esc(s.desc) + '</span></div>' +
+      '</div>';
+    }).join('');
+  }
+
+  function render() {
+    var expired = RecargaStore.isOrderExpired(order);
+    var open = order.status === 'awaiting_payment' && !expired;
+    var label = expired ? RecargaStore.statusLabel('expired') : RecargaStore.statusLabel(order.status);
+    var tone = expired ? 'failed' : RecargaStore.statusTone(order.status);
+
+    document.title = 'Recarga Games — Pedido ' + shortId(order.id);
+    breadcrumbId.textContent = 'Pedido ' + shortId(order.id);
+    announce.textContent = 'Status do pedido ' + shortId(order.id) + ': ' + label;
+
+    var bannerHtml = (showCreated && open) ? (
       '<div class="success-banner">' +
         '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/><path d="m8 12.5 2.5 2.5L16 9.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
-        '<div><strong>Pagamento confirmado!</strong><span>Seu pedido ' + esc(order.id) + ' foi processado com sucesso.</span></div>' +
+        '<div><strong>Pedido criado</strong><span>O pedido ' + esc(shortId(order.id)) + ' está registrado e aguarda o pagamento.</span></div>' +
       '</div>'
     ) : '';
 
-    var deliveryTipHtml = (order.status !== 'failed' && redemptionKind === 'account') ? (
-      '<div class="delivery-tip"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 9v4M12 16.5h.01M10.3 3.86 2.3 18a1.5 1.5 0 0 0 1.3 2.25h16.8A1.5 1.5 0 0 0 21.7 18l-8-14.14a1.5 1.5 0 0 0-2.6 0Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>' +
-      '<p><b>Não feche o jogo</b> durante a entrega — o crédito é enviado direto para o ID informado, sem necessidade de código.</p></div>'
-    ) : '';
-
-    var failHtml = order.status === 'failed' ? (
-      '<div class="fail-note"><strong>Pagamento não concluído.</strong>' + esc(order.failReason || 'Não foi possível confirmar o pagamento deste pedido.') +
-      '<div class="fail-actions"><button class="chip-btn" onclick="location.href=\'checkout.html?retry=' + esc(order.id) + '\'">Tentar outro cartão</button>' +
-      '<button class="chip-btn" onclick="location.href=\'checkout.html?retry=' + esc(order.id) + '&method=pix\'">Pagar com Pix</button></div></div>'
-    ) : '';
-
-    var mainFieldValue = null;
-    (product.redemption && product.redemption.fields || []).some(function (f) {
-      if (order[f.key]) { mainFieldValue = order[f.key]; return true; }
-      return false;
-    });
-
-    var confirmDeliveryHtml = (order.status === 'completed' && redemptionKind === 'account') ? (
-      '<div class="confirm-delivery"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/><path d="m8 12.5 2.5 2.5L16 9.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
-      '<span>Já creditado na conta <b>#' + esc(mainFieldValue || '—') + '</b>. Confira seu saldo dentro do jogo.</span></div>'
-    ) : '';
-
-    var redeemCodeHtml = (order.status === 'completed' && redemptionKind === 'code' && order.code) ? (
-      '<div class="redeem-code-card">' +
-        '<div class="redeem-code-head"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M3 9h18" stroke="currentColor" stroke-width="1.5"/></svg><h3>Seu código de resgate</h3></div>' +
-        '<div class="code-box"><span class="code-value masked" id="codeValue" data-code="' + esc(order.code) + '">•••• •••• •••• ••••</span>' +
-          '<div class="code-btn-row">' +
-            '<button class="icon-btn" id="revealBtn" type="button" aria-label="Mostrar código"><svg viewBox="0 0 24 24" fill="none"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/></svg></button>' +
-            '<button class="icon-btn" id="copyBtn" type="button" aria-label="Copiar código"><svg viewBox="0 0 24 24" fill="none"><rect x="8" y="8" width="12" height="12" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M4 16V5a1 1 0 0 1 1-1h11" stroke="currentColor" stroke-width="1.5"/></svg></button>' +
-          '</div></div>' +
-        '<div class="redeem-mini-steps">' +
-          '<div class="redeem-mini-step"><b>1.</b> Abra o jogo e acesse "Resgatar código".</div>' +
-          '<div class="redeem-mini-step"><b>2.</b> Cole o código acima e confirme.</div>' +
-          '<div class="redeem-mini-step"><b>3.</b> O saldo aparece na sua conta em instantes.</div>' +
-        '</div>' +
-      '</div>'
-    ) : (order.status === 'completed' && redemptionKind === 'code') ? (
-      '<div style="margin-bottom:20px">' +
-      '<div class="confirm-delivery"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/><path d="m8 12.5 2.5 2.5L16 9.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
-      (order.deliveryMethod === 'whatsapp'
-        ? '<span>Código enviado para o WhatsApp <b>' + esc(order.phone || 'informado') + '</b>.</span></div>'
-        : '<span>Código enviado para <b>' + esc(order.email || 'seu e-mail') + '</b>.</span></div>') +
+    /* Fase 2: não há cobrança. O botão existe e fica desabilitado; a
+       Fase 3 troca pelo QR do Pix (PagBrasil). */
+    var payHtml = open ? (
+      '<div class="card" style="padding:18px 20px;margin-top:14px;">' +
+        '<strong style="display:block;font-size:15px;">Pague em até <span id="expiresCountdown">--:--</span></strong>' +
+        '<p style="color:var(--muted);font-size:13px;margin:6px 0 12px;">Se o pagamento não for identificado a tempo, o pedido expira sozinho. Nada é cobrado antes disso.</p>' +
+        '<button class="cta-primary" type="button" disabled aria-disabled="true">Pagamento Pix disponível em breve</button>' +
       '</div>'
     ) : '';
 
-    var legalNoteHtml = order.status !== 'failed' ? (
-      '<div class="legal-note">Se o status não mudar dentro do prazo esperado, ' +
-      '<a href="help-center.html?order=' + esc(order.id) + '">fale com o suporte</a> informando o número do pedido.</div>'
+    var expiredHtml = expired ? (
+      '<div class="fail-note"><strong>Pedido expirado.</strong>O prazo para pagar terminou e nenhum valor foi cobrado. Você pode criar um novo pedido com os mesmos dados.' +
+      '<div class="fail-actions"><a class="chip-btn" href="checkout.html?retry=' + encodeURIComponent(order.id) + '">Criar novo pedido</a></div></div>'
     ) : '';
 
-    // Every extra redemption field this product needs (playerId, zoneId, riotId, ...),
-    // read generically off product.redemption.fields instead of hardcoded field names.
-    var extraFieldsHtml = (product.redemption && product.redemption.fields || []).map(function (f) {
-      if (!order[f.key]) return '';
-      var val = f.key === 'playerId' ? maskId(order[f.key]) : order[f.key];
-      var cls = f.key === 'playerId' ? ' masked' : '';
-      return '<div class="detail-line"><span class="lbl">' + esc(f.label) + '</span><span class="val' + cls + '">' + esc(val) + '</span></div>';
+    /* D4: código só com pedido concluído e dentro de code_visible_until.
+       A coluna do código chega na Fase 3; até lá `order.code` não existe e
+       o ramo visível nunca renderiza. */
+    var codeHtml = '';
+    if (order.status === 'completed' && isCodeProduct) {
+      codeHtml = (RecargaStore.isCodeVisible(order) && order.code)
+        ? '<div class="redeem-code-card"><div class="redeem-code-head"><h3>Seu código de resgate</h3></div>' +
+            '<div class="code-box"><span class="code-value">' + esc(order.code) + '</span></div></div>'
+        : '<div style="margin-bottom:20px"><div class="confirm-delivery"><span>Código enviado para <b>' + esc(order.email || 'seu e-mail') + '</b>.</span></div></div>';
+    }
+
+    var fieldsHtml = Object.keys(order.redemptionFields).map(function (key) {
+      var f = window.RecargaFields ? RecargaFields.toFormField({ name: key }) : { label: key };
+      var v = order.redemptionFields[key];
+      var shown = key === 'user_id' ? maskValue(v) : v;
+      return '<div class="detail-line"><span class="lbl">' + esc(f.label) + '</span><span class="val' + (key === 'user_id' ? ' masked' : '') + '">' + esc(shown) + '</span></div>';
     }).join('');
 
-    var primaryActionHtml = order.status === 'failed'
-      ? '<a class="cta-primary" href="checkout.html?retry=' + esc(order.id) + '">Tentar novamente</a>'
-      : '<a class="cta-primary" href="product.html?id=' + esc(order.productId) + '">Comprar novamente</a>';
+    var primaryActionHtml = expired
+      ? '<a class="cta-primary" href="checkout.html?retry=' + encodeURIComponent(order.id) + '">Criar novo pedido</a>'
+      : order.status === 'completed'
+        ? '<a class="cta-primary" href="product.html?id=' + encodeURIComponent(order.productId) + '">Comprar novamente</a>'
+        : '';
 
     container.innerHTML =
       bannerHtml +
       '<div class="account-head">' +
         '<div>' +
           '<div class="account-title-row">' +
-            '<h1 class="account-title">Pedido ' + esc(order.id) + '</h1>' +
-            '<button class="copy-id-btn" id="copyIdBtn" data-id="' + esc(order.id) + '" type="button">' +
+            '<h1 class="account-title">Pedido ' + esc(shortId(order.id)) + '</h1>' +
+            '<button class="copy-id-btn" id="copyIdBtn" type="button">' +
               '<svg viewBox="0 0 24 24" fill="none"><rect x="8" y="8" width="12" height="12" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M4 16V5a1 1 0 0 1 1-1h11" stroke="currentColor" stroke-width="1.6"/></svg>Copiar ID' +
             '</button>' +
           '</div>' +
-          '<p class="account-sub">Realizado em ' + formatDate(order.createdAt) + '</p>' +
+          '<p class="account-sub">Realizado em ' + esc(fmtDate(order.createdAt)) + '</p>' +
         '</div>' +
         '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">' +
-          '<span class="status-pill ' + order.status + '">' + statusLabel(order.status) + '</span>' +
+          '<span class="status-pill ' + tone + '">' + esc(label) + '</span>' +
           '<a class="back-link" href="my-orders.html"><svg viewBox="0 0 24 24" fill="none"><path d="M15 5 8 12l7 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Meus pedidos</a>' +
         '</div>' +
       '</div>' +
-
-      redeemCodeHtml +
-
+      codeHtml +
       '<div class="order-detail-grid">' +
         '<div class="order-detail-timeline-col">' +
           '<div class="card timeline-card">' +
-            '<div class="timeline-head"><h2>Acompanhamento</h2>' + (order.status === 'processing' ? '<span class="live-badge">Atualização automática</span>' : '') + '</div>' +
-            '<div class="timeline">' + buildTimeline(order) + '</div>' +
-            deliveryTipHtml + confirmDeliveryHtml + legalNoteHtml +
+            '<div class="timeline-head"><h2>Acompanhamento</h2>' + (order.status === 'fulfilling' ? '<span class="live-badge">Em processamento</span>' : '') + '</div>' +
+            '<div class="timeline">' + stepsHtml(timelineSteps(order, expired)) + '</div>' +
+            '<div class="legal-note">Se o status não mudar dentro do prazo esperado, <a href="help-center.html">fale com o suporte</a> informando o número do pedido.</div>' +
           '</div>' +
-          failHtml +
+          payHtml + expiredHtml +
         '</div>' +
-
         '<div class="order-detail-summary-col card">' +
           '<div class="order-detail-product">' +
-            '<div class="order-detail-thumb" style="--thumb-color:' + product.color + '">' + esc(product.short) + '</div>' +
-            '<div><h2>' + esc(product.name) + '</h2><p>' + esc(product.category) + '</p></div>' +
+            '<div class="order-detail-thumb" style="--thumb-color:#F5700A">' + esc(productShort) + '</div>' +
+            '<div><h2>' + esc(productName) + '</h2><p>' + (isCodeProduct ? 'Código digital' : 'Recarga direta') + '</p></div>' +
           '</div>' +
           '<div class="detail-lines">' +
-            '<div class="detail-line"><span class="lbl">Pacote</span><span class="val">' + esc(order.packageLabel) + '</span></div>' +
-            '<div class="detail-line"><span class="lbl">Quantidade</span><span class="val">' + order.qty + '</span></div>' +
-            extraFieldsHtml +
-            (order.deliveryMethod === 'whatsapp'
-              ? '<div class="detail-line"><span class="lbl">WhatsApp</span><span class="val">' + esc(order.phone || '—') + '</span></div>'
-              : '<div class="detail-line"><span class="lbl">E-mail</span><span class="val">' + esc(order.email || '—') + '</span></div>') +
-            '<div class="detail-line"><span class="lbl">Pagamento</span><span class="val">' + esc(order.paymentMethod) + '</span></div>' +
-            '<div class="detail-line"><span class="lbl">Data do pedido</span><span class="val">' + formatDate(order.createdAt) + '</span></div>' +
-            (order.completedAt ? '<div class="detail-line"><span class="lbl">Concluído em</span><span class="val">' + formatDate(order.completedAt) + '</span></div>' : '') +
+            '<div class="detail-line"><span class="lbl">Pacote</span><span class="val">' + esc(order.packageLabel || order.productCode) + '</span></div>' +
+            fieldsHtml +
+            '<div class="detail-line"><span class="lbl">E-mail</span><span class="val">' + esc(order.email || '—') + '</span></div>' +
+            '<div class="detail-line"><span class="lbl">Pagamento</span><span class="val">' + esc(payLabel(order.paymentMethod)) + '</span></div>' +
+            '<div class="detail-line"><span class="lbl">Data do pedido</span><span class="val">' + esc(fmtDate(order.createdAt)) + '</span></div>' +
+            (open ? '<div class="detail-line"><span class="lbl">Válido até</span><span class="val">' + esc(fmtDate(order.expiresAt)) + '</span></div>' : '') +
+            (order.completedAt ? '<div class="detail-line"><span class="lbl">Concluído em</span><span class="val">' + esc(fmtDate(order.completedAt)) + '</span></div>' : '') +
           '</div>' +
-          '<div class="detail-total"><span class="lbl">Total pago</span><span class="val">' + formatBRL(order.amount) + '</span></div>' +
+          '<div class="detail-total"><span class="lbl">' + (order.status === 'completed' ? 'Total pago' : 'Total') + '</span><span class="val">' + esc(money(order.amount)) + '</span></div>' +
           '<div class="order-actions">' +
             primaryActionHtml +
             '<a class="cta-secondary" href="my-orders.html">Ver todos os pedidos</a>' +
           '</div>' +
-          '<div class="help-row">Precisa de ajuda? <a href="help-center.html?order=' + esc(order.id) + '">Falar com o suporte</a></div>' +
-          '<div class="summary-trust-strip" aria-label="Sinais de confiança">' +
-            '<div class="st-item"><span>✓</span> Pagamento seguro</div>' +
-            '<div class="st-item"><span>✓</span> Pedido rastreável</div>' +
-            '<div class="st-item"><span>✓</span> Suporte em português</div>' +
-            '<div class="st-item"><span>✓</span> Nota fiscal disponível</div>' +
-          '</div>' +
-          '<div class="receipt-row"><button class="receipt-btn" id="receiptBtn" type="button"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Baixar recibo (PDF)</button></div>' +
+          '<div class="help-row">Precisa de ajuda? <a href="help-center.html">Falar com o suporte</a></div>' +
         '</div>' +
       '</div>';
 
-    wireInteractions(order);
-  }
-
-  function wireInteractions(order) {
     var copyIdBtn = document.getElementById('copyIdBtn');
-    if (copyIdBtn) copyIdBtn.addEventListener('click', function () { copyText(order.id, copyIdBtn, 'Copiar ID'); });
+    copyIdBtn.addEventListener('click', function () {
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(order.id).catch(function () {});
+      copyIdBtn.classList.add('copied');
+      setTimeout(function () { copyIdBtn.classList.remove('copied'); }, 1200);
+    });
 
-    var receiptBtn = document.getElementById('receiptBtn');
-    if (receiptBtn) receiptBtn.addEventListener('click', function () { window.print(); });
-
-    var revealBtn = document.getElementById('revealBtn');
-    var codeValue = document.getElementById('codeValue');
-    if (revealBtn && codeValue) {
-      revealBtn.addEventListener('click', function () {
-        var masked = codeValue.classList.toggle('masked');
-        codeValue.textContent = masked ? '•••• •••• •••• ••••' : codeValue.getAttribute('data-code');
-      });
-    }
-    var copyBtn = document.getElementById('copyBtn');
-    if (copyBtn && codeValue) {
-      copyBtn.addEventListener('click', function () {
-        copyText(codeValue.getAttribute('data-code'), copyBtn, null);
-      });
-    }
+    if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
+    if (open) startCountdown();
   }
 
-  function copyText(text, btn, restoreLabel) {
-    function done() {
-      btn.classList.add('copied');
-      if (restoreLabel) { var prev = btn.innerHTML; btn.innerHTML = btn.querySelector('svg').outerHTML + 'Copiado!'; setTimeout(function () { btn.innerHTML = prev; btn.classList.remove('copied'); }, 1600); }
-      else { setTimeout(function () { btn.classList.remove('copied'); }, 1200); }
+  /* Contagem até expires_at. Zerou: re-renderiza como expirado. O banco
+     só muda quando o orders-expire rodar (a cada 10 min); a tela não
+     espera por isso. */
+  function startCountdown() {
+    var el = document.getElementById('expiresCountdown');
+    var end = new Date(order.expiresAt).getTime();
+    function tick() {
+      var left = end - Date.now();
+      if (left <= 0) { clearInterval(countdownTimer); countdownTimer = null; render(); return; }
+      var m = Math.floor(left / 60000), s = Math.floor(left / 1000) % 60;
+      el.textContent = m + ':' + (s < 10 ? '0' : '') + s;
     }
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(done).catch(done);
-    } else { done(); }
+    tick();
+    countdownTimer = setInterval(tick, 1000);
   }
 
-  /* ============================================================
-     Real integration: read ?id= and look the order up in
-     RecargaStore (localStorage-backed today; swap for a real API
-     call here later without touching the render functions above).
-  ============================================================ */
-  var params = new URLSearchParams(window.location.search);
-  var id = params.get('id');
-  var order = (hasStore && id) ? RecargaStore.getOrderById(id) : null;
-
-  if (!order) {
-    renderNotFound(id);
-  } else {
-    var product = hasStore ? RecargaStore.getProductById(order.productId) : null;
-    if (!product) product = fallbackProduct(order);
-    var showSuccess = params.get('new') === '1' || params.get('retried') === '1';
-    renderOrder(order, product, showSuccess);
-  }
+  render();
 })();
 </script>
 

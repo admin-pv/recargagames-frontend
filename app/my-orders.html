@@ -324,8 +324,8 @@
             <div class="orders-filters" id="ordersFilters" role="tablist" aria-label="Filtrar pedidos">
               <button class="orders-filter active" type="button" role="tab" aria-selected="true" data-filter="all">Todos <span class="count" id="count-all">0</span></button>
               <button class="orders-filter" type="button" role="tab" aria-selected="false" data-filter="completed">Concluídos <span class="count" id="count-completed">0</span></button>
-              <button class="orders-filter" type="button" role="tab" aria-selected="false" data-filter="processing">Processando <span class="count" id="count-processing">0</span></button>
-              <button class="orders-filter" type="button" role="tab" aria-selected="false" data-filter="failed">Falhas <span class="count" id="count-failed">0</span></button>
+              <button class="orders-filter" type="button" role="tab" aria-selected="false" data-filter="processing">Em aberto <span class="count" id="count-processing">0</span></button>
+              <button class="orders-filter" type="button" role="tab" aria-selected="false" data-filter="failed">Não concluídos <span class="count" id="count-failed">0</span></button>
             </div>
             <label class="sort-field">Ordenar
               <select id="orderSort" aria-label="Ordenar pedidos">
@@ -378,7 +378,7 @@
       <div class="footer-col"><h3>Políticas</h3><div class="footer-list"><a href="terms.html">Termos e Condições</a><a href="privacy-policy.html">Política de Privacidade</a><a href="cookie-policy.html">Política de Cookies</a><a href="refund-policy.html">Trocas e Reembolsos</a><a href="faq.html">Perguntas Frequentes</a></div></div>
       <div class="footer-col"><h3>Sobre nós</h3><div class="footer-list"><a href="about.html">Quem somos</a><a href="contact.html">Contato</a></div></div>
       <div class="footer-col"><h3>Suporte</h3><div class="footer-list"><a href="help-center.html">Central de ajuda</a><a href="my-orders.html">Acompanhar pedido</a><span>support@recargagames.com</span></div></div>
-      <div class="footer-col"><h3>Pagamento</h3><div class="payment-row"><span class="payment-badge">Pix</span><span class="payment-badge">Cartão</span><span class="payment-badge">Boleto</span></div></div>
+      <div class="footer-col"><h3>Pagamento</h3><div class="payment-row"><span class="payment-badge">Pix</span></div></div>
       <div class="footer-col"><h3>Newsletter</h3><form class="newsletter-form"><input type="email" placeholder="Seu e-mail" aria-label="E-mail para newsletter"><button type="button">Assinar</button></form></div>
     </div>
     <div class="footer-mobile">
@@ -396,7 +396,7 @@
       <details class="footer-accordion"><summary>Políticas</summary><div class="footer-list"><a href="terms.html">Termos e Condições</a><a href="privacy-policy.html">Política de Privacidade</a><a href="cookie-policy.html">Política de Cookies</a><a href="refund-policy.html">Trocas e Reembolsos</a><a href="faq.html">Perguntas Frequentes</a></div></details>
       <details class="footer-accordion"><summary>Suporte</summary><div class="footer-list"><a href="help-center.html">Central de ajuda</a><a href="my-orders.html">Acompanhar pedido</a><span>support@recargagames.com</span></div></details>
       <div class="footer-mobile-bottom">
-        <div class="payment-row"><span class="payment-badge">Pix</span><span class="payment-badge">Cartão</span><span class="payment-badge">Boleto</span></div>
+        <div class="payment-row"><span class="payment-badge">Pix</span></div>
         <p class="footer-copy" style="max-width:none;">© 2026 Recarga Games Brasil.</p>
       </div>
     </div>
@@ -404,47 +404,22 @@
 </footer>
 
 
-<script src="shared/data/products.js"></script>
-<script src="shared/data/orders.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script src="shared/js/market.js"></script>
 <script src="shared/js/supabase-client.js"></script>
 <script src="shared/js/store.js"></script>
 <script src="shared/js/header-session.js"></script>
 <script>
-(function () {
+(async function () {
   'use strict';
 
-  /* ── Preview fallback: only used if the real shared/store files (used on
-     the live site) aren't present, e.g. when opening this file standalone. ── */
-  if (typeof window.RecargaStore === 'undefined') {
-    var demoProducts = [
-      { id: 'mobilelegends', name: 'Mobile Legends', short: 'ML', color: '#3B82F6' },
-      { id: 'freefire', name: 'Free Fire', short: 'FF', color: '#F5700A' },
-      { id: 'steam', name: 'Steam', short: 'ST', color: '#1B2838' },
-      { id: 'pubgmobile', name: 'PUBG Mobile', short: 'PM', color: '#F0B429' },
-      { id: 'genshin', name: 'Genshin Impact', short: 'GI', color: '#2ECC8A' }
-    ];
-    var demoOrders = [
-      { id: 'RG-260906-3310', productId: 'genshin', packageLabel: 'Bênção da Lua · 980 Genesis Crystals', amount: 89.90, status: 'processing', createdAt: '2026-09-06T11:20:00' },
-      { id: 'RG-260901-7421', productId: 'mobilelegends', packageLabel: 'Pacote Diamantes Plus', amount: 24.90, status: 'processing', createdAt: '2026-09-01T16:05:00' },
-      { id: 'RG-260828-4821', productId: 'freefire', packageLabel: '572 Diamantes', amount: 20.90, status: 'completed', createdAt: '2026-08-28T14:32:00' },
-      { id: 'RG-260824-1198', productId: 'steam', packageLabel: 'Crédito de R$ 50', amount: 50.00, status: 'completed', createdAt: '2026-08-24T19:10:00' },
-      { id: 'RG-260819-2207', productId: 'pubgmobile', packageLabel: '660 UC', amount: 34.90, status: 'failed', createdAt: '2026-08-19T09:47:00' },
-      { id: 'RG-260810-9042', productId: 'freefire', packageLabel: '1200 Diamantes', amount: 42.90, status: 'completed', createdAt: '2026-08-10T20:02:00' },
-      { id: 'RG-260802-5518', productId: 'mobilelegends', packageLabel: 'Pacote Iniciante', amount: 9.90, status: 'completed', createdAt: '2026-08-02T13:15:00' }
-    ];
-    window.RecargaStore = {
-      getOrders: function () { return demoOrders; },
-      getProductById: function (id) { return demoProducts.filter(function (p) { return p.id === id; })[0]; },
-      formatDate: function (iso) {
-        var d = new Date(iso);
-        return d.toLocaleDateString(RecargaMarket.locale, { day: '2-digit', month: 'short', year: 'numeric' }) + ', ' +
-          d.toLocaleTimeString(RecargaMarket.locale, { hour: '2-digit', minute: '2-digit' });
-      },
-      formatMoney: function (n) { return RecargaMarket.formatMoney(n); }
-    };
-  }
+  /* ── my-orders — Fase 2 (C3) ────────────────────────────────────────────
+     Lista de public.orders pela RLS: só os pedidos da loja do usuário
+     logado. Filtros por grupo de status:
+       completed  → concluído
+       processing → em aberto (aguardando pagamento dentro do prazo,
+                    pago, em entrega)
+       failed     → não concluído (expirado, falhou, cancelado, reembolsado) */
 
   var listEl = document.getElementById('ordersList');
   var filtersEl = document.getElementById('ordersFilters');
@@ -459,42 +434,53 @@
   var PAGE_SIZE = 6;
   var visibleCount = PAGE_SIZE;
 
-  var STATUS_LABEL = { completed: 'Concluído', processing: 'Processando', failed: 'Falhou' };
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]; }); }
+  function shortId(id) { return String(id || '').slice(0, 8).toUpperCase(); }
 
-  window.__retryOrder = function (id) {
-    location.href = 'checkout.html?retry=' + encodeURIComponent(id);
-  };
-  window.__reorder = function (productId) {
-    location.href = 'product.html?id=' + encodeURIComponent(productId);
-  };
+  var session = await RecargaStore.getSession();
+  if (!session) {
+    window.location.replace('account-login.html?redirect=' + encodeURIComponent('my-orders.html'));
+    return;
+  }
 
-  function enrich(order) {
-    var product = RecargaStore.getProductById(order.productId);
+  var all = [];
+  var catalogById = {};
+
+  function group(o) {
+    if (RecargaStore.isOrderExpired(o)) return 'failed';
+    var tone = RecargaStore.statusTone(o.status);
+    return tone === 'completed' ? 'completed' : tone === 'failed' ? 'failed' : 'processing';
+  }
+
+  function view(o) {
+    var product = catalogById[o.productId];
+    var expired = RecargaStore.isOrderExpired(o);
     return {
-      order: order,
-      name: product ? product.name : order.productId,
-      color: product ? product.color : '#F5700A',
-      short: product ? product.short : '?'
+      order: o,
+      name: product ? product.name : o.productId,
+      short: product ? product.short : String(o.productId || '?').slice(0, 2).toUpperCase(),
+      label: expired ? RecargaStore.statusLabel('expired') : RecargaStore.statusLabel(o.status),
+      tone: expired ? 'failed' : RecargaStore.statusTone(o.status),
+      expired: expired,
+      open: o.status === 'awaiting_payment' && !expired
     };
   }
 
-  function renderStats(all) {
-    var total = all.length;
-    var completed = all.filter(function (o) { return o.status === 'completed'; }).length;
-    var spent = all.filter(function (o) { return o.status === 'completed'; })
-      .reduce(function (sum, o) { return sum + o.amount; }, 0);
+  function renderStats() {
+    var completed = all.filter(function (o) { return o.status === 'completed'; });
+    var spent = completed.reduce(function (sum, o) { return sum + (o.amount || 0); }, 0);
     statsEl.innerHTML =
-      '<div class="card stat-card"><strong>' + total + '</strong><span>Pedidos</span></div>' +
-      '<div class="card stat-card accent-lime"><strong>' + completed + '</strong><span>Entregues</span></div>' +
-      '<div class="card stat-card accent-orange"><strong>' + RecargaStore.formatMoney(spent) + '</strong><span>Total em recargas</span></div>';
+      '<div class="card stat-card"><strong>' + all.length + '</strong><span>Pedidos</span></div>' +
+      '<div class="card stat-card accent-lime"><strong>' + completed.length + '</strong><span>Entregues</span></div>' +
+      '<div class="card stat-card accent-orange"><strong>' + esc(RecargaStore.formatMoney(spent)) + '</strong><span>Total em recargas</span></div>';
   }
 
-  function renderCounts(all) {
-    var byStatus = { all: all.length, completed: 0, processing: 0, failed: 0 };
-    all.forEach(function (o) { if (byStatus[o.status] !== undefined) byStatus[o.status]++; });
-    Object.keys(byStatus).forEach(function (key) {
+  function renderCounts() {
+    var counts = { all: all.length, completed: 0, processing: 0, failed: 0 };
+    all.forEach(function (o) { counts[group(o)]++; });
+    Object.keys(counts).forEach(function (key) {
       var el = document.getElementById('count-' + key);
-      if (el) el.textContent = byStatus[key];
+      if (el) el.textContent = counts[key];
     });
   }
 
@@ -502,10 +488,10 @@
     if (!searchTerm) return orders;
     var q = searchTerm.toLowerCase();
     return orders.filter(function (o) {
-      var e = enrich(o);
-      return e.name.toLowerCase().indexOf(q) > -1 ||
-        o.id.toLowerCase().indexOf(q) > -1 ||
-        o.packageLabel.toLowerCase().indexOf(q) > -1;
+      var v = view(o);
+      return String(v.name).toLowerCase().indexOf(q) > -1 ||
+        String(o.id).toLowerCase().indexOf(q) > -1 ||
+        String(o.packageLabel || '').toLowerCase().indexOf(q) > -1;
     });
   }
 
@@ -519,21 +505,23 @@
   }
 
   function orderRowHTML(o) {
-    var e = enrich(o);
+    var v = view(o);
     var actionHTML = '';
-    if (o.status === 'completed') {
-      actionHTML = '<div class="order-row-actions"><button class="order-row-action" type="button" onclick="__reorder(\'' + o.productId + '\')">Comprar novamente</button></div>';
-    } else if (o.status === 'failed') {
-      actionHTML = '<div class="order-row-actions"><button class="order-row-action danger" type="button" onclick="__retryOrder(\'' + o.id + '\')">Tentar novamente</button></div>';
+    if (v.open) {
+      actionHTML = '<div class="order-row-actions"><a class="order-row-action" href="order-details.html?id=' + encodeURIComponent(o.id) + '">Ver pagamento</a></div>';
+    } else if (v.expired) {
+      actionHTML = '<div class="order-row-actions"><a class="order-row-action danger" href="checkout.html?retry=' + encodeURIComponent(o.id) + '">Criar novo pedido</a></div>';
+    } else if (o.status === 'completed') {
+      actionHTML = '<div class="order-row-actions"><a class="order-row-action" href="product.html?id=' + encodeURIComponent(o.productId) + '">Comprar novamente</a></div>';
     }
     return (
-      '<div class="card order-row" data-status="' + o.status + '">' +
-        '<a class="order-row-main" href="order-details.html?id=' + encodeURIComponent(o.id) + '" aria-label="Ver detalhes do pedido ' + o.id + '">' +
-          '<div class="order-row-thumb" style="--thumb-color:' + e.color + '">' + e.short + '</div>' +
-          '<div class="order-row-info"><strong>' + e.name + '</strong><span>' + o.packageLabel + ' · Pedido ' + o.id + '</span></div>' +
-          '<div class="order-row-date">' + RecargaStore.formatDate(o.createdAt) + '</div>' +
-          '<span class="status-pill ' + o.status + '">' + STATUS_LABEL[o.status] + '</span>' +
-          '<div class="order-row-amount">' + RecargaStore.formatMoney(o.amount) + '</div>' +
+      '<div class="card order-row" data-status="' + esc(v.tone) + '">' +
+        '<a class="order-row-main" href="order-details.html?id=' + encodeURIComponent(o.id) + '" aria-label="Ver detalhes do pedido ' + esc(shortId(o.id)) + '">' +
+          '<div class="order-row-thumb" style="--thumb-color:#F5700A">' + esc(v.short) + '</div>' +
+          '<div class="order-row-info"><strong>' + esc(v.name) + '</strong><span>' + esc(o.packageLabel || o.productCode) + ' · Pedido ' + esc(shortId(o.id)) + '</span></div>' +
+          '<div class="order-row-date">' + esc(RecargaStore.formatDate(o.createdAt)) + '</div>' +
+          '<span class="status-pill ' + esc(v.tone) + '">' + esc(v.label) + '</span>' +
+          '<div class="order-row-amount">' + esc(RecargaStore.formatMoney(o.amount)) + '</div>' +
           '<svg class="order-row-chevron" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
         '</a>' +
         actionHTML +
@@ -542,20 +530,17 @@
   }
 
   function render() {
-    var all = RecargaStore.getOrders();
-    renderStats(all);
-    renderCounts(all);
+    renderStats();
+    renderCounts();
 
-    var filtered = activeFilter === 'all' ? all : all.filter(function (o) { return o.status === activeFilter; });
-    filtered = applySearch(filtered);
-    filtered = applySort(filtered);
+    var filtered = activeFilter === 'all' ? all : all.filter(function (o) { return group(o) === activeFilter; });
+    filtered = applySort(applySearch(filtered));
 
     if (!filtered.length) {
       resultsEl.textContent = '';
       loadMoreBtn.hidden = true;
       listEl.innerHTML =
         '<div class="card empty-state">' +
-          '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" aria-hidden="true" style="margin:0 auto 14px;"><path d="M12 3L20 8.5V15.5L12 21L4 15.5V8.5L12 3Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M12 8v4M12 14v.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>' +
           '<h2>Nenhum pedido encontrado</h2>' +
           '<p>' + (searchTerm ? 'Nada corresponde à sua busca. Tente outro termo.' : 'Você ainda não tem pedidos' + (activeFilter !== 'all' ? ' com esse status' : '') + '. Que tal recarregar um jogo agora?') + '</p>' +
           '<a class="btn-primary-sm" href="index.html#catalog">Ver produtos</a>' +
@@ -565,11 +550,9 @@
 
     var shown = filtered.slice(0, visibleCount);
     listEl.innerHTML = shown.map(orderRowHTML).join('');
-
     resultsEl.textContent = filtered.length === all.length && !searchTerm
       ? filtered.length + ' pedido' + (filtered.length === 1 ? '' : 's')
       : shown.length + ' de ' + filtered.length + ' pedido' + (filtered.length === 1 ? '' : 's') + ' encontrado' + (filtered.length === 1 ? '' : 's');
-
     loadMoreBtn.hidden = visibleCount >= filtered.length;
   }
 
@@ -596,15 +579,23 @@
     }, 150);
   });
 
-  sortEl.addEventListener('change', function () {
-    sortMode = sortEl.value;
-    render();
-  });
+  sortEl.addEventListener('change', function () { sortMode = sortEl.value; render(); });
+  loadMoreBtn.addEventListener('click', function () { visibleCount += PAGE_SIZE; render(); });
 
-  loadMoreBtn.addEventListener('click', function () {
-    visibleCount += PAGE_SIZE;
-    render();
-  });
+  try {
+    all = await RecargaStore.getOrders();
+  } catch (e) {
+    statsEl.innerHTML = '';
+    listEl.innerHTML =
+      '<div class="card empty-state"><h2>Pedidos indisponíveis</h2>' +
+      '<p>Não conseguimos carregar seus pedidos agora. Tente de novo em instantes.</p>' +
+      '<a class="btn-primary-sm" href="my-orders.html">Tentar de novo</a></div>';
+    return;
+  }
+  /* Catálogo só dá nome e sigla; sem ele a lista mostra o slug do jogo. */
+  try {
+    (await RecargaStore.getProducts()).forEach(function (p) { catalogById[p.id] = p; });
+  } catch (e) { /* segue sem nomes do catálogo */ }
 
   render();
 })();

@@ -1,2 +1,5 @@
 # macOS
 .DS_Store
+
+# Doc de parceiro (Lapak) — confidencial, não vai pro GitHub
+docs/vendor/

@@ -6,10 +6,37 @@
 # cada bloco — este arquivo é a versão curta.
 # ══════════════════════════════════════════════════════════════════════════
 
+# ── Scheduled Functions ───────────────────────────────────────────────────
+# orders-expire: awaiting_payment vencido → expired, a cada 10 min. Idempotente.
+# Scheduled Function só roda sozinha no deploy de PRODUÇÃO (não em Deploy
+# Preview nem Branch deploy). Não tem rota em /api/ nem entra no gate: não
+# recebe entrada e devolve só uma contagem.
+[functions."orders-expire"]
+  schedule = "*/10 * * * *"
+
+# ── 0. API do storefront → Netlify Functions ──────────────────────────────
+# Fase 2. Rotas explícitas, uma por Function, em vez de /api/*: um nome de
+# arquivo novo em netlify/functions/ não vira endpoint público sem alguém
+# acrescentar a linha aqui.
+# Atrás do gate enquanto o site estiver: GATED_API_PATHS no gate.ts inclui
+# cada rota e o caminho cru da Function. Sai na Fase 4.
+[[redirects]]
+  from = "/api/catalog"
+  to = "/.netlify/functions/catalog"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/orders"
+  to = "/.netlify/functions/orders-create"
+  status = 200
+  force = true
+
 # ── 1. /app/ não é endereço público ───────────────────────────────────────
-# O gate (netlify/edge-functions/gate.ts) só casa com /br, /br/* e
-# /_gate/auth. Sem isto, /app/* serviria a loja sem senha. Forçada porque os
-# arquivos existem e venceriam uma regra não-forçada.
+# O gate (netlify/edge-functions/gate.ts) casa com /br, /br/*, /_gate/auth e
+# as rotas de API da seção 0 — não com /app/*. Sem isto, /app/* serviria a
+# loja sem senha. Forçada porque os arquivos existem e venceriam uma regra
+# não-forçada.
 [[redirects]]
   from = "/app/*"
   to = "/br/:splat"
