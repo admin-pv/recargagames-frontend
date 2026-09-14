@@ -478,7 +478,15 @@ Os 5 pedidos do C4 **não** foram tocados: estavam no prazo (criados ~10:33,
 - [x] **4ª execução, 11:13:38 UTC:** `200 {"expired":0}`, idempotente.
 - [x] Disparador removido: `orders-expire-run.mjs`, as rotas em
       `netlify.toml` e `_redirects` e as duas entradas do `gate.ts`.
-- [ ] Preview sem a rota (conferência logo abaixo, depois do deploy).
+- [x] Preview sem a rota (14/09, commit `d3a3cf2`): a rota responde igual a
+      um caminho que nunca existiu (controle `/api/rota-que-nunca-existiu-9f3`).
+      `GET` → **404** nos dois. `POST` → **400 "Bad request, missing form"**
+      nos dois: é a resposta genérica do Netlify a POST em caminho estático
+      inexistente (Netlify Forms), não resto do disparador.
+      `/.netlify/functions/orders-expire-run` → **404**.
+      `/api/orders`, `/api/catalog` e `/.netlify/functions/orders-create` sem
+      cookie → **401** (gate intacto). Nenhuma menção a `orders-expire-run` no
+      diff contra `main` fora de `docs/`.
 - [ ] Claude web: os 5 do C4 em `expired`.
 
 **Resumo do C5:** 4 execuções do mesmo `expireOrders()` que roda agendado
