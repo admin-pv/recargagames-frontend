@@ -32,6 +32,14 @@
   status = 200
   force = true
 
+# TEMPORÁRIO (C5 da Fase 2): disparador manual do orders-expire. Remover antes
+# do merge do PR #4, junto com a Function e as entradas do gate.ts.
+[[redirects]]
+  from = "/api/orders-expire-run"
+  to = "/.netlify/functions/orders-expire-run"
+  status = 200
+  force = true
+
 # ── 1. /app/ não é endereço público ───────────────────────────────────────
 # O gate (netlify/edge-functions/gate.ts) casa com /br, /br/*, /_gate/auth e
 # as rotas de API da seção 0 — não com /app/*. Sem isto, /app/* serviria a

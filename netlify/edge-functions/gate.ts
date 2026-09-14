@@ -23,6 +23,8 @@ const COOKIE_NAME = "rg_gate";
 const GATED_API_PATHS = [
   "/api/catalog", "/.netlify/functions/catalog",
   "/api/orders", "/.netlify/functions/orders-create",
+  // TEMPORÁRIO (C5 da Fase 2): remover antes do merge do PR #4
+  "/api/orders-expire-run", "/.netlify/functions/orders-expire-run",
 ];
 const COOKIE_MAX_AGE_DAYS = 90;
 const JWT_ISSUER = "recargagames";
@@ -214,6 +216,8 @@ export const config: Config = {
     // espelho de GATED_API_PATHS
     "/api/catalog", "/.netlify/functions/catalog",
     "/api/orders", "/.netlify/functions/orders-create",
+    // TEMPORÁRIO (C5 da Fase 2): remover antes do merge do PR #4
+    "/api/orders-expire-run", "/.netlify/functions/orders-expire-run",
   ],
   // Excluímos o próprio _gate.html para evitar loop quando o handler busca a página
   excludedPath: ["/br/_gate.html"],

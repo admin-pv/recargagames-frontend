@@ -23,6 +23,8 @@
 # precisa entrar lá também. Sai na Fase 4.
 /api/catalog  /.netlify/functions/catalog        200!
 /api/orders   /.netlify/functions/orders-create  200!
+# TEMPORÁRIO (C5 da Fase 2): remover antes do merge do PR #4
+/api/orders-expire-run  /.netlify/functions/orders-expire-run  200!
 
 
 # ── 1. /app/ não é endereço público ───────────────────────────────────────
