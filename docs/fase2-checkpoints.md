@@ -12,7 +12,7 @@ Merge com `--no-ff`, como na Fase 1. Regras do catálogo e do fulfillment:
 | **C2** catálogo | ✅ passado | 13/09: 4 jogos / 17 pacotes no preview 4, cents conferidos no SQL, páginas pelo Chrome |
 | **C3** pedido | ✅ passado | 14/09: pedido `a9b58143…` pela +5678, conferido no SQL; Meus pedidos listou |
 | **C4** segurança por curl | ✅ passado (4.3 só no teste local, por decisão) | 14/09: 17 checagens ao vivo + teste local |
-| **C5** expiração | ✅ passado; falta a 3ª execução para os 5 pedidos do 4.8 e remover o disparador | 14/09 |
+| **C5** expiração | ✅ passado | 14/09: 4 execuções (1 → 0 → 5 → 0), conferidas no SQL; disparador temporário removido |
 
 **Convenção:** `$SITE` = URL do Deploy Preview. `$URL` e `$PUB` como na
 Fase 1. `$JWT_A` = token de `vinicius.esteves+5678@gmail.com`. Nenhum
@@ -470,11 +470,21 @@ Os 5 pedidos do C4 **não** foram tocados: estavam no prazo (criados ~10:33,
       os 5 do C4 (`3228e22e`, `38549c14`, `60454230`, `9555e041`,
       `d67e66fe`) em `awaiting_payment`, `amount_cents` 625, `expires_at`
       11:03 UTC; as 7 linhas `proxy` seguem `pending`.
-- [ ] Depois das 11:05 UTC (08:05 BRT): 3ª execução do disparador, esperado
-      `expired: 5` com os 5 ids do C4; Claude web confere.
-- [ ] Remover `orders-expire-run.mjs`, as rotas (`netlify.toml`,
-      `_redirects`) e as entradas do `gate.ts`; conferir que a rota sumiu
-      (404) antes do merge.
+- [x] Claude web, depois das 11:05 UTC: os 5 do C4 seguiam
+      `awaiting_payment` com `expires_at` 11:03 (vencidos e ainda não
+      expirados no banco); `a9b58143…` `expired`; 7 `proxy` `pending`.
+- [x] **3ª execução, 11:13:31 UTC:** `200 {"expired":5}`, ids exatamente
+      `3228e22e…`, `60454230…`, `d67e66fe…`, `38549c14…`, `9555e041…`.
+- [x] **4ª execução, 11:13:38 UTC:** `200 {"expired":0}`, idempotente.
+- [x] Disparador removido: `orders-expire-run.mjs`, as rotas em
+      `netlify.toml` e `_redirects` e as duas entradas do `gate.ts`.
+- [ ] Preview sem a rota (conferência logo abaixo, depois do deploy).
+- [ ] Claude web: os 5 do C4 em `expired`.
+
+**Resumo do C5:** 4 execuções do mesmo `expireOrders()` que roda agendado
+em produção. Uma venceu o pedido do C3, uma venceu os 5 do C4, e as outras
+duas não mudaram nada. Nenhuma linha `proxy` e nenhum pedido no prazo foi
+tocado.
 
 1. Garantir um pedido vencido: o `a9b58143…` expirou 30 min depois de
    criado, mas continua `awaiting_payment` no banco até a Function rodar.
