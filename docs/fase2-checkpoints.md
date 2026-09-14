@@ -11,8 +11,8 @@ Merge com `--no-ff`, como na Fase 1. Regras do catálogo e do fulfillment:
 | **C1** migration 0003 | ✅ passado | 13/09: bloco 0 lido, P1 e P4 tratados, aplicada, conferência C-1..C-9 ok |
 | **C2** catálogo | ✅ passado | 13/09: 4 jogos / 17 pacotes no preview 4, cents conferidos no SQL, páginas pelo Chrome |
 | **C3** pedido | ✅ passado | 14/09: pedido `a9b58143…` pela +5678, conferido no SQL; Meus pedidos listou |
-| **C4** segurança por curl | ⏳ 11/16; 5 testes aguardam `JWT_A` novo | 14/09 |
-| **C5** expiração | ⏳ Netlify recusa chamada pela URL (403); aguardando decisão | 14/09 |
+| **C4** segurança por curl | ✅ passado (4.3 só no teste local, por decisão) | 14/09: 17 checagens ao vivo + teste local |
+| **C5** expiração | ✅ passado; falta a 3ª execução para os 5 pedidos do 4.8 e remover o disparador | 14/09 |
 
 **Convenção:** `$SITE` = URL do Deploy Preview. `$URL` e `$PUB` como na
 Fase 1. `$JWT_A` = token de `vinicius.esteves+5678@gmail.com`. Nenhum
@@ -398,6 +398,33 @@ Para rodar os cinco restantes: um `JWT_A` novo, copiado de uma sessão que
 continue aberta durante o teste (não sair da conta no Chrome depois de
 copiar).
 
+### Resultado C4, 2ª rodada (14/09, ~10:31 UTC): 6 de 6 ✅
+
+`$JWT_A` novo, sessão conferida viva no GoTrue antes de criar qualquer
+pedido (`200`). Nenhum pedido aberto da +5678 antes da rodada.
+
+| # | Teste | Resultado |
+|---|---|---|
+| 4.1 | `priceCents`, `amountCents`, `amount_cents`, `fee_cents`, `status:"paid"`, `currency:"USD"` no corpo | ✅ `201`, `amountCents` 625, `BRL` |
+| 4.1b | linha lida pela RLS | ✅ `amount_cents` 625, `awaiting_payment`, `storefront`, `BRL`, `payment_status` `awaiting` |
+| 4.2 | `FF520_52-S136-br` (não publicado) | ✅ `400 product_not_available` |
+| 4.4 | `user_id: "12ab"` | ✅ `400 invalid_redemption_fields`, `field: user_id` |
+| 4.4b | campo extra `orderdetail` | ✅ `400 invalid_redemption_fields`, `field: orderdetail` |
+| 4.8 | pedidos abertos até o limite | ✅ 5 criados, o 6º `429 too_many_open_orders` |
+
+Pedidos criados no C4 (todos da +5678, `FF100_10-S136-br`, R$ 6,25):
+
+| Teste | id |
+|---|---|
+| 4.1 | `3228e22e-3d1f-4ded-9eff-d6bf429f9624` |
+| 4.8 | `60454230-8e29-46d9-884e-8111c1513c17` |
+| 4.8 | `d67e66fe-f43f-403c-b756-26f9e04bc2f3` |
+| 4.8 | `38549c14-7573-49d5-80a3-bcf6f1bb96b1` |
+| 4.8 | `9555e041-466c-45ee-80ed-e89f3f060753` |
+
+O 4.1 conta como um dos 5 abertos: o limite recusou o sexto pedido da
+rodada, e não um sétimo.
+
 ---
 
 ## C5 — expiração
@@ -414,7 +441,39 @@ produção.
 vazio**, duas vezes. É o bloqueio do Netlify a Scheduled Function chamada
 por URL, e não o gate: a rota não está em `GATED_API_PATHS`, e o gate
 responde 401 com JSON. Nada rodou; o `a9b58143…` continua como estava.
-Como rodar o C5 no preview é decisão pendente.
+
+**Decisão (14/09), opção A:** disparador temporário
+`netlify/functions/orders-expire-run.mjs`, que chama a mesma
+`expireOrders()`. Só POST, sem entrada, atrás do gate pelos dois caminhos.
+**Removido antes do merge**, com as rotas e as entradas do gate.
+
+### Resultado C5 (14/09, 10:34 UTC) ✅
+
+Estado antes, registrado pelo Claude web no SQL: só o `a9b58143…` como
+`storefront`, `awaiting_payment`, `expires_at` 13/09 23:43 UTC; nenhum
+outro pedido fora de `pending`.
+
+| | Chamada | Resposta |
+|---|---|---|
+| controle | `POST /api/orders-expire-run` sem cookie | `401 gate_required` |
+| controle | `POST /.netlify/functions/orders-expire-run` sem cookie | `401 gate_required` |
+| controle | `GET` com cookie | `405 method_not_allowed` |
+| **1ª** | `POST` com cookie, 10:34:21Z | `200 {"expired":1,"ids":["a9b58143-d681-411a-9157-6fcbdf45db05"]}` |
+| **2ª** | `POST` com cookie, 10:34:27Z | `200 {"expired":0,"ids":[]}`, idempotente |
+
+Os 5 pedidos do C4 **não** foram tocados: estavam no prazo (criados ~10:31,
+vencem ~11:01–11:02 UTC).
+
+**Falta:**
+
+- [ ] Claude web: `a9b58143…` = `expired`; os 5 do C4 existem com
+      `channel = storefront` e `awaiting_payment`; linhas `proxy` seguem
+      `pending`.
+- [ ] Depois de ~11:05 UTC: 3ª execução do disparador, esperado
+      `expired: 5` com os 5 ids do C4; Claude web confere.
+- [ ] Remover `orders-expire-run.mjs`, as rotas (`netlify.toml`,
+      `_redirects`) e as entradas do `gate.ts`; conferir que a rota sumiu
+      (404) antes do merge.
 
 1. Garantir um pedido vencido: o `a9b58143…` expirou 30 min depois de
    criado, mas continua `awaiting_payment` no banco até a Function rodar.
