@@ -487,7 +487,9 @@ Os 5 pedidos do C4 **não** foram tocados: estavam no prazo (criados ~10:33,
       `/api/orders`, `/api/catalog` e `/.netlify/functions/orders-create` sem
       cookie → **401** (gate intacto). Nenhuma menção a `orders-expire-run` no
       diff contra `main` fora de `docs/`.
-- [ ] Claude web: os 5 do C4 em `expired`.
+- [x] Claude web, SQL às 11:48 UTC: `3228e22e`, `38549c14`, `60454230`,
+      `9555e041`, `d67e66fe` e `a9b58143` todos `expired`; `proxy` `pending` = 7,
+      intocadas. **C5 fechado; os cinco checkpoints da Fase 2 passados.**
 
 **Resumo do C5:** 4 execuções do mesmo `expireOrders()` que roda agendado
 em produção. Uma venceu o pedido do C3, uma venceu os 5 do C4, e as outras
