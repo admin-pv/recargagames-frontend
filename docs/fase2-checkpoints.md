@@ -461,15 +461,16 @@ outro pedido fora de `pending`.
 | **1ª** | `POST` com cookie, 10:34:21Z | `200 {"expired":1,"ids":["a9b58143-d681-411a-9157-6fcbdf45db05"]}` |
 | **2ª** | `POST` com cookie, 10:34:27Z | `200 {"expired":0,"ids":[]}`, idempotente |
 
-Os 5 pedidos do C4 **não** foram tocados: estavam no prazo (criados ~10:31,
-vencem ~11:01–11:02 UTC).
+Os 5 pedidos do C4 **não** foram tocados: estavam no prazo (criados ~10:33,
+`expires_at` **11:03 UTC**, conferido no SQL).
 
 **Falta:**
 
-- [ ] Claude web: `a9b58143…` = `expired`; os 5 do C4 existem com
-      `channel = storefront` e `awaiting_payment`; linhas `proxy` seguem
-      `pending`.
-- [ ] Depois de ~11:05 UTC: 3ª execução do disparador, esperado
+- [x] Claude web, SQL às 10:39 UTC: `a9b58143…` = `expired` (1ª execução);
+      os 5 do C4 (`3228e22e`, `38549c14`, `60454230`, `9555e041`,
+      `d67e66fe`) em `awaiting_payment`, `amount_cents` 625, `expires_at`
+      11:03 UTC; as 7 linhas `proxy` seguem `pending`.
+- [ ] Depois das 11:05 UTC (08:05 BRT): 3ª execução do disparador, esperado
       `expired: 5` com os 5 ids do C4; Claude web confere.
 - [ ] Remover `orders-expire-run.mjs`, as rotas (`netlify.toml`,
       `_redirects`) e as entradas do `gate.ts`; conferir que a rota sumiu
