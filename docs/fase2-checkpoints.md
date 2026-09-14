@@ -10,9 +10,9 @@ Merge com `--no-ff`, como na Fase 1. Regras do catálogo e do fulfillment:
 |---|---|---|
 | **C1** migration 0003 | ✅ passado | 13/09: bloco 0 lido, P1 e P4 tratados, aplicada, conferência C-1..C-9 ok |
 | **C2** catálogo | ✅ passado | 13/09: 4 jogos / 17 pacotes no preview 4, cents conferidos no SQL, páginas pelo Chrome |
-| **C3** pedido | ⏳ código no Deploy Preview, aguardando o teste com a conta +5678 | |
-| **C4** segurança por curl | ⬜ | |
-| **C5** expiração | ⬜ | |
+| **C3** pedido | ✅ passado (1 item em aberto: "Meus pedidos") | 14/09: pedido `a9b58143…` pela +5678, conferido no SQL |
+| **C4** segurança por curl | ⏳ aguardando tokens | |
+| **C5** expiração | ⏳ código no preview | |
 
 **Convenção:** `$SITE` = URL do Deploy Preview. `$URL` e `$PUB` como na
 Fase 1. `$JWT_A` = token de `vinicius.esteves+5678@gmail.com`. Nenhum
@@ -296,3 +296,86 @@ Esperado:
 E o log da Function (Netlify → Functions → `orders-create`):
 `orders-create: ok id=<uuid> code=FF100_10-S136-br` e nada com e-mail ou ID
 de jogo.
+
+
+### Resultado C3 ✅ (14/09)
+
+Pedido `a9b58143-d681-411a-9157-6fcbdf45db05`, criado pelo Chrome com a
+conta +5678 no preview 4. Conferido pelo Claude web no SQL:
+
+| Coluna | Obtido |
+|---|---|
+| `channel` / `status` / `payment_status` | `storefront` / `awaiting_payment` / `awaiting` ✅ |
+| `amount_cents` / `fee_cents` | 625 / 6 ✅ |
+| `id_validation` / `user_type` | `unsupported` / `guest` ✅ |
+| `product_code` / `game_slug` / `face_value` | `FF100_10-S136-br` / `free-fire` / 110 ✅ |
+| `payment_method` / moeda / país | `pix` / `BRL` / `br` ✅ |
+| `user_id` / `customer_profile_id` | preenchidos ✅ |
+| `redemption_fields` | `{"user_id":"123456789"}` ✅ |
+| `expires_at - created_at` | 30 min ✅ |
+
+Tela de detalhe correta, em horário de Brasília.
+
+- [ ] **Em aberto:** "Meus pedidos" listou o pedido? O registro recebido
+      veio sem a resposta preenchida.
+
+---
+
+## C4 — segurança por curl
+
+Precisa de três valores, passados por chat e usados só em variável de
+ambiente (nada no repo):
+
+- `$JWT_A`: access token da `vinicius.esteves+5678@gmail.com`
+- `$JWT_B`: access token de outra conta de cliente
+- `$GATE`: cookie `rg_gate` (a rota `/api/orders` fica atrás do gate)
+
+`$PUB` = publishable key (`app/shared/js/supabase-client.js`), `$URL` = URL
+do Supabase, `$SITE` = preview 4. `$ORDER_A` = `a9b58143-d681-411a-9157-6fcbdf45db05`.
+
+```bash
+BODY='{"country":"br","gameSlug":"free-fire","productCode":"FF100_10-S136-br","redemptionFields":{"user_id":"123456789"},"deliveryEmail":"vinicius.esteves+5678@gmail.com","paymentMethod":"pix"}'
+post() { curl -s -w ' %{http_code}\n' -X POST "$SITE/api/orders" -H "Cookie: rg_gate=$GATE" -H 'Content-Type: application/json' "$@"; }
+```
+
+| # | Teste | Comando | Esperado |
+|---|---|---|---|
+| 4.1 | preço do corpo ignorado | `post -H "Authorization: Bearer $JWT_A" -d "${BODY%?},\"priceCents\":1,\"amountCents\":1}"` | 201, `amountCents` 625; no SQL, `amount_cents` 625 |
+| 4.2 | `product_code` não publicado | `BODY` com `FF520_52-S136-br` | 400 `product_not_available` |
+| 4.3 | variante não canônica | `BODY` com uma variante não canônica | 400 `package_not_canonical` (ver nota) |
+| 4.4 | campo fora da regra | `redemptionFields {"user_id":"12ab"}` | 400 `invalid_redemption_fields` |
+| 4.5 | B não lê pedido de A | `curl "$URL/rest/v1/orders?select=id&id=eq.$ORDER_A" -H "apikey: $PUB" -H "Authorization: Bearer $JWT_B"` | `[]` |
+| 4.5b | A lê o próprio | mesmo com `$JWT_A` | 1 linha |
+| 4.6 | PATCH com JWT | `curl -X PATCH "$URL/rest/v1/orders?id=eq.$ORDER_A" -H "apikey: $PUB" -H "Authorization: Bearer $JWT_A" -H 'Content-Type: application/json' -d '{"amount_cents":1}'` | 401/403 `42501` |
+| 4.6b | DELETE com JWT | idem com `-X DELETE` | 401/403 `42501` |
+| 4.6c | INSERT com JWT | `POST $URL/rest/v1/orders` com `$JWT_A` | 401/403 `42501` |
+| 4.7 | anon na tabela | `curl "$URL/rest/v1/orders?select=id" -H "apikey: $PUB" -H "Authorization: Bearer $PUB"` | 401 `42501` |
+| 4.7b | anon na Function | `post -d "$BODY"` sem `Authorization` | 401 `missing_token` |
+| 4.8 | sexto pedido aberto | `post` com `$JWT_A` até 5 abertos, depois mais um | 429 `too_many_open_orders` |
+
+**Nota 4.3:** o C2 mostrou `nonCanonical: []`, porque hoje não há duas
+variantes `available` do mesmo jogo e `face_value`. Sem isso não existe
+código "não canônico" para mandar. O caminho está coberto no teste local
+(`package_not_canonical`); ao vivo, só com dado preparado por SQL.
+
+---
+
+## C5 — expiração
+
+`netlify/functions/orders-expire.mjs`, agendada a cada 10 min em
+`netlify.toml`. `awaiting_payment` + `channel = storefront` + `expires_at`
+no passado → `expired`. Idempotente.
+
+**Limite do Netlify:** Scheduled Function só roda sozinha no deploy de
+produção. No preview é preciso chamá-la à mão (ver resultado abaixo).
+
+1. Garantir um pedido vencido: o `a9b58143…` expirou 30 min depois de
+   criado, mas continua `awaiting_payment` no banco até a Function rodar.
+   ```sql
+   SELECT id, status, expires_at < now() AS vencido
+     FROM orders WHERE channel = 'storefront' ORDER BY created_at;
+   ```
+2. Rodar a Function uma vez. Esperado: `{"expired": N}` com N ≥ 1, e no SQL
+   o pedido vira `expired`.
+3. Rodar de novo. Esperado: `{"expired": 0}`, nada muda no SQL.
+4. Controle: linhas `channel = 'proxy'` continuam `pending`.
