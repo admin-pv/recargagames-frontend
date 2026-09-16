@@ -280,20 +280,23 @@ DECLARE
   sem_rls   text;
   policies  integer;
 BEGIN
+  -- PUBLIC entra na conta junto com anon/authenticated: privilégio dado a
+  -- PUBLIC é herdado por todo mundo, inclusive pelo anon, e passaria
+  -- despercebido numa checagem que só olha os dois nomes.
   SELECT count(*) INTO sobrando
     FROM information_schema.role_table_grants
    WHERE table_schema = 'public' AND table_name = ANY(tabelas)
-     AND grantee IN ('anon','authenticated');
+     AND grantee IN ('anon','authenticated','PUBLIC');
   IF sobrando > 0 THEN
-    RAISE EXCEPTION '0004: % privilégio(s) de TABELA sobrando para anon/authenticated nas com_*. Abortado.', sobrando;
+    RAISE EXCEPTION '0004: % privilégio(s) de TABELA sobrando para anon/authenticated/PUBLIC nas com_*. Abortado.', sobrando;
   END IF;
 
   SELECT count(*) INTO sobrando
     FROM information_schema.column_privileges
    WHERE table_schema = 'public' AND table_name = ANY(tabelas)
-     AND grantee IN ('anon','authenticated');
+     AND grantee IN ('anon','authenticated','PUBLIC');
   IF sobrando > 0 THEN
-    RAISE EXCEPTION '0004: % privilégio(s) de COLUNA sobrando para anon/authenticated nas com_*. Abortado.', sobrando;
+    RAISE EXCEPTION '0004: % privilégio(s) de COLUNA sobrando para anon/authenticated/PUBLIC nas com_*. Abortado.', sobrando;
   END IF;
 
   SELECT count(*) INTO policies
@@ -318,8 +321,8 @@ COMMIT;
 --
 --   C-1  6 tabelas com_* criadas
 --   C-2  RLS ligada nas 6, ZERO policies
---   C-3  privilégio de TABELA para anon/authenticated: ZERO linhas
---   C-4  privilégio de COLUNA para anon/authenticated: ZERO linhas
+--   C-3  privilégio de TABELA para anon/authenticated/PUBLIC: ZERO linhas
+--   C-4  privilégio de COLUNA para anon/authenticated/PUBLIC: ZERO linhas
 --        >>> qualquer linha em C-3 ou C-4 = custo de fornecedor exposto
 --            ao browser. Parar e corrigir antes de seguir. <<<
 --   C-5  índice com_supply_date_group_idx presente
@@ -340,13 +343,13 @@ COMMIT;
 -- SELECT grantee, table_name, privilege_type
 --   FROM information_schema.role_table_grants
 --  WHERE table_schema='public' AND table_name LIKE 'com\_%'
---    AND grantee IN ('anon','authenticated');
+--    AND grantee IN ('anon','authenticated','PUBLIC');
 
 -- C-4
 -- SELECT grantee, table_name, privilege_type, column_name
 --   FROM information_schema.column_privileges
 --  WHERE table_schema='public' AND table_name LIKE 'com\_%'
---    AND grantee IN ('anon','authenticated');
+--    AND grantee IN ('anon','authenticated','PUBLIC');
 
 -- C-5
 -- SELECT indexname FROM pg_indexes
