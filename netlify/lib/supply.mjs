@@ -10,14 +10,16 @@
      1. /all-products de cada país de SNAPSHOT_COUNTRIES, via /gateway;
      2. grava em com_supply_snapshots o custo do dia (ver "O QUE GRAVA");
      3. grava o câmbio do dia em com_fx_rates;
-     4. apaga snapshot velho, preservando as segundas-feiras.
+     4. apaga snapshot velho: 14 dias corridos inteiros, e as segundas
+        guardadas por 12 meses só com os grupos que a gente cota.
 
    ── O QUE GRAVA: SÓ status = "available" ────────────────────────────────
    Medido na API em 16/09: 40.557 produtos/dia nos 9 países, dos quais
    8.616 available. Gravar tudo custa ~7,7 MB/dia com índice — 30 dias já
    seriam ~230 MB de um banco Free de 500 MB que ainda guarda a loja.
-   Só o available custa ~1,6 MB/dia (~50 MB na janela de 30 dias + as
-   segundas, ~85 MB/ano).
+   Só o available custa ~4,1 MB/dia com os 11 países (medido em 16/09:
+   21.329 linhas). Com a retenção de 14 dias + segundas filtradas, o
+   regime estável fica em ~60 MB.
 
    Não se perde nada do que o pricing precisa: a regra de custo é "menor
    preço entre providers com status available", e grupo que não tem
@@ -46,12 +48,30 @@ const PROXY_TIMEOUT_MS = 30000;
 const SUPABASE_TIMEOUT_MS = 15000;
 const UPSERT_CHUNK = 500;
 
-/* Retenção: 30 dias corridos, segundas-feiras preservadas (histórico
-   semanal barato). No máximo 10 datas apagadas por execução — se a rotina
-   ficar dias parada, ela converge em alguns dias em vez de fazer um
-   DELETE gigante numa execução só. */
-const RETENTION_DAYS = 30;
+/* ── Retenção (decidida com número real em 17/09) ────────────────────────
+   14 dias corridos COMPLETOS, e as segundas-feiras guardadas por 12 meses
+   SÓ com os grupos que estão em com_sku_markets.
+
+   Por que não os 30 dias + segundas inteiras do brief: o volume real é de
+   21.329 linhas/dia (o `id` sozinho é 12.556 delas), e dos 54 grupos da
+   Plusmo o dia inteiro produz 165 linhas — 0,8%. A segunda preservada
+   INTEIRA e PARA SEMPRE somava 4,1 MB por semana que nunca saíam: 340 MB
+   em regime estável, contra uma régua de 150 MB num plano Free de 500 MB.
+   Filtrando a segunda pelos grupos rastreados, o regime estável cai para
+   ~60 MB e o histórico longo continua existindo exatamente onde importa:
+   nos itens que a gente cota.
+
+   MAX_PRUNE_DATES limita quantas datas uma execução mexe: rotina parada
+   por dias converge em alguns dias, em vez de um DELETE gigante numa só.
+
+   MAX_TRACKED_FOR_THINNING é um freio de segurança. Com muitos grupos
+   rastreados o `not.in.(...)` viraria uma URL gigante e frágil; passando
+   disso, a segunda é preservada INTEIRA. Falha para o lado de guardar
+   dado demais, nunca para o lado de apagar o que não devia. */
+const RETENTION_DAYS = 14;
+const WEEKLY_RETENTION_DAYS = 365;
 const MAX_PRUNE_DATES = 10;
+const MAX_TRACKED_FOR_THINNING = 400;
 
 /* Câmbio. USD_IDR é obrigatório: sem ele não há custo em dólar e a
    execução falha. Os demais são oportunistas — a Lapak tem ARS, PEN, COP
@@ -364,21 +384,58 @@ export async function snapshotFx(cfg, snapshotDate) {
 }
 
 /* ── Passo 4: retenção ─────────────────────────────────────────────────
-   Apaga uma data inteira por vez, da mais velha para a mais nova, pulando
-   as segundas. Data por data porque o PostgREST não filtra por
-   extract(dow) — e porque DELETE de um dia é uma operação pequena e
-   interrompível, ao contrário de um DELETE de faixa.
+   Duas operações, nesta ordem:
 
-   Não apaga com_fx_rates: são ~7 linhas por dia, o histórico inteiro cabe
-   em nada, e é o que permite reconferir uma proposta antiga. */
+     a) tudo que passou de 12 meses sai inteiro. Um DELETE só, por faixa:
+        pega inclusive as segundas já filtradas, que não têm mais nenhuma
+        linha "não rastreada" e por isso nunca apareceriam na varredura de
+        baixo;
+
+     b) varredura das datas fora da janela de 14 dias que AINDA TÊM linha
+        de grupo não rastreado. Não-segunda sai inteira; segunda perde só
+        o que não é rastreado.
+
+   A CONSULTA DE (b) É O PULO DO GATO, e o desenho óbvio não funciona:
+   varrer "a data mais velha fora da janela" e pular as segundas faz a
+   varredura reencontrar as mesmas 52 segundas todo santo dia, gastar o
+   orçamento de 10 datas nelas e NUNCA chegar na data nova que acabou de
+   vencer — a janela cresceria para sempre, calada. Perguntando pela data
+   mais velha QUE AINDA TEM LINHA NÃO RASTREADA, a segunda já filtrada
+   some sozinha do resultado e cada execução cai em regime numa iteração.
+
+   com_fx_rates não é podada: são ~7 linhas por dia, o histórico inteiro
+   cabe em nada, e é o que permite reconferir uma proposta antiga. */
 export async function pruneSnapshots(cfg, snapshotDate) {
   const cutoff = addDays(snapshotDate, -RETENTION_DAYS);
+  const weeklyCutoff = addDays(snapshotDate, -WEEKLY_RETENTION_DAYS);
   const deleted = [];
-  let after = null;
+  const thinned = [];
 
+  /* (a) 12 meses */
+  await supabase(cfg, 'DELETE', `com_supply_snapshots?snapshot_date=lt.${weeklyCutoff}`, { prefer: 'return=minimal' });
+
+  /* Grupos rastreados = o DE>PARA do operador. Lista vazia seria uma
+     configuração quebrada, e com ela o not.in.() apagaria a segunda
+     inteira: nesse caso não filtra nada e avisa. */
+  const tracked = await fetchTrackedGroups(cfg);
+  const canThin = tracked.length > 0 && tracked.length <= MAX_TRACKED_FOR_THINNING;
+  const untrackedFilter = canThin
+    ? `group_code=not.in.(${tracked.map((g) => `"${String(g).replace(/"/g, '""')}"`).join(',')})`
+    : null;
+
+  /* (b) varredura.
+
+     O cursor `after` só serve para o caso do freio: sem filtro de grupo,
+     a segunda preservada continuaria aparecendo como "a mais velha" a
+     cada volta e travaria o laço nela. Com o filtro ligado ele é
+     desnecessário — a segunda filtrada some sozinha do resultado — mas
+     fica, porque não custa nada e o laço não pode depender de qual dos
+     dois caminhos está ativo. */
+  let after = null;
   for (let i = 0; i < MAX_PRUNE_DATES; i += 1) {
     const filters = [`snapshot_date=lt.${cutoff}`];
     if (after) filters.push(`snapshot_date=gt.${after}`);
+    if (untrackedFilter) filters.push(untrackedFilter);
     const found = await supabase(cfg, 'GET',
       `com_supply_snapshots?select=snapshot_date&${filters.join('&')}&order=snapshot_date.asc&limit=1`);
 
@@ -386,14 +443,29 @@ export async function pruneSnapshots(cfg, snapshotDate) {
     if (!date) break;
 
     if (isMonday(date)) {
-      after = date;          // preservada: continua procurando adiante
-      continue;
+      if (!untrackedFilter) {
+        /* Freio ligado: a segunda fica INTEIRA. Apagá-la aqui seria
+           exatamente o dado histórico que a regra existe para guardar. */
+        after = date;
+        continue;
+      }
+      await supabase(cfg, 'DELETE', `com_supply_snapshots?snapshot_date=eq.${date}&${untrackedFilter}`, { prefer: 'return=minimal' });
+      thinned.push(date);
+    } else {
+      await supabase(cfg, 'DELETE', `com_supply_snapshots?snapshot_date=eq.${date}`, { prefer: 'return=minimal' });
+      deleted.push(date);
     }
-    await supabase(cfg, 'DELETE', `com_supply_snapshots?snapshot_date=eq.${date}`, { prefer: 'return=minimal' });
-    deleted.push(date);
   }
 
-  return { cutoff, deleted };
+  return { cutoff, weeklyCutoff, deleted, thinned, tracked: tracked.length, thinning: canThin };
+}
+
+/* Grupos do DE>PARA, sem repetição. Hoje são 54; o limite de 1000 do
+   PostgREST cobre com folga e o freio de MAX_TRACKED_FOR_THINNING entra
+   muito antes disso. */
+async function fetchTrackedGroups(cfg) {
+  const rows = await supabase(cfg, 'GET', 'com_sku_markets?select=group_code&limit=1000');
+  return [...new Set((Array.isArray(rows) ? rows : []).map((r) => r.group_code).filter(Boolean))];
 }
 
 /* ── Orquestração ──────────────────────────────────────────────────────
@@ -451,6 +523,13 @@ export function logSnapshot(tag, r) {
       r.fx.stored.join(',') || '-', r.fx.missing.join(',') || '-');
   }
   if (r.fxError) console.error('%s: fx_failed reason=%s', tag, r.fxError);
-  if (r.prune) console.log('%s: prune cutoff=%s deleted=%s', tag, r.prune.cutoff, r.prune.deleted.join(',') || '-');
+  if (r.prune) {
+    console.log('%s: prune cutoff=%s deleted=%s thinned=%s tracked=%d%s', tag, r.prune.cutoff,
+      r.prune.deleted.join(',') || '-', r.prune.thinned.join(',') || '-', r.prune.tracked,
+      r.prune.thinning ? '' : ' THINNING_OFF');
+    if (!r.prune.thinning) {
+      console.warn('%s: segundas preservadas INTEIRAS — com_sku_markets tem %d grupos (vazio ou acima do limite)', tag, r.prune.tracked);
+    }
+  }
   if (r.pruneError) console.error('%s: prune_failed reason=%s', tag, r.pruneError);
 }
