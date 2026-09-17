@@ -3,3 +3,13 @@
 
 # Doc de parceiro (Lapak) — confidencial, não vai pro GitHub
 docs/vendor/
+
+# Ambiente local dos scripts do motor comercial (SUPABASE_URL + secret key)
+.env
+.env.local
+
+# Saída dos geradores (planilha interna e Annex A têm custo e margem)
+out/
+
+# Dependência local dos scripts (não é dependência do site)
+node_modules/

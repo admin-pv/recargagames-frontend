@@ -24,6 +24,10 @@
 /api/catalog  /.netlify/functions/catalog        200!
 /api/orders   /.netlify/functions/orders-create  200!
 
+# TEMPORÁRIO (C2 do Motor Comercial): disparador manual do supply-snapshot.
+# Remover antes do merge, junto com a Function e as entradas do gate.ts.
+/api/supply-snapshot-run  /.netlify/functions/supply-snapshot-run  200!
+
 
 # ── 1. /app/ não é endereço público ───────────────────────────────────────
 # O frontend mora em /app/, mas quem gateia é a Edge Function e ela só casa

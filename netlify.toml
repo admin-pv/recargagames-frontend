@@ -14,6 +14,13 @@
 [functions."orders-expire"]
   schedule = "*/10 * * * *"
 
+# supply-snapshot: foto diária do custo Lapak + câmbio, 07:00 UTC (04:00 em
+# BR). Idempotente por (snapshot_date, query_country, product_code). Roda
+# antes do expediente para a proposta do dia já ter custo atual. Também não
+# tem rota em /api/ nem entra no gate: não recebe entrada.
+[functions."supply-snapshot"]
+  schedule = "0 7 * * *"
+
 # ── 0. API do storefront → Netlify Functions ──────────────────────────────
 # Fase 2. Rotas explícitas, uma por Function, em vez de /api/*: um nome de
 # arquivo novo em netlify/functions/ não vira endpoint público sem alguém
@@ -29,6 +36,14 @@
 [[redirects]]
   from = "/api/orders"
   to = "/.netlify/functions/orders-create"
+  status = 200
+  force = true
+
+# TEMPORÁRIO (C2 do Motor Comercial): disparador manual do supply-snapshot.
+# Remover antes do merge, junto com a Function e as entradas do gate.ts.
+[[redirects]]
+  from = "/api/supply-snapshot-run"
+  to = "/.netlify/functions/supply-snapshot-run"
   status = 200
   force = true
 
