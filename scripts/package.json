@@ -1,0 +1,13 @@
+{
+  "name": "recargagames-commercial-scripts",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Geradores locais do motor comercial. NÃO é dependência do site: o Netlify só lê package.json da raiz do repo, e a raiz não tem nenhum.",
+  "scripts": {
+    "test": "node test/run.mjs"
+  },
+  "dependencies": {
+    "exceljs": "4.4.0"
+  }
+}
