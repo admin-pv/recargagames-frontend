@@ -55,7 +55,7 @@ async function main() {
   const date = pedida || await fetchLatestSnapshotDate();
   if (!date) throw new Error('com_supply_snapshots está vazia — rode o supply-snapshot antes.');
 
-  const [skuMarkets, benchmarks, snapshot, { map: fxRates, rows: fxRows }] = await Promise.all([
+  const [skuMarkets, benchmarks, snapshot, { map: fxRates, sources: fxSources, rows: fxRows }] = await Promise.all([
     fetchSkuMarkets(groups), fetchBenchmarks(groups), fetchSnapshot(date, groups), fetchFxRates(date)
   ]);
 
@@ -70,7 +70,7 @@ async function main() {
   const previousSnapshot = previousDate ? await fetchSnapshot(previousDate, groups) : [];
 
   const pricing = buildPricing({
-    date, previousDate, opportunity, items, skuMarkets, snapshot, previousSnapshot, fxRates, benchmarks
+    date, previousDate, opportunity, items, skuMarkets, snapshot, previousSnapshot, fxRates, fxSources, benchmarks
   });
 
   mkdirSync(OUT_DIR, { recursive: true });
@@ -95,7 +95,7 @@ async function main() {
   if (pricing.flags.length) {
     const porTipo = pricing.flags.reduce((m, f) => (m[f.type] = (m[f.type] || 0) + 1, m), {});
     console.log(`\n  FLAGS: ${Object.entries(porTipo).map(([t, n]) => `${t}=${n}`).join(' ')}`);
-    for (const f of pricing.flags.filter((x) => x.type === 'fx_override_divergente' || x.type === 'preco_acima_do_oficial')) {
+    for (const f of pricing.flags.filter((x) => x.type === 'fx_override_divergente' || x.type === 'fx_desatualizado' || x.type === 'preco_acima_do_oficial')) {
       console.log(`    ! ${f.type} ${f.group || ''} ${f.detail}`);
     }
   }

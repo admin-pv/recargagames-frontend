@@ -48,6 +48,23 @@ export function annexRows(pricing) {
   }));
 }
 
+/* A idade da taxa vai junto do número: na Lapak só o USD_IDR é diário, e
+   uma taxa de dez meses atrás com cara de cotação de hoje é o tipo de
+   coisa que atravessa a proposta inteira sem ninguém ver. */
+function idadeTexto(pair, inputs, override, doDia) {
+  const dias = inputs.fxAges ? inputs.fxAges[pair] : null;
+  const fonte = inputs.fxSources ? inputs.fxSources[pair] : null;
+  const quando = dias === null || dias === undefined
+    ? (fonte ? String(fonte) : 'sem data de criação')
+    : dias === 0 ? 'criada hoje' : `criada há ${dias} dia${dias === 1 ? '' : 's'}`;
+  if (override !== undefined && override !== null) {
+    return doDia !== undefined
+      ? `override da oportunidade (Lapak: ${doDia}, ${quando})`
+      : 'override da oportunidade (a Lapak não tem este par)';
+  }
+  return `Lapak, ${quando}`;
+}
+
 function newWorkbook() {
   const wb = new ExcelJS.Workbook();
   /* Metadado também é conteúdo: sai fixo, não com o usuário da máquina. */
@@ -130,9 +147,7 @@ export async function writeInternal(pricing, filePath) {
     inputs_.addRow({
       campo: pair,
       valor: Number(ov !== undefined && ov !== null ? ov : dia),
-      obs: ov !== undefined && ov !== null
-        ? `override da oportunidade${dia !== undefined ? ` (Lapak no dia: ${dia})` : ''}`
-        : 'Lapak no dia'
+      obs: idadeTexto(pair, inputs, ov, dia)
     });
   }
 

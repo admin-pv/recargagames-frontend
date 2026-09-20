@@ -54,7 +54,29 @@ import { dec, Dec } from './decimal.mjs';
 
 export const DELTA_THRESHOLD = dec('0.005');   // 0,5%
 export const FX_DIVERGENCE_THRESHOLD = dec('0.05');  // 5%
+
+/* Idade máxima de uma taxa da Lapak antes de virar FLAG.
+
+   Descoberto em 20/09, e é o motivo desta constante existir: só o USD_IDR
+   é diário na Lapak. No mesmo dia, USD_ARS, USD_COP e USD_PEN vieram com
+   created_date de 27/08 (24 dias) e USD_PHP de 14/11/2025 (dez meses).
+   Uma taxa dessas converte benchmark e sai como headroom sem nada na tela
+   dizendo de quando ela é. O dado continua servindo de referência — moeda
+   estável não anda muito — mas nunca mais entra mudo numa proposta. */
+export const FX_STALE_DAYS = 7;
 export const QA_WITHOUT_HEADROOM = new Set(['SUSPECT', 'BLOCKED']);
+
+/* Idade em dias da taxa, lida do `source` que o snapshot grava
+   ("lapak:2026-08-27 14:17:56" → o created_date que a Lapak devolveu).
+   Devolve null quando não dá para saber — taxa manual, por exemplo. */
+export function fxAgeDays(source, referenceDate) {
+  const m = /(\d{4}-\d{2}-\d{2})/.exec(String(source || ''));
+  if (!m || !referenceDate) return null;
+  const criada = Date.parse(`${m[1]}T00:00:00Z`);
+  const ref = Date.parse(`${referenceDate}T00:00:00Z`);
+  if (Number.isNaN(criada) || Number.isNaN(ref)) return null;
+  return Math.round((ref - criada) / 86400000);
+}
 
 /* ── Passo 3: o SKU vencedor de um grupo ──────────────────────────────── */
 export function pickBestSku(rows, { skuOverride = null } = {}) {
@@ -124,7 +146,7 @@ export function headroom({ officialUsd, partnerUsd }) {
 export function buildPricing(input) {
   const {
     date, previousDate = null, opportunity, items = [], skuMarkets = [],
-    snapshot = [], previousSnapshot = [], fxRates = {}, benchmarks = []
+    snapshot = [], previousSnapshot = [], fxRates = {}, fxSources = {}, benchmarks = []
   } = input;
 
   const markets = opportunity.markets || [];
@@ -136,6 +158,22 @@ export function buildPricing(input) {
   if (!usdIdr) throw new Error(`pricing: sem câmbio USD_IDR para ${date} — sem ele não há custo em dólar`);
   const idrRate = dec(usdIdr);
 
+  /* Idade de cada taxa da Lapak. Um flag por PAR, não por item: cinquenta
+     linhas repetindo "USD_ARS está velho" enterrariam o resto. */
+  const idade = {};
+  for (const [pair, source] of Object.entries(fxSources)) {
+    const dias = fxAgeDays(source, date);
+    idade[pair] = dias;
+    if (dias === null || dias <= FX_STALE_DAYS) continue;
+    const coberto = fxOverrides[pair] !== undefined && fxOverrides[pair] !== null;
+    flags.push({
+      type: 'fx_desatualizado', group: null,
+      detail: `${pair} da Lapak tem ${dias} dias (criada em ${String(source).replace(/^lapak:/, '')})` +
+              (coberto ? ' — nesta oportunidade quem vale é o override, mas a comparação com ele fica frouxa'
+                       : ' — é ela que converte o benchmark deste mercado')
+    });
+  }
+
   /* fx_overrides defasado é erro silencioso de proposta: só sai daqui. */
   for (const [pair, value] of Object.entries(fxOverrides)) {
     if (fxRates[pair] === undefined || fxRates[pair] === null) continue;
@@ -144,9 +182,16 @@ export function buildPricing(input) {
     if (real.isZero()) continue;
     const diff = ov.sub(real).div(real).abs();
     if (diff.gt(FX_DIVERGENCE_THRESHOLD)) {
+      /* A idade entra no texto porque sem ela o flag sugere uma precisão
+         que não existe: comparar um override de julho com uma taxa de
+         agosto e chamar a segunda de "do dia" é enganoso. */
+      const dias = idade[pair];
+      const quando = dias === null || dias === undefined ? 'da Lapak'
+        : dias === 0 ? 'da Lapak, de hoje'
+        : `da Lapak, de ${dias} dia${dias === 1 ? '' : 's'} atrás`;
       flags.push({
         type: 'fx_override_divergente', group: null,
-        detail: `${pair}: override ${ov.toFixed(4)} contra ${real.toFixed(4)} do dia (${diff.mul(100).toFixed(1)}% de diferença)`
+        detail: `${pair}: override ${ov.toFixed(4)} contra ${real.toFixed(4)} ${quando} (${diff.mul(100).toFixed(1)}% de diferença)`
       });
     }
   }
@@ -282,7 +327,7 @@ export function buildPricing(input) {
     flags,
     inputs: {
       markupPct: dec(opportunity.markup_pct), feeFixedUsd: dec(opportunity.fee_fixed_usd || 0),
-      usdIdr: idrRate, fxOverrides, fxRates, markets
+      usdIdr: idrRate, fxOverrides, fxRates, fxSources, fxAges: idade, markets
     }
   };
 }

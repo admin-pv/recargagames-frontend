@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from './harness.mjs';
 import { dec } from '../lib/decimal.mjs';
-import { buildPricing, pickBestSku, partnerPrice, headroom, rateFor } from '../lib/pricing.mjs';
+import { buildPricing, pickBestSku, partnerPrice, headroom, rateFor, fxAgeDays } from '../lib/pricing.mjs';
 import { parseProduct, rowsFromProducts } from '../../netlify/lib/supply.mjs';
 
 /* ── Base reutilizável: uma oportunidade de 3 mercados, markup 2% ─────── */
@@ -312,4 +312,52 @@ test('include=false fica de fora', () => {
   const out = build({ items: [{ ...ITEM, include: false }], skuMarkets: [sku('G1', 'AR')], snapshot: [snap('G1', 'G1-S1', 100)] });
   assert.equal(out.rows.length, 0);
   assert.equal(out.excluded.length, 0, 'include=false não é "sem DE>PARA"');
+});
+
+/* ── Idade do câmbio (achado de 20/09: só o USD_IDR é diário) ─────────── */
+
+test('fxAgeDays lê a data do created_date que o snapshot guardou', () => {
+  assert.equal(fxAgeDays('lapak:2026-08-27 14:17:56', '2026-09-20'), 24);
+  assert.equal(fxAgeDays('lapak:2026-09-20 00:00:05', '2026-09-20'), 0);
+  assert.equal(fxAgeDays('manual', '2026-09-20'), null);
+  assert.equal(fxAgeDays(null, '2026-09-20'), null);
+});
+
+test('taxa da Lapak com mais de 7 dias vira flag, uma por par', () => {
+  const out = build({
+    items: [ITEM, { ...ITEM, group_code: 'G2', item_label: '200 Gems' }],
+    skuMarkets: [sku('G1', 'PE'), sku('G2', 'PE')],
+    snapshot: [snap('G1', 'G1-S1', 17663), snap('G2', 'G2-S1', 17663)],
+    benchmarks: [bench('G1', 'PE', 10, 'PEN'), bench('G2', 'PE', 20, 'PEN')],
+    fxSources: { USD_IDR: 'lapak:2026-09-16 00:00:05', USD_PEN: 'lapak:2026-08-27 14:17:56' }
+  });
+  const velhas = out.flags.filter((f) => f.type === 'fx_desatualizado');
+  assert.equal(velhas.length, 1, 'um flag por par, não um por item');
+  assert.match(velhas[0].detail, /USD_PEN.*20 dias/);
+});
+
+test('taxa fresca não vira flag', () => {
+  const out = build({ fxSources: { USD_IDR: 'lapak:2026-09-16 00:00:05' } });
+  assert.equal(out.flags.filter((f) => f.type === 'fx_desatualizado').length, 0);
+});
+
+test('o flag de divergência passa a dizer a idade da taxa comparada', () => {
+  const out = build({
+    fxRates: { ...FX, USD_ARS: '1514.75' },
+    fxSources: { USD_ARS: 'lapak:2026-08-27 14:17:56' }
+  });
+  const f = out.flags.find((x) => x.type === 'fx_override_divergente');
+  assert.match(f.detail, /20 dias atrás/, 'sem a idade, "do dia" sugeria precisão que não existe');
+});
+
+test('par coberto por override é sinalizado diferente de par que converte sozinho', () => {
+  const comOverride = build({ fxSources: { USD_IDR: 'lapak:2026-09-16 00:00:05', USD_ARS: 'lapak:2025-11-14 08:59:16' } });
+  assert.match(comOverride.flags.find((f) => f.type === 'fx_desatualizado').detail, /override/);
+
+  const semOverride = build({
+    opportunity: { ...OPP, fx_overrides: {} },
+    fxRates: { ...FX, USD_COP: '3123.27' },
+    fxSources: { USD_IDR: 'lapak:2026-09-16 00:00:05', USD_COP: 'lapak:2025-11-14 08:59:16' }
+  });
+  assert.match(semOverride.flags.find((f) => f.detail.includes('USD_COP')).detail, /converte o benchmark/);
 });

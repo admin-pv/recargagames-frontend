@@ -1,4 +1,4 @@
-# Playvision — Log de Sessão 16–17/09/2026 (Motor Comercial, Modelo 2)
+# Playvision — Log de Sessão 16–20/09/2026 (Motor Comercial, Modelo 2)
 
 **Foco:** transformar o pricing feito à mão na planilha Plusmo v5 num
 comando. Custo do dia vindo da Lapak por snapshot, benchmarks e
@@ -24,19 +24,30 @@ proposta comercial, e a proposta é o que destrava cash-in.
   policy, `REVOKE ALL` de `anon`/`authenticated`/`PUBLIC`. Conferência:
   C-3 e C-4 com zero linha. Seed da Plusmo aplicado: 1 oportunidade, 54
   itens, 162 linhas de DE>PARA, 66 benchmarks.
-- **C2 parte 1 fechado.** Primeira execução real do snapshot no Deploy
-  Preview: **21.329 linhas, 11 de 11 países, 14,6 s**, nenhum país falhou.
-  O risco de timeout do C4 saiu do caminho crítico.
-- 🔴 **O FX falhou com 401** — o valor de `PROXY_ADMIN_KEY` no contexto
-  Deploy Preview diverge do que o proxy aceita. Diagnóstico em §4.3.
-  Bloqueia o C3 até a env ser corrigida.
+- **C2 fechado.** Snapshot no Deploy Preview: **21.421 linhas, 11 de 11
+  países, 11,6 s**, nenhum país falhou. O diff contra o CSV da interface
+  web deu **99,85% de identidade**, e nos 54 grupos da Plusmo **160 linhas
+  conferidas, 160 idênticas** (§4.5).
+- **C3 fechado.** As duas planilhas saem por comando, três linhas foram
+  recalculadas à mão e batem nos seis campos, o Annex A real passou na
+  varredura, e o ciclo de benchmark foi provado nos dois sentidos (§5.5).
+- 🔴 **Causa raiz do 401 do FX: o 1Password está defasado.** Não era
+  contexto de deploy nem paste errado — a chave guardada no cofre
+  (`324dcded`) não é nenhuma das duas que o proxy aceita. O Netlify
+  recebeu fielmente um valor que o proxy recusa (§4.3).
+- 🔴 **O CSV da interface web NÃO é o mesmo dado da API** (§2.4). 136
+  produtos `available` no CSV não existem na resposta da API — entre eles
+  os quatro `ZZZ` que a Plusmo quer cotar.
 - **Três premissas do brief não sobreviveram ao contato com a API real**
   (§2), e as três mudariam o resultado em silêncio se não tivessem sido
   conferidas.
 - **A retenção do brief estourava o plano Free** em 340 MB de regime
   estável. Refeita com o volume medido: 14 dias inteiros + segundas
   filtradas, ~60 MB (§4.2).
-- **70 testes**, sem framework, incluindo um que gera o Annex A, abre de
+- **Na Lapak, só o `USD_IDR` é diário.** `USD_ARS`, `USD_COP` e `USD_PEN`
+  vieram com 24 dias e `USD_PHP` com 310. O gerador passou a levantar FLAG
+  com a idade de qualquer taxa acima de 7 dias (§5.4).
+- **75 testes**, sem framework, incluindo um que gera o Annex A, abre de
   volta e varre célula por célula atrás de custo, margem, SKU e IDR.
 - **Gasto: zero.** Nenhuma chamada de criação de pedido, nenhum serviço
   novo, nenhuma dependência no site (o `exceljs` vive só em `scripts/`).
@@ -105,6 +116,33 @@ não existem em nenhum dos 11 países.
 
 `tw` e `hk` respondem `SUCCESS` com zero produto. `in` responde com 81
 produtos e **zero** available.
+
+### 2.4 O CSV da interface web não é o mesmo dado da API
+
+O brief dava como certo que "o CSV que a interface web da Lapak exporta é
+o mesmo dado" e que ele viraria só ferramenta de conferência. O diff do C2
+(§4.5) mostrou que não: **136 produtos aparecem `available` no CSV e não
+existem na resposta da API**, espalhados por 8 providers que, fora esses
+produtos, a API devolve normalmente (`S19` sozinho tem 198 produtos na
+Indonésia pela API).
+
+Não é exclusão de provider e não é status divergente — a API simplesmente
+**não lista** aqueles códigos. `ZZZ300`, `ZZZ980`, `ZZZ1980` e `ZZZ3280`
+são o caso que dói: o CSV os mostra `available` pelo `-S19` na Indonésia,
+e a API devolve zero linha para os quatro.
+
+**Decisão do Vinicius (20/09): seguem SEM SUPPLY na proposta.** Item que a
+API não devolve não entra cotado — o fulfillment passa pela API, e cotar o
+que não dá para pedir é prometer o que não se entrega. A divergência
+interface × API vira pergunta comercial para a Lapak, junto com o
+`check_id`.
+
+No sentido contrário, 32 linhas existem no nosso snapshot e não no CSV:
+são produtos com preço de 99.999.999 e 999.999.999 IDR, todos do provider
+`S9090` — marcador de produto desligado, que o CSV filtra e a API não.
+Não chegam a fazer estrago porque um preço desses estoura o headroom para
+negativo e cai no FLAG `preco_acima_do_oficial`, mas é bom saber que
+existem.
 
 ---
 
@@ -199,29 +237,38 @@ Duas saídas de emergência apontam para guardar dado demais, nunca para
 apagar: `com_sku_markets` vazia ou com mais de 400 grupos desliga a
 filtragem e preserva a segunda **inteira**, com aviso no log.
 
-### 4.3 🔴 O 401 do FX (aberto)
+### 4.3 O 401 do FX: o cofre é que estava defasado
 
 A execução de 16/09 gravou os 21.329 custos e falhou só no câmbio, com
-`proxy_/fx-rate.php_http_401`. Diagnóstico em três degraus:
+`proxy_/fx-rate.php_http_401`. O valor da env foi reinserido em todos os
+contextos do Netlify em 20/09 e **o 401 sobreviveu**. Diagnóstico completo:
 
 | Teste | Resultado |
 |---|---|
-| Chave do próprio servidor, URL pública, header `x-proxy-key` | **200** |
+| Chave do `.env` do Hetzner, URL pública, header `x-proxy-key` | **200** |
 | Mesma chamada sem o header | **401** |
 | `snapshotFx()` real, chave do servidor, Supabase apontado pro vazio | atravessou o proxy |
+| `server.js` rodando no Hetzner × clone canônico | **byte a byte igual** (`bc5066db723d4456`) |
+| Chave do 1Password, mesma chamada | fingerprint `324dcded` → **401** |
 
-Não é código, não é o nome do header (`x-proxy-key`, `server.js` linha 70),
-e não é ausência da env — se estivesse vazia, `snapshotEnv()` teria
-devolvido `misconfigured` em 500 e nem os custos entrariam. **É o valor no
-contexto Deploy Preview que diverge.** O Netlify permite valor por contexto.
+Não era o header (`x-proxy-key`, `server.js` linha 70), não era o código,
+não era contexto de deploy e não era paste truncado. **A chave guardada no
+1Password não é nenhuma das duas que o proxy aceita** (`7b5fe62d` =
+`PROXY_ADMIN_KEY`, `6d6152ca` = `PROXY_RELOAD_KEY`). Alguém trocou a chave
+no servidor e o cofre ficou para trás; o Netlify recebeu fielmente um valor
+morto. O app de resgate continua funcionando porque tem o valor certo
+gravado, não porque o cofre esteja certo — o que também quer dizer que
+ninguém teria descoberto isso até a próxima vez que alguém fosse buscar a
+chave no cofre.
 
-Impressões digitais das duas chaves que o proxy aceita (sha256, 8 primeiros
-caracteres): `7b5fe62d` (`PROXY_ADMIN_KEY`) e `6d6152ca`
-(`PROXY_RELOAD_KEY`, mesmo escopo). Conferência sem expor a chave:
-`pbpaste | tr -d '\n' | shasum -a 256 | cut -c1-8`.
+**Conserto (segunda):** levar o valor do `.env` do Hetzner para o Netlify
+**e para o 1Password**. Só um dos dois faz o problema voltar na próxima
+consulta ao cofre. Rotação deliberada da chave é outra tarefa e mexe no
+app de resgate, que usa a mesma.
 
-O caminho é alinhar o Netlify ao proxy, não o contrário: mexer na chave do
-proxy afeta o app de resgate, que também a usa.
+**Desbloqueio usado em 20/09**, aprovado pelo Vinicius: o câmbio do dia
+foi gravado localmente pela mesma `snapshotFx()` da Function, com a chave
+lida do servidor. Nenhum código novo no caminho do dinheiro.
 
 ### 4.4 A deduplicação não era teórica
 
@@ -230,6 +277,34 @@ O `id` veio com `duplicates: 2` na primeira execução: a Lapak repetiu dois
 o lote inteiro daquele país com 21000 (`ON CONFLICT ... cannot affect row a
 second time`). É por isso que `id` gravou 12.556 e não os 12.558 medidos
 direto na API.
+
+### 4.5 O diff contra o CSV da interface (C2 parte 2)
+
+`Product_Reseller (29).csv`, exportado em 20/09: 126.571 linhas, todos os
+países da Lapak. A coluna que importa é **`Reseller Price`** — é idêntica
+para o mesmo produto em países diferentes, enquanto `Recommended Price`
+muda com a moeda local. É o nosso `price_idr`.
+
+```
+linhas do CSV nos nossos 11 países : 82.590  (21.527 available)
+linhas gravadas pelo snapshot      : 21.421
+
+idênticos (código + preço + status): 21.388   99,85%
+preço diferente                    :      1
+status diferente                   :      0
+available no CSV, ausente no nosso :    136   ← §2.4
+no nosso, ausente no CSV           :     32   ← marcadores S9090
+
+OS 54 GRUPOS DA PLUSMO: 160 linhas conferidas, 160 idênticas, 0 divergente
+```
+
+A única divergência de preço (`id|CDKSTESSCK-S127`, 311.146 no CSV contra
+55.292 no nosso) é 1 linha em 21 mil, e as duas fotos foram tiradas em
+momentos diferentes do mesmo dia — a Lapak reprecifica durante o dia.
+
+**O que o C2 provou:** para tudo que a Plusmo cota, a API cobre o que a
+planilha manual usava, com o mesmo preço e o mesmo status. **O que o C2
+desmentiu:** que as duas fontes sejam a mesma coisa (§2.4).
 
 ---
 
@@ -266,6 +341,48 @@ independentes falharam** (vocabulário no cabeçalho e contagem de colunas).
    escolheu aquele provider; trocar calado é decidir por ele. Vira BLOCKED
    com FLAG dizendo que foi o override.
 
+### 5.4 Na Lapak, só o `USD_IDR` é diário
+
+O `source` que o snapshot grava em `com_fx_rates` guarda o `created_date`
+que a Lapak devolve, e foi ele que denunciou, em 20/09:
+
+| Par | Taxa | Criada em | Idade |
+|---|---|---|---|
+| `USD_IDR` | 17812,1 | 2026-09-20 00:00 | hoje |
+| `USD_ARS` | 1514,75 | 2026-08-27 14:17 | 24 dias |
+| `USD_COP` | 3123,27 | 2026-08-27 14:17 | 24 dias |
+| `USD_PEN` | 3,35 | 2026-08-27 14:17 | 24 dias |
+| `USD_PHP` | 16559 | 2025-11-14 08:59 | **310 dias** |
+
+O estrago silencioso: o FLAG de divergência dizia "override 1428,57 contra
+1514,75 **do dia**" — comparando um número de 24/07 com outro de 27/08 e
+chamando o segundo de cotação de hoje. E numa oportunidade sem
+`fx_overrides`, o headroom em PHP sairia convertido por uma taxa de dez
+meses, sem nada na tela dizendo isso.
+
+Decisão do Vinicius (20/09): o gerador levanta FLAG com a idade em
+qualquer câmbio acima de 7 dias, e a idade entra no texto do flag de
+divergência. O dado da Lapak segue como referência — moeda estável não
+anda muito — mas **nunca mais entra mudo numa proposta**.
+
+### 5.5 O C3, conferido à mão
+
+- **Três linhas recalculadas por fora**, com aritmética comum, batendo nos
+  seis campos (SKU vencedor, IDR, custo USD, preço ao parceiro, oficial em
+  USD, headroom): `FFLATAM100` USD 0,6970 contra oficial 0,99 (29,6%),
+  `ROB25USDGLO` USD 23,3524 contra 25,00 (6,6%), `MNCT1720` USD 7,7765
+  contra 13.900 ARS convertidos (20,1%). Os três exercitam benchmark em
+  USD, PIN e benchmark em moeda local.
+- **Annex A real varrido**: 330 células contra 99 números e 108 textos
+  tirados da planilha interna do mesmo dia. Nenhum vazamento.
+- **Ciclo de benchmark provado nos dois sentidos**: export → editar →
+  dry-run (não escreveu nada, conferido no banco) → import (1 linha) →
+  reverter pelo CSV original → re-export. Duas linhas ruins plantadas de
+  propósito (typo no `group_code`, `qa_status` inválido) foram bloqueadas
+  apontando a linha do arquivo, e as 66 boas passaram.
+- **O DELTA justifica o projeto**: em 4 dias, 22 dos 49 itens cotados
+  mudaram de custo mais de 0,5% (16 subiram, 6 baixaram) e 1 sumiu.
+
 ---
 
 ## 6. Erros desta sessão
@@ -297,6 +414,15 @@ A conferência S-2 do seed saiu com "43 topup + 11 pin" num rascunho, número
 que eu não tinha contado. São **36 topup + 18 pin**. Corrigido antes de o
 arquivo ir para o SQL Editor.
 
+### 6.5 O varredor que acusou vazamento onde não havia
+
+A primeira varredura do Annex A real acusou oito vazamentos. Todos falsos:
+o código de país `ar` casava como **substring** dentro de "P**ar**tner
+Price", "M**ar**vel Rivals" e "Gift C**ar**d". O teste automatizado não
+tinha esse problema (usa limite de palavra para token curto); o script
+avulso que escrevi na hora, sim. Trocado por `\b`, a varredura ficou
+limpa.
+
 ---
 
 ## 7. Checkpoints
@@ -304,16 +430,23 @@ arquivo ir para o SQL Editor.
 | # | Estado |
 |---|---|
 | **C1** | ✅ Migration e seed em produção. C-3 e C-4 com zero linha; 1 oportunidade, 54 itens, 162 DE>PARA, 66 benchmarks, 0 item sem DE>PARA. |
-| **C2 parte 1** | ✅ 21.329 linhas, 11/11 países, 14,6 s, nenhum país falhou. Disparador confirmado atrás do gate (401 sem cookie). 🔴 FX em 401. |
-| **C2 parte 2** | ⏳ Diff contra o CSV da interface web da Lapak e cobertura dos 54 grupos. |
-| **C3** | ⏳ Bloqueado pelo FX: sem `USD_IDR` do dia o gerador se recusa a cotar. |
-| **C4** | ⏳ Remover o disparador temporário, merge, conferir a execução agendada. |
+| **C2** | ✅ 21.421 linhas, 11/11 países, 11,6 s. Diff contra o CSV: 99,85% de identidade; 160/160 nas linhas da Plusmo. Disparador confirmado atrás do gate (401 sem cookie). |
+| **C3** | ✅ Duas planilhas por comando, 3 linhas conferidas à mão nos 6 campos, Annex A real sem vazamento, ciclo de benchmark provado nos dois sentidos. |
+| **C4** | ⏳ Segunda: corrigir a chave no Netlify **e no 1Password**, redisparar para provar o FX de ponta a ponta, remover o disparador temporário, merge e conferir a primeira execução agendada. |
 
 ---
 
 ## 8. Em aberto
 
-- 🔴 **`PROXY_ADMIN_KEY` por contexto no Netlify** (§4.3). Trava o C3.
+- 🔴 **Chave do proxy no Netlify E no 1Password** (§4.3). O cofre guarda
+  uma chave morta; corrigir só o Netlify faz o problema voltar na próxima
+  vez que alguém consultar o cofre.
+- 🔴 **Pergunta comercial para a Lapak** (§2.4): por que 136 produtos
+  aparecem `available` na interface web e não existem na resposta da API,
+  entre eles os quatro `ZZZ`. Vai junto com o `check_id`.
+- 🟡 **Câmbio de mercado não-IDR**: a Lapak entrega taxa velha (§5.4).
+  Hoje o FLAG avisa; se virar incômodo recorrente, a saída é `fx_overrides`
+  por oportunidade ou uma fonte de câmbio própria — decisão em aberto.
 - 🔴 **Remover `supply-snapshot-run` antes do merge**: o arquivo, as duas
   rotas (`netlify.toml` e `_redirects`) e as duas entradas do `gate.ts`.
   Mesmo procedimento do `orders-expire-run` (commit `d3a3cf2`).

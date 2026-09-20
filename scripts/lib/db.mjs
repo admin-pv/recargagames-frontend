@@ -92,8 +92,9 @@ export async function fetchSnapshot(date, groups) {
 export async function fetchFxRates(date) {
   const rows = await getAll(`com_fx_rates?rate_date=eq.${date}&select=pair,rate,source`);
   const map = {};
-  for (const r of rows) map[r.pair] = r.rate;
-  return { map, rows };
+  const sources = {};
+  for (const r of rows) { map[r.pair] = r.rate; sources[r.pair] = r.source; }
+  return { map, sources, rows };
 }
 
 /* Grupos conhecidos: o que existe no snapshot mais recente OU no DE>PARA.
